@@ -181,6 +181,18 @@ npx tsx src/cli.ts list queued
 npx tsx src/cli.ts status
 ```
 
+### Apply to Jobs
+```bash
+# Test application process without submitting (dry run)
+npm run apply -- --easy --dry-run
+
+# Apply to Easy Apply jobs
+npm run apply -- --easy
+
+# Apply to external ATS jobs only
+npm run apply -- --ext
+```
+
 ## Technical Implementation
 
 ### Files Created

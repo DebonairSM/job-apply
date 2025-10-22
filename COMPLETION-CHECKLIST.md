@@ -165,6 +165,15 @@ npx tsx src/cli.ts list queued
 npx tsx src/cli.ts status
 ```
 
+### Test Apply Command
+```bash
+# Test application process without submitting (dry run)
+npm run apply -- --easy --dry-run
+
+# Apply to Easy Apply jobs
+npm run apply -- --easy
+```
+
 ## Files Created
 1. `src/ai/profiles.ts` - Profile definitions
 2. `IMPLEMENTATION-SUMMARY.md` - Technical summary
