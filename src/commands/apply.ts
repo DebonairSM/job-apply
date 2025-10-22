@@ -111,9 +111,15 @@ async function fillEasyApply(
   // Wait a moment for any navigation or modal
   await page.waitForTimeout(1500);
   
+  // Check if page is still valid
+  if (page.isClosed()) {
+    console.log('   ❌ Page closed unexpectedly after clicking Easy Apply');
+    return false;
+  }
+  
   // Check if we navigated away (shouldn't happen with Easy Apply)
-  const afterUrl = page.url();
-  if (afterUrl !== beforeUrl && !afterUrl.includes('/jobs/view/')) {
+  const afterUrl = await page.url().catch(() => '');
+  if (afterUrl && afterUrl !== beforeUrl && !afterUrl.includes('/jobs/view/')) {
     console.log(`   ❌ Unexpected navigation to: ${afterUrl}`);
     console.log('      Going back to job page...');
     await page.goBack({ waitUntil: 'domcontentloaded' });
@@ -123,52 +129,95 @@ async function fillEasyApply(
   
   // Wait for modal
   const modal = page.locator('[data-test-modal], .jobs-easy-apply-modal, [role="dialog"]');
-  await modal.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
+  const modalVisible = await modal.waitFor({ state: 'visible', timeout: 10000 }).catch(() => false);
+  
+  if (!modalVisible) {
+    console.log('   ⚠️  Easy Apply modal did not appear');
+    await takeScreenshot(page, jobId, 'modal_not_visible');
+    return false;
+  }
 
   let stepNum = 0;
-  const maxSteps = 8;
+  const maxSteps = 10;
+  let previousLabelsHash = '';
+  let stuckCount = 0;
 
   for (stepNum = 0; stepNum < maxSteps; stepNum++) {
     await page.waitForTimeout(800);
+    
+    // Check if page is still valid
+    if (page.isClosed()) {
+      console.log('   ❌ Page closed during application process');
+      return false;
+    }
 
     // Take screenshot
     const screenshotPath = await takeScreenshot(page, jobId, stepNum);
 
     // Extract labels from current step
     const labels = await extractLabels(page);
-    console.log(`      Step ${stepNum + 1}: Found ${labels.length} fields`);
+    
+    // Create a hash of labels to detect if we're on the same step
+    const labelsHash = labels.sort().join('|');
+    const isSameStep = labelsHash === previousLabelsHash && labelsHash !== '';
+    
+    if (isSameStep) {
+      stuckCount++;
+      console.log(`      Step ${stepNum + 1}: Same as previous step (stuck count: ${stuckCount})`);
+      if (stuckCount >= 3) {
+        console.log('   ⚠️  Form appears stuck - same fields detected 3 times');
+        return false;
+      }
+    } else {
+      stuckCount = 0;
+      console.log(`      Step ${stepNum + 1}: Found ${labels.length} fields`);
+      previousLabelsHash = labelsHash;
+    }
 
-    if (labels.length > 0) {
+    if (labels.length > 0 && !isSameStep) {
       // Map labels to canonical keys
       const mappings = await mapLabelsSmart(labels);
       
-      if (dryRun) {
-        console.log('      [DRY RUN] Would fill:');
-        for (const mapping of mappings) {
-          if (mapping.key !== 'unknown' && answers[mapping.key]) {
+      // Show what we're filling
+      let fieldsToFill = 0;
+      for (const mapping of mappings) {
+        if (mapping.key !== 'unknown' && answers[mapping.key]) {
+          fieldsToFill++;
+          if (dryRun) {
             console.log(`        - ${mapping.label} → ${mapping.key} = "${answers[mapping.key]}"`);
           }
         }
-      } else {
-        // Fill fields
-        for (const mapping of mappings) {
-          if (mapping.key === 'unknown') continue;
-          
-          const value = answers[mapping.key];
-          if (!value) continue;
+      }
+      
+      if (fieldsToFill > 0) {
+        console.log(`      Filling ${fieldsToFill} fields${dryRun ? ' [DRY RUN]' : ''}...`);
+      }
+      
+      // Fill fields (even in dry run to allow progression through form)
+      for (const mapping of mappings) {
+        if (mapping.key === 'unknown') continue;
+        
+        const value = answers[mapping.key];
+        if (!value) continue;
 
+        try {
           await fillFieldByLabel(page, mapping.label, value);
-        }
-
-        // Try to upload resume
-        const fileInput = page.locator('input[type="file"]');
-        if (await fileInput.count() > 0) {
-          try {
-            await fileInput.first().setInputFiles(resumePath);
-            console.log('      📎 Resume uploaded');
-          } catch (error) {
-            console.log('      ⚠️  Resume upload failed');
+        } catch (error) {
+          // Log but continue if a field fails to fill
+          if (process.env.DEBUG) {
+            console.log(`      Warning: Failed to fill "${mapping.label}": ${(error as Error).message}`);
           }
+        }
+      }
+
+      // Try to upload resume
+      const fileInput = page.locator('input[type="file"]');
+      if (await fileInput.count() > 0) {
+        try {
+          await fileInput.first().setInputFiles(resumePath);
+          console.log('      📎 Resume uploaded');
+        } catch (error) {
+          console.log('      ⚠️  Resume upload failed');
         }
       }
     }
@@ -184,7 +233,6 @@ async function fillEasyApply(
 
     // Try to proceed
     const action = await nextOrSubmit(page, dryRun);
-    console.log(`      Action: ${action}`);
 
     if (action === 'submit') {
       console.log('   ✅ Application submitted!');
@@ -192,13 +240,17 @@ async function fillEasyApply(
     }
 
     if (action === 'done') {
-      console.log('   ℹ️  Application completed (or already applied)');
+      console.log('   ✅ Application completed!');
       return true;
     }
 
     if (action === 'stuck') {
-      console.log('   ⚠️  Stuck - manual intervention needed');
+      console.log('   ⚠️  Cannot proceed - Next button not found or disabled');
       return false;
+    }
+
+    if (action === 'next') {
+      console.log('      → Progressing to next step');
     }
 
     await randomDelay();
@@ -381,40 +433,45 @@ async function fillFieldByLabel(page: Page, label: string, value: string): Promi
 }
 
 async function nextOrSubmit(page: Page, dryRun: boolean): Promise<'next' | 'submit' | 'done' | 'stuck'> {
+  // Check for done/success messages first
+  const doneIndicators = page.locator('button:has-text("Done"), h2:has-text("Application sent"), h3:has-text("Application sent")');
+  if (await doneIndicators.count() > 0) {
+    return 'done';
+  }
+
   // Check for submit button
-  const submitBtn = page.locator('button:has-text("Submit application"), button:has-text("Submit")');
+  const submitBtn = page.locator('button:has-text("Submit application"), button:has-text("Submit"), button[aria-label*="Submit application"]');
   if (await submitBtn.count() > 0) {
     if (!dryRun) {
       await submitBtn.first().click();
       await page.waitForTimeout(1000);
+    } else {
+      console.log('      [DRY RUN] Would click Submit button');
     }
     return 'submit';
   }
 
-  // Check for review button
-  const reviewBtn = page.locator('button:has-text("Review")');
+  // Check for review button - click it even in dry run to see the review page
+  const reviewBtn = page.locator('button:has-text("Review"), button[aria-label*="Review"]');
   if (await reviewBtn.count() > 0) {
-    if (!dryRun) {
-      await reviewBtn.first().click();
-      await page.waitForTimeout(1000);
-    }
+    await reviewBtn.first().click();
+    await page.waitForTimeout(1000);
     return 'next';
   }
 
-  // Check for next button
-  const nextBtn = page.locator('button:has-text("Next"), button:has-text("Continue")');
+  // Check for next/continue button - click it even in dry run to progress through form
+  const nextBtn = page.locator('button:has-text("Next"), button:has-text("Continue"), button[aria-label*="Continue"], button[aria-label*="Next"]');
   if (await nextBtn.count() > 0) {
-    if (!dryRun) {
+    // Check if button is enabled
+    const isEnabled = await nextBtn.first().isEnabled().catch(() => false);
+    if (isEnabled) {
       await nextBtn.first().click();
       await page.waitForTimeout(1000);
+      return 'next';
+    } else {
+      console.log('      Next button is disabled - may need to fill required fields');
+      return 'stuck';
     }
-    return 'next';
-  }
-
-  // Check for done
-  const doneBtn = page.locator('button:has-text("Done"), h2:has-text("Application sent")');
-  if (await doneBtn.count() > 0) {
-    return 'done';
   }
 
   return 'stuck';
