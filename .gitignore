@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+dist/
+
+# Database files
+data/*.db
+data/*.db-shm
+data/*.db-wal
+
+# Session and storage
+storage/storageState.json
+
+# Environment
+.env
+.env.local
+
+# Personal documents
+resumes/*.docx
+resumes/*.pdf
+resumes/*.txt
+!resumes/.gitkeep
+
+# Artifacts
+artifacts/
+trace*.zip
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+

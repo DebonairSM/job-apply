@@ -1,0 +1,29 @@
+fields:
+  why_fit:
+    max_length: 400
+    strip_emoji: true
+  requires_sponsorship:
+    allowed_values:
+      - "Yes"
+      - "No"
+  salary_expectation:
+    max_length: 50
+    strip_emoji: true
+  work_authorization:
+    max_length: 100
+  full_name:
+    max_length: 100
+  email:
+    max_length: 100
+  phone:
+    max_length: 20
+  city:
+    max_length: 100
+  linkedin_url:
+    max_length: 200
+  years_dotnet:
+    max_length: 10
+  years_azure:
+    max_length: 10
+
+
