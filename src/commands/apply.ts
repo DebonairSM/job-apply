@@ -118,7 +118,7 @@ async function fillEasyApply(
   }
   
   // Check if we navigated away (shouldn't happen with Easy Apply)
-  const afterUrl = await page.url().catch(() => '');
+  const afterUrl = page.url();
   if (afterUrl && afterUrl !== beforeUrl && !afterUrl.includes('/jobs/view/')) {
     console.log(`   ❌ Unexpected navigation to: ${afterUrl}`);
     console.log('      Going back to job page...');
@@ -127,9 +127,50 @@ async function fillEasyApply(
     return false;
   }
   
-  // Wait for modal
-  const modal = page.locator('[data-test-modal], .jobs-easy-apply-modal, [role="dialog"]');
-  const modalVisible = await modal.waitFor({ state: 'visible', timeout: 10000 }).catch(() => false);
+  // Wait for modal - try multiple approaches
+  let modalVisible = false;
+  
+  // Give the page a moment to render the modal
+  await page.waitForTimeout(500);
+  
+  // Try to find the modal with various selectors
+  const modalSelectors = [
+    '[role="dialog"]',
+    '.jobs-easy-apply-modal',
+    '[data-test-modal]',
+    'div[aria-labelledby*="apply"]',
+    'text=Contact info' // LinkedIn Easy Apply always starts with contact info
+  ];
+  
+  for (const selector of modalSelectors) {
+    try {
+      const modal = page.locator(selector).first();
+      const isVisible = await modal.isVisible({ timeout: 2000 }).catch(() => false);
+      if (isVisible) {
+        console.log(`      Modal detected with selector: ${selector}`);
+        modalVisible = true;
+        break;
+      }
+    } catch (error) {
+      // Continue to next selector
+    }
+  }
+  
+  // Alternative: Check via JavaScript evaluation
+  if (!modalVisible) {
+    const hasModal = await page.evaluate(() => {
+      // Check for common Easy Apply modal indicators
+      const hasContactInfo = document.body.textContent?.includes('Contact info');
+      const hasFirstName = document.body.textContent?.includes('First name');
+      const hasDialog = document.querySelector('[role="dialog"]') !== null;
+      return hasContactInfo || hasFirstName || hasDialog;
+    });
+    
+    if (hasModal) {
+      console.log('      Modal detected via content evaluation');
+      modalVisible = true;
+    }
+  }
   
   if (!modalVisible) {
     console.log('   ⚠️  Easy Apply modal did not appear');
@@ -402,12 +443,39 @@ async function extractLabels(page: Page): Promise<string[]> {
   return [...new Set(labels)]; // Remove duplicates
 }
 
+function extractNumericValue(text: string): string {
+  // Extract the first number from text (handles "5 years", "5+", "5-10", etc.)
+  const match = text.match(/(\d+)/);
+  return match ? match[1] : text;
+}
+
+function isNumericField(label: string): boolean {
+  const lowerLabel = label.toLowerCase();
+  return (
+    lowerLabel.includes('how many years') ||
+    lowerLabel.includes('years of experience') ||
+    lowerLabel.includes('years of work experience') ||
+    (lowerLabel.includes('experience') && lowerLabel.includes('years'))
+  );
+}
+
 async function fillFieldByLabel(page: Page, label: string, value: string): Promise<void> {
+  // Determine the actual value to fill
+  let fillValue = value;
+  
+  // If the field is asking for numeric input (years), extract just the number
+  if (isNumericField(label)) {
+    fillValue = extractNumericValue(value);
+  }
+  
   try {
     // Try getByLabel
     const byLabel = page.getByLabel(label);
     if (await byLabel.count() > 0) {
-      await byLabel.first().fill(value);
+      const input = byLabel.first();
+      // Clear first, then fill
+      await input.clear();
+      await input.fill(fillValue);
       return;
     }
   } catch (error) {
@@ -422,7 +490,10 @@ async function fillFieldByLabel(page: Page, label: string, value: string): Promi
       if (forAttr) {
         const input = page.locator(`#${forAttr}`);
         if (await input.count() > 0) {
-          await input.first().fill(value);
+          const field = input.first();
+          // Clear first, then fill
+          await field.clear();
+          await field.fill(fillValue);
           return;
         }
       }

@@ -56,6 +56,8 @@ Return JSON matching this schema:
 {
   "answers": {
     "full_name": string,
+    "first_name": string,
+    "last_name": string,
     "email": string,
     "phone": string,
     "city": string,
@@ -76,6 +78,17 @@ Return JSON matching this schema:
 
   // Validate and sanitize
   const sanitized = sanitizeAnswers(result);
+  
+  // Ensure first_name and last_name exist by splitting full_name if needed
+  if (!sanitized.answers.first_name || !sanitized.answers.last_name) {
+    const nameParts = config.fullName.trim().split(/\s+/);
+    if (!sanitized.answers.first_name) {
+      sanitized.answers.first_name = nameParts[0] || '';
+    }
+    if (!sanitized.answers.last_name) {
+      sanitized.answers.last_name = nameParts.slice(1).join(' ') || nameParts[0] || '';
+    }
+  }
 
   // Cache the results
   cacheAnswers(jobId, sanitized.answers, sanitized.resumeVariant);

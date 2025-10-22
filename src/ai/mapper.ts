@@ -5,6 +5,8 @@ import { getLabelMapping, saveLabelMapping, LabelMapping } from '../lib/db.js';
 // Canonical field keys
 export const CANONICAL_KEYS = [
   'full_name',
+  'first_name',
+  'last_name',
   'email',
   'phone',
   'city',
@@ -23,6 +25,8 @@ export type CanonicalKey = typeof CANONICAL_KEYS[number];
 
 // Heuristics: [regex pattern, canonical key, confidence]
 const HEURISTICS: Array<[RegExp, CanonicalKey, number]> = [
+  [/^first\s*name/i, 'first_name', 0.99],
+  [/^last\s*name/i, 'last_name', 0.99],
   [/full\s*name|legal\s*name|first\s*and\s*last/i, 'full_name', 0.99],
   [/e-?mail(\s*address)?/i, 'email', 0.99],
   [/phone|mobile|telephone/i, 'phone', 0.99],
