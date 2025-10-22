@@ -66,11 +66,8 @@ export async function loginCommand(): Promise<void> {
   console.log('   You can now run search and apply commands without logging in again.\n');
 }
 
-// Run if called directly
-const scriptPath = process.argv[1].replace(/\\/g, '/');
-const isMainModule = import.meta.url.endsWith(scriptPath) || import.meta.url.includes('/commands/login.ts');
-
-if (isMainModule) {
+// Run if called directly (not when imported)
+if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`) {
   loginCommand().catch(error => {
     console.error('❌ Login failed:', error.message);
     process.exit(1);

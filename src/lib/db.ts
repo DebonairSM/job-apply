@@ -33,9 +33,24 @@ export function initDb(): void {
       fit_reasons TEXT,
       must_haves TEXT,
       blockers TEXT,
+      category_scores TEXT,
+      missing_keywords TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Migration: Add new columns if they don't exist
+  try {
+    database.exec(`ALTER TABLE jobs ADD COLUMN category_scores TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+  
+  try {
+    database.exec(`ALTER TABLE jobs ADD COLUMN missing_keywords TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
 
   // Answers cache table
   database.exec(`
@@ -85,14 +100,16 @@ export interface Job {
   fit_reasons?: string;
   must_haves?: string;
   blockers?: string;
+  category_scores?: string; // JSON string
+  missing_keywords?: string; // JSON string
   created_at?: string;
 }
 
 export function addJobs(jobs: Omit<Job, 'created_at'>[]): number {
   const database = getDb();
   const stmt = database.prepare(`
-    INSERT OR IGNORE INTO jobs (id, title, company, url, easy_apply, rank, status, fit_reasons, must_haves, blockers)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT OR IGNORE INTO jobs (id, title, company, url, easy_apply, rank, status, fit_reasons, must_haves, blockers, category_scores, missing_keywords)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   let inserted = 0;
@@ -108,7 +125,9 @@ export function addJobs(jobs: Omit<Job, 'created_at'>[]): number {
         job.status,
         job.fit_reasons ?? null,
         job.must_haves ?? null,
-        job.blockers ?? null
+        job.blockers ?? null,
+        job.category_scores ?? null,
+        job.missing_keywords ?? null
       );
       if (result.changes > 0) inserted++;
     }

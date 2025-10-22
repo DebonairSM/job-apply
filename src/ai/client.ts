@@ -42,8 +42,8 @@ export async function askOllama<T>(
         throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json();
-      const responseText = data.response as string;
+      const data = await response.json() as { response: string };
+      const responseText = data.response;
 
       // Strip markdown code fences if present
       let cleanedText = responseText.trim();
@@ -91,8 +91,8 @@ export async function listModels(): Promise<string[]> {
     const response = await fetch(`${config.ollamaBaseUrl}/api/tags`);
     if (!response.ok) return [];
     
-    const data = await response.json();
-    return (data.models || []).map((m: any) => m.name);
+    const data = await response.json() as { models?: Array<{ name: string }> };
+    return (data.models || []).map((m) => m.name);
   } catch (error) {
     return [];
   }

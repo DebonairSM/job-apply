@@ -21,12 +21,18 @@ yargs(hideBin(process.argv))
     }
   )
   .command(
-    'search <keywords>',
+    'search [keywords]',
     'Search for jobs and rank them',
     (yargs) => {
       return yargs
         .positional('keywords', {
-          describe: 'Job search keywords',
+          describe: 'Job search keywords (required if no --profile)',
+          type: 'string'
+        })
+        .option('profile', {
+          alias: 'p',
+          describe: 'Use predefined Boolean search profile',
+          choices: ['core', 'security', 'event-driven', 'performance', 'devops', 'backend'] as const,
           type: 'string'
         })
         .option('location', {
@@ -36,7 +42,7 @@ yargs(hideBin(process.argv))
         })
         .option('remote', {
           alias: 'r',
-          describe: 'Remote jobs only',
+          describe: 'Remote jobs only (ignored if using --profile)',
           type: 'boolean',
           default: false
         })
@@ -50,11 +56,18 @@ yargs(hideBin(process.argv))
           alias: 'm',
           describe: 'Minimum fit score (0-100)',
           type: 'number'
+        })
+        .check((argv) => {
+          if (!argv.keywords && !argv.profile) {
+            throw new Error('Either keywords or --profile must be specified');
+          }
+          return true;
         });
     },
     async (argv) => {
       await searchCommand({
-        keywords: argv.keywords as string,
+        keywords: argv.keywords,
+        profile: argv.profile as 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | undefined,
         location: argv.location,
         remote: argv.remote,
         datePosted: argv.date as 'day' | 'week' | 'month' | undefined,
@@ -142,6 +155,17 @@ yargs(hideBin(process.argv))
         console.log(`   Company: ${job.company}`);
         console.log(`   Type: ${job.easy_apply ? 'Easy Apply' : 'External'}`);
         console.log(`   Rank: ${job.rank}/100`);
+        
+        if (job.category_scores) {
+          try {
+            const scores = JSON.parse(job.category_scores);
+            console.log(`   Azure: ${scores.coreAzure} | Security: ${scores.security} | Events: ${scores.eventDriven}`);
+            console.log(`   Perf: ${scores.performance} | DevOps: ${scores.devops} | Senior: ${scores.seniority}`);
+          } catch (error) {
+            // Ignore parse errors
+          }
+        }
+        
         console.log(`   Status: ${job.status}`);
         console.log(`   ID: ${job.id}`);
         console.log(`   URL: ${job.url}`);
@@ -151,6 +175,17 @@ yargs(hideBin(process.argv))
             const reasons = JSON.parse(job.fit_reasons);
             if (reasons.length > 0) {
               console.log(`   Reasons: ${reasons.slice(0, 2).join('; ')}`);
+            }
+          } catch (error) {
+            // Ignore parse errors
+          }
+        }
+        
+        if (job.blockers) {
+          try {
+            const blockers = JSON.parse(job.blockers);
+            if (blockers.length > 0) {
+              console.log(`   ⚠️  Blockers: ${blockers.join(', ')}`);
             }
           } catch (error) {
             // Ignore parse errors

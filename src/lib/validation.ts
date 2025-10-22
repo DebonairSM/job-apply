@@ -142,12 +142,21 @@ export function redactPII(text: string): string {
   return result;
 }
 
-// Rank output schema
+// Rank output schema with category scores
 export const RankOutputSchema = z.object({
   fitScore: z.number().min(0).max(100),
+  categoryScores: z.object({
+    coreAzure: z.number().min(0).max(100),
+    security: z.number().min(0).max(100),
+    eventDriven: z.number().min(0).max(100),
+    performance: z.number().min(0).max(100),
+    devops: z.number().min(0).max(100),
+    seniority: z.number().min(0).max(100)
+  }),
   reasons: z.array(z.string()),
   mustHaves: z.array(z.string()),
-  blockers: z.array(z.string())
+  blockers: z.array(z.string()),
+  missingKeywords: z.array(z.string())
 });
 
 export type RankOutput = z.infer<typeof RankOutputSchema>;
