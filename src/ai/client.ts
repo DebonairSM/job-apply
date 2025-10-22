@@ -15,11 +15,12 @@ export async function askOllama<T>(
   const config = loadConfig();
   const model = opts.model ?? config.llmModel;
   const temperature = opts.temperature ?? config.llmTemperature;
-  const maxRetries = opts.retries ?? 1;
+  const maxRetries = opts.retries ?? 2;
 
-  const fullPrompt = `${prompt}\n\nReturn ONLY valid JSON for schema ${schemaName}. Do not include any explanatory text.`;
+  const fullPrompt = `${prompt}\n\nIMPORTANT: Return ONLY valid JSON for schema ${schemaName}. Do not include markdown code blocks, explanatory text, or any other formatting. Output must be pure JSON starting with { and ending with }.`;
 
   let lastError: Error | null = null;
+  let lastResponse = '';
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -30,9 +31,9 @@ export async function askOllama<T>(
         },
         body: JSON.stringify({
           model,
-          prompt: attempt === 0 ? fullPrompt : `The previous JSON was invalid. ${fullPrompt}`,
+          prompt: attempt === 0 ? fullPrompt : `The previous attempt generated invalid JSON. Try again.\n\n${fullPrompt}\n\nRemember: Output ONLY valid JSON, nothing else.`,
           options: {
-            temperature
+            temperature: attempt > 0 ? 0.0 : temperature  // Use zero temp on retries for consistency
           },
           stream: false
         })
@@ -44,12 +45,22 @@ export async function askOllama<T>(
 
       const data = await response.json() as { response: string };
       const responseText = data.response;
+      lastResponse = responseText;
 
-      // Strip markdown code fences if present
+      // Strip markdown code fences and any leading/trailing text
       let cleanedText = responseText.trim();
-      cleanedText = cleanedText.replace(/^```json\s*/i, '');
-      cleanedText = cleanedText.replace(/^```\s*/i, '');
-      cleanedText = cleanedText.replace(/\s*```$/i, '');
+      
+      // Remove markdown code blocks
+      cleanedText = cleanedText.replace(/^```json\s*/gim, '');
+      cleanedText = cleanedText.replace(/^```\s*/gim, '');
+      cleanedText = cleanedText.replace(/\s*```$/gim, '');
+      
+      // Try to extract JSON object if there's surrounding text
+      const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        cleanedText = jsonMatch[0];
+      }
+      
       cleanedText = cleanedText.trim();
 
       // Parse JSON
@@ -60,7 +71,12 @@ export async function askOllama<T>(
       lastError = error as Error;
       
       if (attempt < maxRetries) {
-        console.warn(`JSON parsing failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying...`);
+        // Silently retry without logging unless DEBUG is enabled
+        if (process.env.DEBUG) {
+          console.warn(`JSON parsing failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying...`);
+          console.error('Parse error:', lastError.message);
+          console.error('Raw response:', lastResponse.substring(0, 500));
+        }
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     }

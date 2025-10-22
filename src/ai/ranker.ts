@@ -74,20 +74,21 @@ Provide:
 
 Be strict. A job missing Azure should score <30 in coreAzure. A job requiring Python/Java instead of .NET should be flagged as blocker.
 
-Schema RankOutput = {
-  "fitScore": number,
+Return ONLY this JSON structure (no markdown, no explanation):
+{
+  "fitScore": 75,
   "categoryScores": {
-    "coreAzure": number,
-    "security": number,
-    "eventDriven": number,
-    "performance": number,
-    "devops": number,
-    "seniority": number
+    "coreAzure": 80,
+    "security": 70,
+    "eventDriven": 65,
+    "performance": 75,
+    "devops": 80,
+    "seniority": 90
   },
-  "reasons": string[],
-  "mustHaves": string[],
-  "blockers": string[],
-  "missingKeywords": string[]
+  "reasons": ["reason1", "reason2", "reason3"],
+  "mustHaves": ["skill1", "skill2"],
+  "blockers": [],
+  "missingKeywords": ["keyword1", "keyword2"]
 }`;
 
   const result = await askOllama<RankOutput>(prompt, 'RankOutput', {

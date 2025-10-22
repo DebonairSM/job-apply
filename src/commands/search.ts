@@ -258,6 +258,15 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
       // Construct the job view URL
       const link = `https://www.linkedin.com/jobs/view/${jobId}`;
 
+      // Check if already applied - skip early to save time
+      const appliedIndicator = card.locator('span:has-text("Applied"), li-icon[type="success-pebble-icon"], .job-card-container__footer-item:has-text("Applied")');
+      const alreadyApplied = await appliedIndicator.count() > 0;
+      
+      if (alreadyApplied) {
+        console.log(`   ⏭️  Skipping job ${i + 1}: Already applied - ${title} at ${company}`);
+        continue;
+      }
+
       // Check for Easy Apply badge
       const easyApplyBadge = card.locator('span:has-text("Easy Apply"), .job-card-container__apply-method:has-text("Easy Apply")');
       const easyApply = await easyApplyBadge.count() > 0;

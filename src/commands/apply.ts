@@ -29,14 +29,97 @@ async function fillEasyApply(
   resumePath: string,
   dryRun: boolean
 ): Promise<boolean> {
-  // Click Easy Apply button
-  const easyApplyBtn = page.locator('button:has-text("Easy Apply"), .jobs-apply-button');
-  if (await easyApplyBtn.count() === 0) {
+  // Find the Easy Apply button using JavaScript to avoid overlay issues
+  const easyApplyButton = await page.evaluate(() => {
+    // Find all buttons on the page
+    const buttons = Array.from(document.querySelectorAll('button'));
+    
+    // Look for the Easy Apply button - must have the right class and text/aria-label
+    for (const btn of buttons) {
+      const ariaLabel = btn.getAttribute('aria-label') || '';
+      const text = btn.textContent || '';
+      const classes = btn.className || '';
+      
+      // Must be a jobs-apply-button and have Easy Apply text
+      if (classes.includes('jobs-apply-button') && 
+          ariaLabel.includes('Easy Apply to') &&
+          text.includes('Easy Apply')) {
+        return {
+          found: true,
+          ariaLabel,
+          text: text.trim(),
+          id: btn.id,
+          dataJobId: btn.getAttribute('data-job-id')
+        };
+      }
+    }
+    
+    return { found: false };
+  });
+  
+  if (!easyApplyButton.found) {
     console.log('   ❌ Easy Apply button not found');
+    await takeScreenshot(page, jobId, 'button_not_found');
     return false;
   }
-
-  await easyApplyBtn.first().click();
+  
+  console.log(`      Found Easy Apply button: "${easyApplyButton.text}"`);
+  
+  // Scroll page to top first to ensure button area is visible
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.waitForTimeout(300);
+  
+  // Take screenshot before clicking
+  await takeScreenshot(page, jobId, 'before_click');
+  
+  // Store current URL to verify we don't navigate away
+  const beforeUrl = page.url();
+  
+  // Use JavaScript click to bypass any overlay issues
+  const clickResult = await page.evaluate((buttonInfo) => {
+    const buttons = Array.from(document.querySelectorAll('button'));
+    
+    // Find the exact button we identified
+    for (const btn of buttons) {
+      const ariaLabel = btn.getAttribute('aria-label') || '';
+      const text = btn.textContent?.trim() || '';
+      const classes = btn.className || '';
+      
+      if (classes.includes('jobs-apply-button') && 
+          ariaLabel.includes('Easy Apply to') &&
+          text.includes('Easy Apply')) {
+        
+        // Scroll into view
+        btn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Click using JavaScript
+        btn.click();
+        
+        return { success: true, clicked: true };
+      }
+    }
+    
+    return { success: false, clicked: false };
+  }, easyApplyButton);
+  
+  if (!clickResult.success) {
+    console.log('   ❌ Could not click Easy Apply button');
+    await takeScreenshot(page, jobId, 'button_click_failed');
+    return false;
+  }
+  
+  // Wait a moment for any navigation or modal
+  await page.waitForTimeout(1500);
+  
+  // Check if we navigated away (shouldn't happen with Easy Apply)
+  const afterUrl = page.url();
+  if (afterUrl !== beforeUrl && !afterUrl.includes('/jobs/view/')) {
+    console.log(`   ❌ Unexpected navigation to: ${afterUrl}`);
+    console.log('      Going back to job page...');
+    await page.goBack({ waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1000);
+    return false;
+  }
   
   // Wait for modal
   const modal = page.locator('[data-test-modal], .jobs-easy-apply-modal, [role="dialog"]');
@@ -399,7 +482,21 @@ export async function applyCommand(opts: ApplyOptions): Promise<void> {
 
       // Navigate to job
       await page.goto(job.url, { waitUntil: 'domcontentloaded' });
-      await page.waitForTimeout(1500);
+      await page.waitForTimeout(2000);
+      
+      // Take screenshot before attempting interaction for debugging
+      await takeScreenshot(page, job.id, 'initial_page');
+      
+      // Dismiss any modals that might block interaction
+      await page.keyboard.press('Escape').catch(() => {});
+      await page.waitForTimeout(500);
+      
+      // Try to close any cookie banners or sign-in prompts
+      const closeButtons = page.locator('button[aria-label*="Dismiss"], button[aria-label*="Close"], button:has-text("Close")');
+      if (await closeButtons.count() > 0) {
+        await closeButtons.first().click().catch(() => {});
+        await page.waitForTimeout(300);
+      }
 
       let success = false;
 

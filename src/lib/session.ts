@@ -78,7 +78,7 @@ export function loadConfig(): AppConfig {
     profileSummary: env.PROFILE_SUMMARY || '',
     resumeVariants: env.RESUME_VARIANTS 
       ? env.RESUME_VARIANTS.split(',').map(v => v.trim())
-      : ['resume.pdf'],
+      : ['Rommel Bandeira - API Engineer.docx'],
     ollamaBaseUrl: env.OLLAMA_BASE_URL || 'http://localhost:11434',
     llmModel: env.LLM_MODEL || 'llama3.1:8b',
     llmTemperature: parseFloat(env.LLM_TEMPERATURE || '0.1'),

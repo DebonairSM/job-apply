@@ -10,13 +10,20 @@ export async function startTracing(context: BrowserContext, jobId: string): Prom
   if (!config.enableTracing) return;
 
   try {
+    // Stop any existing tracing first
+    try {
+      await context.tracing.stop();
+    } catch {
+      // Ignore error if tracing wasn't running
+    }
+    
     await context.tracing.start({
       screenshots: true,
       snapshots: true,
       sources: false
     });
   } catch (error) {
-    console.warn('Failed to start tracing:', (error as Error).message);
+    // Silently ignore tracing errors - they're not critical
   }
 }
 
@@ -35,7 +42,7 @@ export async function stopTracing(context: BrowserContext, jobId: string): Promi
   try {
     await context.tracing.stop({ path: tracePath });
   } catch (error) {
-    console.warn('Failed to stop tracing:', (error as Error).message);
+    // Silently ignore tracing errors - they're not critical
   }
 }
 
