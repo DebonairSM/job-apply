@@ -94,6 +94,22 @@ npm run clear-cache mapping
 node scripts/reset-jobs.js
 ```
 
+### Dashboard (New!)
+
+Monitor your automation in real-time with the web dashboard:
+
+```bash
+npm run dashboard:dev
+```
+
+Open http://localhost:3000 to access:
+- Live job statistics and success rates
+- Complete jobs list with filtering
+- Activity log with run history
+- Auto-refreshing every 5 seconds
+
+See `src/dashboard/README.md` for details.
+
 ## Configuration
 
 Edit `.env` file:

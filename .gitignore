@@ -31,6 +31,12 @@ reports/
 *.log
 npm-debug.log*
 
+# Dashboard build output
+dist/
+
+# Vite cache
+.vite/
+
 # OS
 .DS_Store
 Thumbs.db
