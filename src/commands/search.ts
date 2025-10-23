@@ -108,6 +108,10 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
         continue;
       }
       
+      // Scroll card into view FIRST to trigger lazy loading of content
+      await card.scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {});
+      await page.waitForTimeout(500); // Give time for content to load
+      
       // Extract job title - LinkedIn's new structure uses artdeco-entity-lockup__title
       // Note: LinkedIn duplicates text for accessibility (aria-hidden + visually-hidden)
       let title = '';
@@ -242,10 +246,6 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
         }
       }
 
-      // Scroll card into view and wait for it to be stable
-      await card.scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {});
-      await page.waitForTimeout(300); // Let DOM settle
-      
       // Try normal click first, then force click if blocked
       try {
         await card.click({ timeout: 3000 });
