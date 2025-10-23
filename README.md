@@ -1,27 +1,14 @@
 # LinkedIn Job Application Automation
 
-Automatically search, rank, and apply to LinkedIn jobs while you sleep. The system uses AI to find jobs that match your profile and fills out applications for you.
+Automatically search, rank, and apply to LinkedIn jobs using local AI. The system finds jobs matching your profile and fills out applications.
 
-## What This Does
+## Requirements
 
-1. **Finds Jobs**: Searches LinkedIn based on your criteria
-2. **Ranks Them**: AI scores each job against your profile (0-100)
-3. **Applies Automatically**: Fills out application forms for high-scoring jobs
-4. **Runs Locally**: Everything stays on your computer - no data sent to cloud services
+- **Node.js 20+**: https://nodejs.org/
+- **Docker Desktop**: https://www.docker.com/products/docker-desktop/
+- **Git**: https://git-scm.com/downloads
 
-## Quick Start
-
-### Step 1: Install Required Software
-
-Download and install these three programs:
-
-1. **Node.js 20+**: https://nodejs.org/ (choose LTS version)
-2. **Docker Desktop**: https://www.docker.com/products/docker-desktop/
-3. **Git**: https://git-scm.com/downloads (if not already installed)
-
-### Step 2: Download This Project
-
-Open a terminal and run:
+## Setup
 
 ```bash
 git clone <repository-url>
@@ -30,186 +17,120 @@ npm install
 npx playwright install
 ```
 
-### Step 3: Start the AI Brain
+## Configuration
 
-Open a terminal and run:
+### 1. Start Local LLM
 
 ```bash
 docker compose -f docker-compose.llm.yml up -d
 ```
 
-Wait for it to download (about 5GB, first time only).
+First run downloads ~5GB.
 
-### Step 4: Add Your Information
+### 2. Add Your Information
 
-1. Copy the file `.env.example` and rename it to `.env`
-2. Open `.env` in a text editor
-3. Fill in your details:
-   - Name, email, phone number
-   - Your skills and job preferences
-   - Location preferences
-4. Save the file
+Create `.env` file with your details:
+- Name, email, phone
+- Skills and preferences
+- Location requirements
 
-### Step 5: Add Your Resume
+### 3. Add Resume
 
-Place your resume file in the `resumes/` folder. Supported formats: PDF or DOCX.
+Place resume (PDF or DOCX) in `resumes/` folder.
 
-### Step 6: Log Into LinkedIn (One Time Only)
+### 4. Login to LinkedIn
 
 ```bash
 npm run login
 ```
 
-A browser window opens. Log into LinkedIn normally (including two-factor authentication if you have it). When done, go back to the terminal and press ENTER.
+Browser opens for LinkedIn login. Complete authentication, then press ENTER in terminal.
 
-### Step 7: Start Using It
+## Usage
 
-**Search for jobs:**
+### Search for Jobs
+
 ```bash
+# Basic search
 npm run search "Software Engineer"
+
+# With filters
+npm run search "Data Analyst" -- --remote --date week --min-score 80
+
+# Profile-based search (see Profiles section)
+npm run search -- --profile core
 ```
 
-The AI will score each job. High-scoring jobs get added to your queue automatically.
+### Check Status
 
-**See what's in your queue:**
 ```bash
-npm run status
+npm run status         # Overall statistics
+npm run list queued    # View queued jobs
+npm run list applied   # View applied jobs
 ```
 
-**Generate an HTML report of queued jobs:**
+### Generate Report
+
 ```bash
 npm run report
 ```
 
-**Test an application (doesn't actually submit):**
+Creates HTML report in `reports/` folder with job details, scores, and analysis.
+
+### Apply to Jobs
+
 ```bash
+# Test run (doesn't submit)
 npm run apply -- --easy --dry-run
-```
 
-**Apply to jobs for real:**
-```bash
+# Apply to Easy Apply jobs
 npm run apply -- --easy
+
+# Apply to external sites (Greenhouse, Lever, etc.)
+npm run apply -- --ext
 ```
 
-That's it! The system will start applying to jobs in your queue.
+## Job Profiles
 
-## Common Tasks
+Profile-based searches use Boolean logic targeting specific technical requirements. All profiles include Remote filter and default to jobs posted in last 24 hours.
 
-### Search with Filters
+### Available Profiles
 
-```bash
-# Remote jobs only
-npm run search "Data Analyst" -- --remote
+**`--profile core`** - Core Azure API Engineer roles  
+Focus: Azure, APIM, Functions, Service Bus, C#/.NET
 
-# Specific location
-npm run search "Product Manager" -- --location "San Francisco"
+**`--profile security`** - Security & Governance  
+Focus: OAuth, JWT, Entra ID, APIM Policies
 
-# Recent postings only (default is last 24 hours)
-npm run search "UX Designer" -- --date week
+**`--profile event-driven`** - Event-Driven Architecture  
+Focus: Service Bus, Event Grid, Integration
 
-# Only queue jobs scoring 80 or higher
-npm run search "DevOps Engineer" -- --min-score 80
+**`--profile performance`** - Performance & Reliability  
+Focus: Load Testing, Redis, Observability
 
-# Limit to specific number of pages (default processes all pages)
-npm run search "Software Engineer" -- --max-pages 3
+**`--profile devops`** - DevOps/CI-CD  
+Focus: Azure DevOps, GitHub Actions, Docker, IaC
 
-# All pages are processed by default
-npm run search "API Engineer" -- --profile core --location "Remote"
-```
+**`--profile backend`** - Senior Backend .NET (broadest)  
+Focus: Senior .NET/Azure roles across all areas
 
-**Default Behavior:**
-- All searches now default to jobs posted in the last 24 hours
-- Profile-based searches automatically include Remote filter
-- Jobs are sorted by posted date (newest first) in reports
-- Multi-page search processes ALL available pages by default (use --max-pages to limit)
-
-### Profile-Based Boolean Searches
-
-Use predefined technical profiles with advanced Boolean search logic. These profiles automatically include Remote filter and search for jobs posted in the last 24 hours by default:
+### Examples
 
 ```bash
-# Core Azure API Engineer roles
-npm run search -- --profile core
-
-# Security & Governance focused
-npm run search -- --profile security
-
-# Event-Driven Architecture
-npm run search -- --profile event-driven
-
-# Performance & Reliability
-npm run search -- --profile performance
-
-# DevOps/CI-CD heavy teams
-npm run search -- --profile devops
-
-# Broader Senior Backend .NET
-npm run search -- --profile backend
-
-# Combine with date filter (all pages)
+# Core Azure API roles from this week
 npm run search -- --profile core --date week
 
-# Limit to first 3 pages only
-npm run search -- --profile core --max-pages 3
+# Security-focused roles, minimum score 80
+npm run search -- --profile security --min-score 80
+
+# Process only first 3 pages
+npm run search -- --profile devops --max-pages 3
 ```
 
-Each profile uses sophisticated Boolean search strings targeting specific technical requirements (Azure, APIM, .NET, Service Bus, etc.) and automatically includes Remote filter.
+## Job Scoring
 
-### Check Your Progress
+AI evaluates jobs across 6 weighted categories:
 
-```bash
-# View overall statistics
-npm run status
-
-# See queued jobs
-npm run list queued
-
-# See applied jobs
-npm run list applied
-
-# See reported jobs (jobs included in HTML reports)
-npm run list reported
-```
-
-### Generate Reports
-
-Create professional HTML reports of your queued jobs to share with others:
-
-```bash
-# Generate HTML report of all queued jobs
-npm run report
-```
-
-The report includes:
-- Job details with posted dates (newest first)
-- AI ranking scores and category breakdowns
-- Fit reasons and must-haves identified
-- Blockers and missing keywords
-- Clickable LinkedIn job URLs
-- Professional styling for easy sharing
-
-Reports are saved to `reports/` folder with timestamps and jobs are marked as 'reported' to avoid duplicates.
-
-### Apply to Specific Types
-
-```bash
-# Only LinkedIn Easy Apply jobs
-npm run apply -- --easy
-
-# Only external company websites (Greenhouse, Lever, etc.)
-npm run apply -- --ext
-
-# Apply to everything queued
-npm run apply
-```
-
-## What You Need to Know
-
-### About Scoring
-
-The AI evaluates jobs across 6 technical categories with weighted scoring:
-
-**Evaluation Categories:**
 1. **Core Azure API Skills (30%)** - Azure, APIM, Functions, Service Bus, C#/.NET
 2. **Security & Governance (20%)** - OAuth, JWT, Entra ID, API Security
 3. **Event-Driven Architecture (15%)** - Service Bus, Event Grid, Integration
@@ -217,106 +138,26 @@ The AI evaluates jobs across 6 technical categories with weighted scoring:
 5. **DevOps/CI-CD (10%)** - Azure DevOps, GitHub Actions, Docker, IaC
 6. **Seniority & Role Type (10%)** - Senior/Lead level, Remote work
 
-Each category is scored 0-100, then weighted to produce the final fit score.
+### Score Ranges
 
-**Score Ranges:**
-- **90-100**: Exceptional match - hits most technical requirements
-- **75-89**: Strong match - good fit across multiple categories
-- **60-74**: Moderate match - some key skills present
-- **40-59**: Weak match - missing critical requirements
-- **Below 40**: Poor match - wrong tech stack or seniority level
+- **90-100**: Exceptional match
+- **75-89**: Strong match
+- **60-74**: Moderate match
+- **40-59**: Weak match
+- **Below 40**: Poor match
 
-**Blocker Detection:**
-The system automatically identifies dealbreakers like:
-- Wrong tech stack (AWS instead of Azure, Python instead of C#)
-- Wrong seniority level (Junior when you're Senior+)
-- On-site only positions (when you need Remote)
-- Missing core technologies (no Azure mention)
+System automatically identifies blockers like wrong tech stack (AWS/Python), wrong seniority level, or on-site only positions.
 
-When viewing results, you'll see category breakdowns and blockers to understand exactly which technical areas match or don't match.
+## Configuration Options
 
-### About Privacy
-
-Everything runs on your computer. No job data, resume info, or personal details are sent to any cloud service. The AI model runs locally in Docker.
-
-### About Speed
-
-- Searching and ranking 25 jobs (1 page): 2-5 minutes
-- Searching and ranking 75 jobs (3 pages): 6-15 minutes
-- Searching and ranking 125 jobs (5 pages): 10-25 minutes
-- Generating HTML report: 1-2 seconds
-- Applying to one Easy Apply job: 30-90 seconds
-- Applying to one external job: 20-60 seconds
-
-## Troubleshooting
-
-### The AI Isn't Responding
-
-Check if Docker is running:
-```bash
-docker ps
-```
-
-You should see a container named "ollama". If not, restart it:
-```bash
-docker compose -f docker-compose.llm.yml up -d
-```
-
-### Session Expired / Can't Access LinkedIn
-
-Run the login command again:
-```bash
-npm run login
-```
-
-### Forms Aren't Filling Correctly
-
-1. Try a dry run first to see what would be filled:
-   ```bash
-   npm run apply -- --easy --dry-run
-   ```
-
-2. Check the `artifacts/` folder for screenshots showing what happened
-
-3. Your `.env` file might be missing required fields
-
-### Jobs Not Being Found
-
-- Make sure you're logged into LinkedIn (`npm run login`)
-- Try a broader search term
-- LinkedIn may have changed their website (selectors may need updating)
-
----
-
-## Advanced Usage
-
-### Alternative Command Format
-
-You can run commands using `npx tsx` directly instead of npm scripts:
-
-```bash
-# Instead of: npm run search "Engineer"
-npx tsx src/cli.ts search "Engineer"
-
-# Instead of: npm run login
-npx tsx src/commands/login.ts
-
-# Instead of: npm run apply -- --easy
-npx tsx src/cli.ts apply --easy
-```
-
-### Configuration Options
-
-Edit your `.env` file to customize behavior:
+Edit `.env` to customize:
 
 - `MIN_FIT_SCORE`: Minimum score to queue jobs (default: 70)
-- `LLM_MODEL`: AI model to use (default: llama3.1:8b-instruct)
+- `LLM_MODEL`: AI model (default: llama3.1:8b-instruct)
 - `HEADLESS`: Run browser in background (true/false)
-- `ENABLE_TRACING`: Save detailed logs for debugging (true/false)
+- `ENABLE_TRACING`: Save debug logs (true/false)
 
-### Answer Policies
-
-Edit `answers-policy.yml` to control how application questions are answered:
+Edit `answers-policy.yml` to control application responses:
 
 ```yaml
 fields:
@@ -327,126 +168,98 @@ fields:
     allowed_values: ["Yes", "No"]
 ```
 
-### Running Tests
+## Troubleshooting
 
-Verify the system is working correctly:
+### AI Not Responding
 
 ```bash
-npm test
+docker ps  # Check if ollama container running
+docker compose -f docker-compose.llm.yml up -d  # Restart if needed
 ```
 
----
+### Session Expired
 
-## Technical Documentation
+```bash
+npm run login
+```
+
+### Forms Not Filling
+
+1. Try dry run: `npm run apply -- --easy --dry-run`
+2. Check `artifacts/` folder for screenshots
+3. Verify `.env` has required fields
+
+### No Jobs Found
+
+- Verify LinkedIn login: `npm run login`
+- Try broader search terms
+- Use `--profile backend` for widest search
 
 ## Architecture
 
-### Three-Phase Pipeline
+### Pipeline
 
-1. **Search & Rank**: LLM scores jobs against your profile, only queues high-fit matches
-2. **Prepare Answers**: LLM synthesizes tailored responses, validates with Zod schemas
-3. **Fill Forms**: Heuristics map common fields instantly, LLM handles edge cases
+1. **Search & Rank**: LLM scores jobs, queues high-fit matches
+2. **Prepare Answers**: LLM generates responses with validation
+3. **Fill Forms**: Map fields and submit applications
 
-### Key Components
+### Components
 
-- **Database**: Single SQLite file (`data/app.db`) tracks jobs, answers, mappings, and execution logs
-- **AI Layer**: Ollama-based LLM with retry logic, JSON validation, and response caching
-- **Adapters**: Pluggable ATS adapters for Greenhouse, Lever, Workday with smoke tests
-- **Resilience**: Playwright tracing, screenshots per step, graceful error handling
-
-### Data Flow
-
-```
-LinkedIn Search → Extract Jobs → LLM Rank → Queue (if score >= threshold)
-↓
-Load Job → LLM Synthesize Answers → Cache
-↓
-Navigate → Extract Labels → Heuristics/LLM Map → Fill Form → Submit
-↓
-Update Status → Log Run → Save Artifacts
-```
+- **Database**: SQLite (`data/app.db`) tracks jobs, answers, logs
+- **AI**: Ollama-based LLM with caching and retry logic
+- **Adapters**: Support for Greenhouse, Lever, Workday
+- **Browser**: Playwright with tracing and screenshots
 
 ### Tech Stack
 
-- **TypeScript 5.6** with ES2022 modules
-- **Playwright** for browser automation
-- **SQLite** (better-sqlite3) for local data storage
-- **Ollama** + **Llama 3.1 8B** for AI inference
-- **Zod** for schema validation
-- **Yargs** for CLI parsing
+- TypeScript 5.6
+- Playwright (browser automation)
+- SQLite (better-sqlite3)
+- Ollama + Llama 3.1 8B
+- Zod (validation)
+- Yargs (CLI)
 
-### Test Suite
-
-Run tests to verify functionality:
+### Tests
 
 ```bash
-# All tests
-npm test
-
-# Specific test suite
-npx tsx --test tests/login.test.ts      # Login module tests
-npx tsx --test tests/search.test.ts     # Search command tests
-npx tsx --test tests/integration.test.ts # End-to-end integration tests
-npx tsx --test tests/mapper.test.ts     # AI mapper tests
+npm test  # All tests
+npx tsx --test tests/login.test.ts
+npx tsx --test tests/search.test.ts
+npx tsx --test tests/integration.test.ts
+npx tsx --test tests/mapper.test.ts
 ```
 
-All tests run in under 30 seconds without requiring LinkedIn login.
+## Privacy
 
-### Performance Benchmarks
+Everything runs locally. No job data, resume information, or personal details are sent to cloud services.
 
-- Job ranking: 2-5 seconds per job
-- Field mapping (cached): < 50ms
-- Field mapping (LLM): 1-3 seconds
-- Easy Apply form: 30-90 seconds per job
-- External ATS form: 20-60 seconds per job
+## Performance
 
-## For Developers
+- Ranking 25 jobs (1 page): 2-5 minutes
+- Ranking 75 jobs (3 pages): 6-15 minutes
+- Generating report: 1-2 seconds
+- Easy Apply job: 30-90 seconds
+- External ATS job: 20-60 seconds
 
-### Extending the System
+## Development
 
-**Add New ATS Adapter:**
+### Add ATS Adapter
 
 1. Create `src/adapters/newats.ts` implementing `ATSAdapter` interface
-2. Add detect(), smoke(), and fill() methods
-3. Register in `src/commands/apply.ts` ADAPTERS array
+2. Add `detect()`, `smoke()`, `fill()` methods
+3. Register in `src/commands/apply.ts`
 
-**Add New Canonical Field:**
+### Add Canonical Field
 
 1. Add to `CANONICAL_KEYS` in `src/ai/mapper.ts`
 2. Add heuristic pattern if applicable
 3. Update `AnswersSchema` in `src/lib/validation.ts`
-4. Update `answers-policy.yml` with constraints
+4. Update `answers-policy.yml`
 
-### Recent Features Added
+## License
 
-**HTML Report Generation:**
-- Professional reports with job details, scores, and analysis
-- Posted date tracking and sorting (newest first)
-- Easy sharing via email or file transfer
-- Automatic status tracking to prevent duplicates
+MIT
 
-**Enhanced Search Filters:**
-- Default 24-hour posting filter for fresher results
-- Profile-based Boolean searches with Remote filter
-- Posted date extraction and display
-- Improved blocker detection for wrong tech stacks
+## Disclaimer
 
-### Planned Features
-
-**Multi-Page Search Support:**
-Now supports processing multiple pages of LinkedIn search results. By default, ALL available pages are processed. Use `--max-pages N` to limit to first N pages if desired. Each page typically contains 25 jobs.
-
-**Other Enhancements:**
-- Resume variant auto-selection based on job requirements
-- Application templates for common answer patterns
-- Scheduled searches (e.g., daily)
-- Analytics dashboard for tracking success rates
-- Smart retry logic for failed applications
-
-## License & Disclaimer
-
-**License:** MIT
-
-**Disclaimer:** This tool is for personal use to streamline your job search. Always review applications before final submission and respect LinkedIn's terms of service. Use reasonable rate limits to avoid account restrictions.
-
-
+This tool is for personal use. Review applications before submission and respect LinkedIn's terms of service. Use reasonable rate limits.

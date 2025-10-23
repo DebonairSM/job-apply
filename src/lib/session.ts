@@ -1,4 +1,4 @@
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
@@ -46,8 +46,10 @@ export function loadConfig(): AppConfig {
   const dotenv: Record<string, string> = {};
   
   try {
-    const envContent = existsSync('.env') 
-      ? require('fs').readFileSync('.env', 'utf-8')
+    // Use absolute path to .env file (2 levels up from src/lib/)
+    const envPath = join(__dirname, '../../.env');
+    const envContent = existsSync(envPath) 
+      ? readFileSync(envPath, 'utf-8')
       : '';
     
     for (const line of envContent.split('\n')) {

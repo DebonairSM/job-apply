@@ -316,7 +316,7 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
           blockers: JSON.stringify(ranking.blockers),
           category_scores: JSON.stringify(ranking.categoryScores),
           missing_keywords: JSON.stringify(ranking.missingKeywords),
-          posted_date: postedDate || null
+          posted_date: postedDate || undefined
         });
 
         queued++;
@@ -379,7 +379,7 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
 
   const config = loadConfig();
   const minScore = opts.minScore ?? config.minFitScore;
-  const maxPages = opts.maxPages ?? 1;
+  const maxPages = opts.maxPages ?? 999;
 
   console.log('🔍 Starting job search...');
   if (opts.profile) {
@@ -417,7 +417,8 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
 
   // Process pages in a loop
   while (currentPage <= maxPages) {
-    console.log(`\n📄 Processing page ${currentPage}/${maxPages}...`);
+    const pageDisplay = maxPages >= 999 ? 'all' : maxPages.toString();
+    console.log(`\n📄 Processing page ${currentPage}/${pageDisplay}...`);
     
     const pageResult = await processPage(page, minScore, config);
     allJobs.push(...pageResult.jobs);
