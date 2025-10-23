@@ -10,6 +10,7 @@ export default defineConfig({
     emptyOutDir: true
   },
   server: {
+    host: true,  // 👈 ADD THIS LINE - exposes server to network
     port: 3000,
     proxy: {
       '/api': {
