@@ -115,15 +115,22 @@ export interface Job {
 
 export function addJobs(jobs: Omit<Job, 'created_at'>[]): number {
   const database = getDb();
-  const stmt = database.prepare(`
+  const insertStmt = database.prepare(`
     INSERT OR IGNORE INTO jobs (id, title, company, url, easy_apply, rank, status, fit_reasons, must_haves, blockers, category_scores, missing_keywords, posted_date)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  
+  const updateStmt = database.prepare(`
+    UPDATE jobs 
+    SET status = ?, rank = ?, fit_reasons = ?, must_haves = ?, blockers = ?, category_scores = ?, missing_keywords = ?, posted_date = ?
+    WHERE id = ? AND status = 'reported'
   `);
 
   let inserted = 0;
   const insertMany = database.transaction((jobList: typeof jobs) => {
     for (const job of jobList) {
-      const result = stmt.run(
+      // Try to insert first
+      const insertResult = insertStmt.run(
         job.id,
         job.title,
         job.company,
@@ -138,7 +145,27 @@ export function addJobs(jobs: Omit<Job, 'created_at'>[]): number {
         job.missing_keywords ?? null,
         job.posted_date ?? null
       );
-      if (result.changes > 0) inserted++;
+      
+      if (insertResult.changes > 0) {
+        inserted++;
+      } else {
+        // Job already exists, try to update if it was previously reported
+        const updateResult = updateStmt.run(
+          job.status,
+          job.rank ?? null,
+          job.fit_reasons ?? null,
+          job.must_haves ?? null,
+          job.blockers ?? null,
+          job.category_scores ?? null,
+          job.missing_keywords ?? null,
+          job.posted_date ?? null,
+          job.id
+        );
+        
+        if (updateResult.changes > 0) {
+          inserted++; // Count re-queued jobs as "inserted"
+        }
+      }
     }
   });
 
