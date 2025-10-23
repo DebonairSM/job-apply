@@ -76,6 +76,11 @@ The AI will score each job. High-scoring jobs get added to your queue automatica
 npm run status
 ```
 
+**Generate an HTML report of queued jobs:**
+```bash
+npm run report
+```
+
 **Test an application (doesn't actually submit):**
 ```bash
 npm run apply -- --easy --dry-run
@@ -99,38 +104,53 @@ npm run search "Data Analyst" -- --remote
 # Specific location
 npm run search "Product Manager" -- --location "San Francisco"
 
-# Recent postings only
+# Recent postings only (default is last 24 hours)
 npm run search "UX Designer" -- --date week
 
 # Only queue jobs scoring 80 or higher
 npm run search "DevOps Engineer" -- --min-score 80
+
+# Limit to specific number of pages (default processes all pages)
+npm run search "Software Engineer" -- --max-pages 3
+
+# All pages are processed by default
+npm run search "API Engineer" -- --profile core --location "Remote"
 ```
+
+**Default Behavior:**
+- All searches now default to jobs posted in the last 24 hours
+- Profile-based searches automatically include Remote filter
+- Jobs are sorted by posted date (newest first) in reports
+- Multi-page search processes ALL available pages by default (use --max-pages to limit)
 
 ### Profile-Based Boolean Searches
 
-Use predefined technical profiles with advanced Boolean search logic:
+Use predefined technical profiles with advanced Boolean search logic. These profiles automatically include Remote filter and search for jobs posted in the last 24 hours by default:
 
 ```bash
 # Core Azure API Engineer roles
-npx tsx src/cli.ts search --profile core
+npm run search -- --profile core
 
 # Security & Governance focused
-npx tsx src/cli.ts search --profile security
+npm run search -- --profile security
 
 # Event-Driven Architecture
-npx tsx src/cli.ts search --profile event-driven
+npm run search -- --profile event-driven
 
 # Performance & Reliability
-npx tsx src/cli.ts search --profile performance
+npm run search -- --profile performance
 
 # DevOps/CI-CD heavy teams
-npx tsx src/cli.ts search --profile devops
+npm run search -- --profile devops
 
 # Broader Senior Backend .NET
-npx tsx src/cli.ts search --profile backend
+npm run search -- --profile backend
 
-# Combine with date filter
-npx tsx src/cli.ts search --profile core --date week
+# Combine with date filter (all pages)
+npm run search -- --profile core --date week
+
+# Limit to first 3 pages only
+npm run search -- --profile core --max-pages 3
 ```
 
 Each profile uses sophisticated Boolean search strings targeting specific technical requirements (Azure, APIM, .NET, Service Bus, etc.) and automatically includes Remote filter.
@@ -146,7 +166,29 @@ npm run list queued
 
 # See applied jobs
 npm run list applied
+
+# See reported jobs (jobs included in HTML reports)
+npm run list reported
 ```
+
+### Generate Reports
+
+Create professional HTML reports of your queued jobs to share with others:
+
+```bash
+# Generate HTML report of all queued jobs
+npm run report
+```
+
+The report includes:
+- Job details with posted dates (newest first)
+- AI ranking scores and category breakdowns
+- Fit reasons and must-haves identified
+- Blockers and missing keywords
+- Clickable LinkedIn job URLs
+- Professional styling for easy sharing
+
+Reports are saved to `reports/` folder with timestamps and jobs are marked as 'reported' to avoid duplicates.
 
 ### Apply to Specific Types
 
@@ -184,7 +226,14 @@ Each category is scored 0-100, then weighted to produce the final fit score.
 - **40-59**: Weak match - missing critical requirements
 - **Below 40**: Poor match - wrong tech stack or seniority level
 
-When viewing results, you'll see category breakdowns to understand exactly which technical areas match or don't match.
+**Blocker Detection:**
+The system automatically identifies dealbreakers like:
+- Wrong tech stack (AWS instead of Azure, Python instead of C#)
+- Wrong seniority level (Junior when you're Senior+)
+- On-site only positions (when you need Remote)
+- Missing core technologies (no Azure mention)
+
+When viewing results, you'll see category breakdowns and blockers to understand exactly which technical areas match or don't match.
 
 ### About Privacy
 
@@ -192,7 +241,10 @@ Everything runs on your computer. No job data, resume info, or personal details 
 
 ### About Speed
 
-- Searching and ranking 25 jobs: 2-5 minutes
+- Searching and ranking 25 jobs (1 page): 2-5 minutes
+- Searching and ranking 75 jobs (3 pages): 6-15 minutes
+- Searching and ranking 125 jobs (5 pages): 10-25 minutes
+- Generating HTML report: 1-2 seconds
 - Applying to one Easy Apply job: 30-90 seconds
 - Applying to one external job: 20-60 seconds
 
@@ -365,10 +417,24 @@ All tests run in under 30 seconds without requiring LinkedIn login.
 3. Update `AnswersSchema` in `src/lib/validation.ts`
 4. Update `answers-policy.yml` with constraints
 
+### Recent Features Added
+
+**HTML Report Generation:**
+- Professional reports with job details, scores, and analysis
+- Posted date tracking and sorting (newest first)
+- Easy sharing via email or file transfer
+- Automatic status tracking to prevent duplicates
+
+**Enhanced Search Filters:**
+- Default 24-hour posting filter for fresher results
+- Profile-based Boolean searches with Remote filter
+- Posted date extraction and display
+- Improved blocker detection for wrong tech stacks
+
 ### Planned Features
 
 **Multi-Page Search Support:**
-Currently processes only the first page of results (25 jobs). Future versions will support pagination to search hundreds of jobs across multiple pages.
+Now supports processing multiple pages of LinkedIn search results. By default, ALL available pages are processed. Use `--max-pages N` to limit to first N pages if desired. Each page typically contains 25 jobs.
 
 **Other Enhancements:**
 - Resume variant auto-selection based on job requirements

@@ -35,6 +35,7 @@ export function initDb(): void {
       blockers TEXT,
       category_scores TEXT,
       missing_keywords TEXT,
+      posted_date TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -48,6 +49,12 @@ export function initDb(): void {
   
   try {
     database.exec(`ALTER TABLE jobs ADD COLUMN missing_keywords TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+  
+  try {
+    database.exec(`ALTER TABLE jobs ADD COLUMN posted_date TEXT`);
   } catch (e) {
     // Column already exists, ignore
   }
@@ -96,20 +103,21 @@ export interface Job {
   url: string;
   easy_apply: boolean;
   rank?: number;
-  status: 'queued' | 'applied' | 'interview' | 'rejected' | 'skipped';
+  status: 'queued' | 'applied' | 'interview' | 'rejected' | 'skipped' | 'reported';
   fit_reasons?: string;
   must_haves?: string;
   blockers?: string;
   category_scores?: string; // JSON string
   missing_keywords?: string; // JSON string
-  created_at?: string;
+  posted_date?: string; // When the job was posted on LinkedIn
+  created_at?: string; // When we added it to our database
 }
 
 export function addJobs(jobs: Omit<Job, 'created_at'>[]): number {
   const database = getDb();
   const stmt = database.prepare(`
-    INSERT OR IGNORE INTO jobs (id, title, company, url, easy_apply, rank, status, fit_reasons, must_haves, blockers, category_scores, missing_keywords)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT OR IGNORE INTO jobs (id, title, company, url, easy_apply, rank, status, fit_reasons, must_haves, blockers, category_scores, missing_keywords, posted_date)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   let inserted = 0;
@@ -127,7 +135,8 @@ export function addJobs(jobs: Omit<Job, 'created_at'>[]): number {
         job.must_haves ?? null,
         job.blockers ?? null,
         job.category_scores ?? null,
-        job.missing_keywords ?? null
+        job.missing_keywords ?? null,
+        job.posted_date ?? null
       );
       if (result.changes > 0) inserted++;
     }
@@ -188,6 +197,7 @@ export interface JobStats {
   interview: number;
   rejected: number;
   skipped: number;
+  reported: number;
   total: number;
 }
 
@@ -206,6 +216,7 @@ export function getJobStats(): JobStats {
     interview: 0,
     rejected: 0,
     skipped: 0,
+    reported: 0,
     total: 0
   };
 

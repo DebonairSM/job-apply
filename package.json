@@ -8,6 +8,7 @@
     "login": "tsx src/commands/login.ts",
     "search": "tsx src/cli.ts search",
     "apply": "tsx src/cli.ts apply",
+    "report": "tsx src/cli.ts report",
     "status": "tsx src/cli.ts status",
     "list": "tsx src/cli.ts list",
     "rank": "tsx src/cli.ts rank",

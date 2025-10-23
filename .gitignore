@@ -24,6 +24,9 @@ resumes/*.txt
 artifacts/
 trace*.zip
 
+# Generated reports
+reports/
+
 # Logs
 *.log
 npm-debug.log*

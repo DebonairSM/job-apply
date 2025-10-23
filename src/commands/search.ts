@@ -13,6 +13,7 @@ export interface SearchOptions {
   remote?: boolean;
   datePosted?: 'day' | 'week' | 'month';
   minScore?: number;
+  maxPages?: number;
 }
 
 async function dismissModals(page: Page, silent = false): Promise<void> {
@@ -27,74 +28,7 @@ async function dismissModals(page: Page, silent = false): Promise<void> {
   }
 }
 
-function buildSearchUrl(opts: SearchOptions): string {
-  const params = new URLSearchParams();
-  
-  // Use profile-based Boolean search if specified, otherwise use keywords
-  if (opts.profile && BOOLEAN_SEARCHES[opts.profile]) {
-    params.set('keywords', BOOLEAN_SEARCHES[opts.profile]);
-  } else if (opts.keywords) {
-    params.set('keywords', opts.keywords);
-  } else {
-    throw new Error('Either keywords or profile must be specified');
-  }
-  
-  if (opts.location) {
-    params.set('location', opts.location);
-  }
-  
-  // Don't add remote filter if using profile (already included in Boolean search)
-  if (opts.remote && !opts.profile) {
-    params.set('f_WT', '2'); // Remote filter
-  }
-  
-  if (opts.datePosted) {
-    const dateMap = {
-      day: 'r86400',
-      week: 'r604800',
-      month: 'r2592000'
-    };
-    params.set('f_TPR', dateMap[opts.datePosted]);
-  }
-
-  // Add origin parameter to match LinkedIn's search behavior
-  params.set('origin', 'JOBS_HOME_SEARCH_BUTTON');
-
-  return `https://www.linkedin.com/jobs/search-results/?${params.toString()}`;
-}
-
-export async function searchCommand(opts: SearchOptions): Promise<void> {
-  if (!hasSession()) {
-    console.error('❌ No saved session found. Please run "npm run login" first.');
-    process.exit(1);
-  }
-
-  const config = loadConfig();
-  const minScore = opts.minScore ?? config.minFitScore;
-
-  console.log('🔍 Starting job search...');
-  if (opts.profile) {
-    console.log(`   Profile: ${opts.profile} (using Boolean search)`);
-  } else {
-    console.log(`   Keywords: ${opts.keywords}`);
-  }
-  if (opts.location) console.log(`   Location: ${opts.location}`);
-  if (opts.remote && !opts.profile) console.log(`   Remote: Yes`);
-  if (opts.datePosted) console.log(`   Date Posted: < ${opts.datePosted}`);
-  console.log(`   Min Fit Score: ${minScore}\n`);
-
-  const browser = await chromium.launch({
-    headless: config.headless,
-    slowMo: config.slowMo
-  });
-
-  const context = await browser.newContext({ storageState: STORAGE_STATE_PATH });
-  const page = await context.newPage();
-
-  const searchUrl = buildSearchUrl(opts);
-  console.log('📄 Loading search results...');
-  await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
-
+async function processPage(page: Page, minScore: number, config: any): Promise<{ jobs: Omit<Job, 'created_at'>[], analyzed: number, queued: number }> {
   // Wait for initial results to load
   await page.waitForTimeout(2000);
   
@@ -116,7 +50,6 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
   await page.keyboard.press('Escape').catch(() => {});
   await page.waitForTimeout(500);
 
-  // Note: LinkedIn uses pagination, not infinite scroll
   // Wait a bit more to ensure all cards on current page are rendered
   await page.waitForTimeout(1000);
   
@@ -183,6 +116,12 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
           const text = await elem.textContent({ timeout: 2000 }).catch(() => null);
           if (text && text.trim()) {
             title = text.trim();
+            // Clean up title: remove "with verification" and other badges/noise
+            title = title
+              .replace(/\s+with verification\s*$/i, '')
+              .replace(/\s+verified\s*$/i, '')
+              .replace(/\s{2,}/g, ' ') // Replace multiple spaces with single space
+              .trim();
             break;
           }
         }
@@ -271,6 +210,27 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
       const easyApplyBadge = card.locator('span:has-text("Easy Apply"), .job-card-container__apply-method:has-text("Easy Apply")');
       const easyApply = await easyApplyBadge.count() > 0;
 
+      // Extract posted date - LinkedIn shows relative time like "1 day ago", "2 weeks ago"
+      let postedDate = '';
+      const dateSelectors = [
+        'time',
+        '.job-card-container__listed-time',
+        '.job-card-container__metadata-item time',
+        '[data-test-job-search-card-listing-date]'
+      ];
+      
+      for (const selector of dateSelectors) {
+        const dateElem = card.locator(selector).first();
+        const count = await dateElem.count();
+        if (count > 0) {
+          const text = await dateElem.textContent({ timeout: 2000 }).catch(() => null);
+          if (text && text.trim()) {
+            postedDate = text.trim();
+            break;
+          }
+        }
+      }
+
       // Scroll card into view and wait for it to be stable
       await card.scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {});
       await page.waitForTimeout(300); // Let DOM settle
@@ -355,7 +315,8 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
           must_haves: JSON.stringify(ranking.mustHaves),
           blockers: JSON.stringify(ranking.blockers),
           category_scores: JSON.stringify(ranking.categoryScores),
-          missing_keywords: JSON.stringify(ranking.missingKeywords)
+          missing_keywords: JSON.stringify(ranking.missingKeywords),
+          posted_date: postedDate || null
         });
 
         queued++;
@@ -371,9 +332,129 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
     }
   }
 
-  // Save to database
-  if (jobs.length > 0) {
-    const inserted = addJobs(jobs);
+  return { jobs, analyzed, queued };
+}
+
+function buildSearchUrl(opts: SearchOptions): string {
+  const params = new URLSearchParams();
+  
+  // Use profile-based Boolean search if specified, otherwise use keywords
+  if (opts.profile && BOOLEAN_SEARCHES[opts.profile]) {
+    params.set('keywords', BOOLEAN_SEARCHES[opts.profile]);
+  } else if (opts.keywords) {
+    params.set('keywords', opts.keywords);
+  } else {
+    throw new Error('Either keywords or profile must be specified');
+  }
+  
+  if (opts.location) {
+    params.set('location', opts.location);
+  }
+  
+  // Don't add remote filter if using profile (already included in Boolean search)
+  if (opts.remote && !opts.profile) {
+    params.set('f_WT', '2'); // Remote filter
+  }
+  
+  if (opts.datePosted) {
+    const dateMap = {
+      day: 'r86400',
+      week: 'r604800',
+      month: 'r2592000'
+    };
+    params.set('f_TPR', dateMap[opts.datePosted]);
+  }
+
+  // Add origin parameter to match LinkedIn's search behavior
+  params.set('origin', 'JOBS_HOME_SEARCH_BUTTON');
+
+  return `https://www.linkedin.com/jobs/search-results/?${params.toString()}`;
+}
+
+export async function searchCommand(opts: SearchOptions): Promise<void> {
+  if (!hasSession()) {
+    console.error('❌ No saved session found. Please run "npm run login" first.');
+    process.exit(1);
+  }
+
+  const config = loadConfig();
+  const minScore = opts.minScore ?? config.minFitScore;
+  const maxPages = opts.maxPages ?? 1;
+
+  console.log('🔍 Starting job search...');
+  if (opts.profile) {
+    console.log(`   Profile: ${opts.profile} (using Boolean search)`);
+  } else {
+    console.log(`   Keywords: ${opts.keywords}`);
+  }
+  if (opts.location) console.log(`   Location: ${opts.location}`);
+  if (opts.remote && !opts.profile) console.log(`   Remote: Yes`);
+  if (opts.datePosted) console.log(`   Date Posted: < ${opts.datePosted}`);
+  console.log(`   Min Fit Score: ${minScore}`);
+  if (maxPages < 999) {
+    console.log(`   Max Pages: ${maxPages}`);
+  } else {
+    console.log(`   Max Pages: All available`);
+  }
+  console.log();
+
+  const browser = await chromium.launch({
+    headless: config.headless,
+    slowMo: config.slowMo
+  });
+
+  const context = await browser.newContext({ storageState: STORAGE_STATE_PATH });
+  const page = await context.newPage();
+
+  const searchUrl = buildSearchUrl(opts);
+  console.log('📄 Loading search results...');
+  await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
+
+  const allJobs: Omit<Job, 'created_at'>[] = [];
+  let totalAnalyzed = 0;
+  let totalQueued = 0;
+  let currentPage = 1;
+
+  // Process pages in a loop
+  while (currentPage <= maxPages) {
+    console.log(`\n📄 Processing page ${currentPage}/${maxPages}...`);
+    
+    const pageResult = await processPage(page, minScore, config);
+    allJobs.push(...pageResult.jobs);
+    totalAnalyzed += pageResult.analyzed;
+    totalQueued += pageResult.queued;
+
+    console.log(`\n📊 Page ${currentPage} Summary:`);
+    console.log(`   Analyzed: ${pageResult.analyzed}`);
+    console.log(`   Queued: ${pageResult.queued}`);
+
+    // Check if there's a next page
+    if (currentPage < maxPages) {
+      const nextButton = page.locator('button[aria-label="Next"], button:has-text("Next"), .artdeco-pagination__button--next');
+      const nextButtonExists = await nextButton.count() > 0;
+      
+      if (nextButtonExists) {
+        console.log(`\n➡️  Navigating to page ${currentPage + 1}...`);
+        try {
+          await nextButton.click({ timeout: 5000 });
+          await page.waitForTimeout(3000); // Wait for page to load
+          currentPage++;
+        } catch (error) {
+          console.log(`   ⚠️  Could not navigate to next page: ${(error as Error).message}`);
+          break;
+        }
+      } else {
+        console.log(`\n🏁 No more pages available (reached end of results)`);
+        break;
+      }
+    } else {
+      break;
+    }
+  }
+
+  // Save all jobs to database
+  if (allJobs.length > 0) {
+    const inserted = addJobs(allJobs);
     console.log(`\n✨ Added ${inserted} new jobs to queue`);
   } else {
     console.log('\n⚠️  No jobs met the criteria');
@@ -381,9 +462,10 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
 
   await browser.close();
 
-  console.log(`\n📈 Summary:`);
-  console.log(`   Analyzed: ${analyzed}`);
-  console.log(`   Queued: ${queued}`);
+  console.log(`\n📈 Final Summary:`);
+  console.log(`   Pages Processed: ${currentPage}`);
+  console.log(`   Total Analyzed: ${totalAnalyzed}`);
+  console.log(`   Total Queued: ${totalQueued}`);
   console.log(`   Min Score: ${minScore}`);
   console.log('\n✅ Search complete!\n');
 }

@@ -3,8 +3,9 @@
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { loginCommand } from './commands/login.js';
-import { searchCommand } from './commands/search.js';
+import { searchCommand, SearchOptions } from './commands/search.js';
 import { applyCommand } from './commands/apply.js';
+import { reportCommand } from './commands/report.js';
 import { getJobsByStatus, getJobStats, clearAnswersCache, clearLabelMappings, clearAllCaches, getJobById } from './lib/db.js';
 import { rankJob } from './ai/ranker.js';
 import { loadConfig } from './lib/session.js';
@@ -50,12 +51,19 @@ yargs(hideBin(process.argv))
           alias: 'd',
           describe: 'Date posted filter',
           choices: ['day', 'week', 'month'] as const,
-          type: 'string'
+          type: 'string',
+          default: 'day'
         })
         .option('min-score', {
           alias: 'm',
           describe: 'Minimum fit score (0-100)',
           type: 'number'
+        })
+        .option('max-pages', {
+          alias: 'pages',
+          describe: 'Maximum number of pages to process (default: all pages)',
+          type: 'number',
+          default: 999
         })
         .check((argv) => {
           if (!argv.keywords && !argv.profile) {
@@ -71,7 +79,8 @@ yargs(hideBin(process.argv))
         location: argv.location,
         remote: argv.remote,
         datePosted: argv.date as 'day' | 'week' | 'month' | undefined,
-        minScore: argv['min-score']
+        minScore: argv['min-score'],
+        maxPages: argv['max-pages']
       });
     }
   )
@@ -114,6 +123,14 @@ yargs(hideBin(process.argv))
     }
   )
   .command(
+    'report',
+    'Generate HTML report of queued jobs',
+    {},
+    async () => {
+      await reportCommand();
+    }
+  )
+  .command(
     'status',
     'Show job application statistics',
     {},
@@ -122,6 +139,7 @@ yargs(hideBin(process.argv))
       
       console.log('\n📊 Job Application Status\n');
       console.log(`   Queued:     ${stats.queued}`);
+      console.log(`   Reported:   ${stats.reported}`);
       console.log(`   Applied:    ${stats.applied}`);
       console.log(`   Interview:  ${stats.interview}`);
       console.log(`   Rejected:   ${stats.rejected}`);
@@ -136,7 +154,7 @@ yargs(hideBin(process.argv))
     (yargs) => {
       return yargs.positional('status', {
         describe: 'Filter by status',
-        choices: ['queued', 'applied', 'interview', 'rejected', 'skipped'],
+        choices: ['queued', 'reported', 'applied', 'interview', 'rejected', 'skipped'],
         type: 'string'
       });
     },
