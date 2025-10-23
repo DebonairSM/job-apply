@@ -113,64 +113,116 @@ export interface Job {
   created_at?: string; // When we added it to our database
 }
 
-export function addJobs(jobs: Omit<Job, 'created_at'>[]): number {
+export interface AddJobsResult {
+  inserted: number;
+  requeued: number;
+  skipped: number;
+  skippedDetails: Array<{ title: string; company: string; reason: string; currentStatus: string }>;
+}
+
+export function addJobs(jobs: Omit<Job, 'created_at'>[]): AddJobsResult {
   const database = getDb();
+  
+  const checkExistingStmt = database.prepare('SELECT id, status FROM jobs WHERE id = ?');
+  
   const insertStmt = database.prepare(`
-    INSERT OR IGNORE INTO jobs (id, title, company, url, easy_apply, rank, status, fit_reasons, must_haves, blockers, category_scores, missing_keywords, posted_date)
+    INSERT INTO jobs (id, title, company, url, easy_apply, rank, status, fit_reasons, must_haves, blockers, category_scores, missing_keywords, posted_date)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   const updateStmt = database.prepare(`
     UPDATE jobs 
     SET status = ?, rank = ?, fit_reasons = ?, must_haves = ?, blockers = ?, category_scores = ?, missing_keywords = ?, posted_date = ?
-    WHERE id = ? AND status = 'reported'
+    WHERE id = ?
   `);
 
-  let inserted = 0;
+  const result: AddJobsResult = {
+    inserted: 0,
+    requeued: 0,
+    skipped: 0,
+    skippedDetails: []
+  };
+
   const insertMany = database.transaction((jobList: typeof jobs) => {
     for (const job of jobList) {
-      // Try to insert first
-      const insertResult = insertStmt.run(
-        job.id,
-        job.title,
-        job.company,
-        job.url,
-        job.easy_apply ? 1 : 0,
-        job.rank ?? null,
-        job.status,
-        job.fit_reasons ?? null,
-        job.must_haves ?? null,
-        job.blockers ?? null,
-        job.category_scores ?? null,
-        job.missing_keywords ?? null,
-        job.posted_date ?? null
-      );
+      // Check if job already exists
+      const existing = checkExistingStmt.get(job.id) as { id: string; status: string } | undefined;
       
-      if (insertResult.changes > 0) {
-        inserted++;
+      if (existing) {
+        // Job exists - decide whether to requeue or skip
+        if (existing.status === 'reported') {
+          // Requeue previously reported jobs
+          updateStmt.run(
+            'queued', // Change status back to queued
+            job.rank ?? null,
+            job.fit_reasons ?? null,
+            job.must_haves ?? null,
+            job.blockers ?? null,
+            job.category_scores ?? null,
+            job.missing_keywords ?? null,
+            job.posted_date ?? null,
+            job.id
+          );
+          result.requeued++;
+        } else if (existing.status === 'queued') {
+          // Already queued - skip
+          result.skipped++;
+          result.skippedDetails.push({
+            title: job.title,
+            company: job.company,
+            reason: 'Already in queue',
+            currentStatus: existing.status
+          });
+        } else {
+          // Applied, interview, rejected, or skipped - don't touch
+          result.skipped++;
+          result.skippedDetails.push({
+            title: job.title,
+            company: job.company,
+            reason: `Already processed`,
+            currentStatus: existing.status
+          });
+        }
       } else {
-        // Job already exists, try to update if it was previously reported
-        const updateResult = updateStmt.run(
-          job.status,
-          job.rank ?? null,
-          job.fit_reasons ?? null,
-          job.must_haves ?? null,
-          job.blockers ?? null,
-          job.category_scores ?? null,
-          job.missing_keywords ?? null,
-          job.posted_date ?? null,
-          job.id
-        );
-        
-        if (updateResult.changes > 0) {
-          inserted++; // Count re-queued jobs as "inserted"
+        // New job - insert it
+        try {
+          insertStmt.run(
+            job.id,
+            job.title,
+            job.company,
+            job.url,
+            job.easy_apply ? 1 : 0,
+            job.rank ?? null,
+            job.status,
+            job.fit_reasons ?? null,
+            job.must_haves ?? null,
+            job.blockers ?? null,
+            job.category_scores ?? null,
+            job.missing_keywords ?? null,
+            job.posted_date ?? null
+          );
+          result.inserted++;
+        } catch (error) {
+          // Handle unique constraint violation on URL
+          const err = error as Error;
+          if (err.message.includes('UNIQUE constraint failed')) {
+            result.skipped++;
+            result.skippedDetails.push({
+              title: job.title,
+              company: job.company,
+              reason: 'Duplicate URL',
+              currentStatus: 'unknown'
+            });
+          } else {
+            throw error;
+          }
         }
       }
     }
   });
 
   insertMany(jobs);
-  return inserted;
+  return result;
 }
 
 export function getJobsByStatus(status?: string, easyApply?: boolean): Job[] {

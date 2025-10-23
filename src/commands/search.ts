@@ -1,6 +1,6 @@
 import { chromium, Page } from 'playwright';
 import { STORAGE_STATE_PATH, loadConfig, hasSession } from '../lib/session.js';
-import { addJobs, Job } from '../lib/db.js';
+import { addJobs, Job, AddJobsResult } from '../lib/db.js';
 import { rankJob } from '../ai/ranker.js';
 import { randomDelay } from '../lib/resilience.js';
 import { BOOLEAN_SEARCHES } from '../ai/profiles.js';
@@ -471,8 +471,38 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
 
   // Save all jobs to database
   if (allJobs.length > 0) {
-    const inserted = addJobs(allJobs);
-    console.log(`\n✨ Added ${inserted} new jobs to queue`);
+    const result = addJobs(allJobs);
+    
+    console.log(`\n✨ Database Update Summary:`);
+    if (result.inserted > 0) {
+      console.log(`   ➕ Inserted: ${result.inserted} new job${result.inserted === 1 ? '' : 's'}`);
+    }
+    if (result.requeued > 0) {
+      console.log(`   🔄 Requeued: ${result.requeued} previously reported job${result.requeued === 1 ? '' : 's'}`);
+    }
+    if (result.skipped > 0) {
+      console.log(`   ⏭️  Skipped: ${result.skipped} job${result.skipped === 1 ? '' : 's'}`);
+      
+      // Group skipped jobs by reason
+      const byReason = result.skippedDetails.reduce((acc, detail) => {
+        const key = `${detail.reason} (${detail.currentStatus})`;
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(detail);
+        return acc;
+      }, {} as Record<string, typeof result.skippedDetails>);
+      
+      for (const [reason, details] of Object.entries(byReason)) {
+        console.log(`      • ${reason}: ${details.length}`);
+        if (details.length <= 3) {
+          details.forEach(d => console.log(`        - ${d.title} at ${d.company}`));
+        }
+      }
+    }
+    
+    const totalProcessed = result.inserted + result.requeued;
+    if (totalProcessed === 0) {
+      console.log(`\n⚠️  No new jobs added to queue. All ${allJobs.length} job${allJobs.length === 1 ? ' was' : 's were'} already in the database.`);
+    }
   } else {
     console.log('\n⚠️  No jobs met the criteria');
   }
