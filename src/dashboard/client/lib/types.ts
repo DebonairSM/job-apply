@@ -17,6 +17,7 @@ export interface Job {
   easy_apply: boolean;
   rank?: number;
   status: 'queued' | 'applied' | 'interview' | 'rejected' | 'skipped' | 'reported';
+  applied_method?: 'automatic' | 'manual';
   fit_reasons?: string;
   must_haves?: string;
   blockers?: string;

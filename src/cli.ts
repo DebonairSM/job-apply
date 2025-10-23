@@ -5,7 +5,6 @@ import { hideBin } from 'yargs/helpers';
 import { loginCommand } from './commands/login.js';
 import { searchCommand, SearchOptions } from './commands/search.js';
 import { applyCommand } from './commands/apply.js';
-import { reportCommand } from './commands/report.js';
 import { getJobsByStatus, getJobStats, clearAnswersCache, clearLabelMappings, clearAllCaches, getJobById } from './lib/db.js';
 import { rankJob } from './ai/ranker.js';
 import { loadConfig } from './lib/session.js';
@@ -120,14 +119,6 @@ yargs(hideBin(process.argv))
         jobId: argv.job,
         dryRun: argv['dry-run']
       });
-    }
-  )
-  .command(
-    'report',
-    'Generate HTML report of queued jobs',
-    {},
-    async () => {
-      await reportCommand();
     }
   )
   .command(

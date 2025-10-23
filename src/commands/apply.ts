@@ -635,7 +635,7 @@ export async function applyCommand(opts: ApplyOptions): Promise<void> {
       }
 
       if (success && !opts.dryRun) {
-        updateJobStatus(job.id, 'applied');
+        updateJobStatus(job.id, 'applied', 'automatic');
         applied++;
         logRun({
           job_id: job.id,

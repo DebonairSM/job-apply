@@ -1,5 +1,5 @@
 import express from 'express';
-import { getJobsByStatus, getJobById } from '../../lib/db.js';
+import { getJobsByStatus, getJobById, updateJobStatus } from '../../lib/db.js';
 
 const router = express.Router();
 
@@ -42,6 +42,33 @@ router.get('/:id', (req, res) => {
   } catch (error) {
     console.error('Error fetching job:', error);
     res.status(500).json({ error: 'Failed to fetch job' });
+  }
+});
+
+router.put('/:id/status', (req, res) => {
+  try {
+    const { status, applied_method } = req.body;
+    
+    if (!status) {
+      return res.status(400).json({ error: 'Status is required' });
+    }
+    
+    const validStatuses = ['queued', 'applied', 'interview', 'rejected', 'skipped', 'reported'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+    
+    if (applied_method && !['automatic', 'manual'].includes(applied_method)) {
+      return res.status(400).json({ error: 'Invalid applied_method' });
+    }
+    
+    updateJobStatus(req.params.id, status, applied_method);
+    
+    const updatedJob = getJobById(req.params.id);
+    res.json(updatedJob);
+  } catch (error) {
+    console.error('Error updating job:', error);
+    res.status(500).json({ error: 'Failed to update job' });
   }
 });
 

@@ -49,6 +49,26 @@ export const api = {
     const response = await fetch(`${API_BASE}/health`);
     if (!response.ok) throw new Error('Failed to fetch health');
     return response.json();
+  },
+
+  async updateJobStatus(
+    jobId: string, 
+    status: string, 
+    appliedMethod?: 'automatic' | 'manual'
+  ): Promise<Job> {
+    const response = await fetch(`${API_BASE}/jobs/${jobId}/status`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ status, applied_method: appliedMethod }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to update job status');
+    }
+
+    return response.json();
   }
 };
 

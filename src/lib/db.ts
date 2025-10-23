@@ -30,6 +30,7 @@ export function initDb(): void {
       easy_apply INTEGER NOT NULL,
       rank INTEGER,
       status TEXT DEFAULT 'queued',
+      applied_method TEXT,
       fit_reasons TEXT,
       must_haves TEXT,
       blockers TEXT,
@@ -41,6 +42,12 @@ export function initDb(): void {
   `);
 
   // Migration: Add new columns if they don't exist
+  try {
+    database.exec(`ALTER TABLE jobs ADD COLUMN applied_method TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+  
   try {
     database.exec(`ALTER TABLE jobs ADD COLUMN category_scores TEXT`);
   } catch (e) {
@@ -104,6 +111,7 @@ export interface Job {
   easy_apply: boolean;
   rank?: number;
   status: 'queued' | 'applied' | 'interview' | 'rejected' | 'skipped' | 'reported';
+  applied_method?: 'automatic' | 'manual';
   fit_reasons?: string;
   must_haves?: string;
   blockers?: string;
@@ -264,10 +272,10 @@ export function getJobById(id: string): Job | null {
   };
 }
 
-export function updateJobStatus(jobId: string, status: Job['status']): void {
+export function updateJobStatus(jobId: string, status: Job['status'], appliedMethod?: 'automatic' | 'manual'): void {
   const database = getDb();
-  const stmt = database.prepare('UPDATE jobs SET status = ? WHERE id = ?');
-  stmt.run(status, jobId);
+  const stmt = database.prepare('UPDATE jobs SET status = ?, applied_method = ? WHERE id = ?');
+  stmt.run(status, appliedMethod ?? null, jobId);
 }
 
 export interface JobStats {

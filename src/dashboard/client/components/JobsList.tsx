@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useJobs } from '../hooks/useJobs';
+import { api } from '../lib/api';
 import { Job } from '../lib/types';
 
 const statusColors = {
@@ -14,12 +15,39 @@ const statusColors = {
 export function JobsList() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [easyApplyFilter, setEasyApplyFilter] = useState<string>('');
+  const [updatingJobIds, setUpdatingJobIds] = useState<Set<string>>(new Set());
   
-  const { data, isLoading } = useJobs({
+  const { data, isLoading, refetch } = useJobs({
     status: statusFilter || undefined,
     easyApply: easyApplyFilter === 'true' ? true : easyApplyFilter === 'false' ? false : undefined,
     limit: 100
   });
+
+  const handleMarkAsApplied = async (jobId: string) => {
+    setUpdatingJobIds(prev => new Set(prev).add(jobId));
+    try {
+      await api.updateJobStatus(jobId, 'applied', 'manual');
+      await refetch();
+    } catch (error) {
+      console.error('Failed to update job:', error);
+      alert('Failed to mark job as applied');
+    } finally {
+      setUpdatingJobIds(prev => {
+        const next = new Set(prev);
+        next.delete(jobId);
+        return next;
+      });
+    }
+  };
+
+  const getStatusDisplay = (job: Job) => {
+    if (job.status === 'applied' && job.applied_method) {
+      return job.applied_method === 'manual' 
+        ? '✅ Applied (Manual)' 
+        : '🤖 Applied (Auto)';
+    }
+    return job.status;
+  };
 
   return (
     <div className="p-8">
@@ -86,6 +114,9 @@ export function JobsList() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Date
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -111,7 +142,7 @@ export function JobsList() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusColors[job.status]}`}>
-                      {job.status}
+                      {getStatusDisplay(job)}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -119,6 +150,17 @@ export function JobsList() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {job.created_at ? new Date(job.created_at).toLocaleDateString() : 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {job.status === 'queued' && (
+                      <button
+                        onClick={() => handleMarkAsApplied(job.id)}
+                        disabled={updatingJobIds.has(job.id)}
+                        className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
+                      >
+                        {updatingJobIds.has(job.id) ? 'Updating...' : 'Mark Applied'}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
