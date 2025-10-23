@@ -37,6 +37,11 @@ dist/
 # Vite cache
 .vite/
 
+# SSL certificates (local development only)
+*.pem
+*.key
+*.crt
+
 # OS
 .DS_Store
 Thumbs.db

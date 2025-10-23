@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import https from 'https';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import statsRouter from './routes/stats.js';
@@ -36,8 +38,16 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
-app.listen(PORT, () => {
-  console.log(`📊 Dashboard server running on http://localhost:${PORT}`);
-  console.log(`   API available at http://localhost:${PORT}/api`);
+// HTTPS options
+const httpsOptions = {
+  key: fs.readFileSync(join(__dirname, '../../localhost+2-key.pem')),
+  cert: fs.readFileSync(join(__dirname, '../../localhost+2.pem'))
+};
+
+// Start HTTPS server
+https.createServer(httpsOptions, app).listen(PORT, '0.0.0.0', () => {
+  console.log(`📊 Dashboard server running on https://localhost:${PORT}`);
+  console.log(`   API available at https://localhost:${PORT}/api`);
+  console.log(`   Network access: https://192.168.1.214:${PORT}`);
 });
 

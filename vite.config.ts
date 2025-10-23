@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
+import fs from 'fs';
 
 export default defineConfig({
   plugins: [react()],
@@ -10,12 +11,17 @@ export default defineConfig({
     emptyOutDir: true
   },
   server: {
-    host: true,  // 👈 ADD THIS LINE - exposes server to network
+    host: true,
     port: 3000,
+    https: {
+      key: fs.readFileSync(resolve(__dirname, 'localhost+2-key.pem')),
+      cert: fs.readFileSync(resolve(__dirname, 'localhost+2.pem'))
+    },
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true
+        target: 'https://localhost:3001',
+        changeOrigin: true,
+        secure: false
       }
     }
   }
