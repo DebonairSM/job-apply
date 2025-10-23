@@ -14,10 +14,11 @@ interface CategoryScores {
 export async function reportCommand(): Promise<void> {
   console.log('📊 Generating job report...\n');
 
+  // Get only queued jobs (not yet reported)
   const jobs = getJobsByStatus('queued');
 
   if (jobs.length === 0) {
-    console.log('⚠️  No queued jobs found to report on.\n');
+    console.log('⚠️  No queued jobs to report on.\n');
     return;
   }
 
@@ -102,7 +103,8 @@ function generateHTML(jobs: Job[]): string {
   });
 
   const jobRows = sortedJobs.map((job, index) => {
-    const categoryScores: CategoryScores = job.category_scores 
+    const hasCategoryScores = job.category_scores !== null && job.category_scores !== undefined;
+    const categoryScores: CategoryScores = hasCategoryScores
       ? JSON.parse(job.category_scores) 
       : { coreAzure: 0, security: 0, eventDriven: 0, performance: 0, devops: 0, seniority: 0 };
     
@@ -130,6 +132,7 @@ function generateHTML(jobs: Job[]): string {
         </td>
         <td>${typeBadge}</td>
         <td>
+          ${hasCategoryScores ? `
           <div class="scores-grid">
             <div class="score-item">
               <span class="score-label">Azure:</span>
@@ -156,6 +159,12 @@ function generateHTML(jobs: Job[]): string {
               <span class="score-value">${categoryScores.seniority}</span>
             </div>
           </div>
+          ` : `
+          <div class="scores-unavailable">
+            <span class="unavailable-text">Category scores not available</span>
+            <div class="unavailable-note">Job was added before detailed scoring was implemented</div>
+          </div>
+          `}
         </td>
         <td>
           <div class="details-section">
@@ -411,6 +420,27 @@ function generateHTML(jobs: Job[]): string {
       grid-template-columns: repeat(2, 1fr);
       gap: 8px;
       font-size: 13px;
+    }
+
+    .scores-unavailable {
+      text-align: center;
+      padding: 20px;
+      background-color: #f8f9fa;
+      border-radius: 8px;
+      border: 2px dashed #dee2e6;
+    }
+
+    .unavailable-text {
+      font-weight: bold;
+      color: #6c757d;
+      font-size: 14px;
+    }
+
+    .unavailable-note {
+      font-size: 12px;
+      color: #6c757d;
+      margin-top: 4px;
+      font-style: italic;
     }
 
     .score-item {

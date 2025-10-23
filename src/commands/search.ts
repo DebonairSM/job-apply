@@ -28,7 +28,7 @@ async function dismissModals(page: Page, silent = false): Promise<void> {
   }
 }
 
-async function processPage(page: Page, minScore: number, config: any): Promise<{ jobs: Omit<Job, 'created_at'>[], analyzed: number, queued: number }> {
+async function processPage(page: Page, minScore: number, config: any): Promise<{ analyzed: number, queued: number }> {
   // Wait for initial results to load
   await page.waitForTimeout(2000);
   
@@ -80,7 +80,6 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
   
   console.log(`\n📊 Found ${count} job cards to analyze\n`);
 
-  const jobs: Omit<Job, 'created_at'>[] = [];
   let analyzed = 0;
   let queued = 0;
 
@@ -319,7 +318,7 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
       if (ranking.fitScore >= minScore) {
         const jobId = crypto.createHash('md5').update(link).digest('hex');
         
-        jobs.push({
+        const job = {
           id: jobId,
           title,
           company,
@@ -333,10 +332,23 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
           category_scores: JSON.stringify(ranking.categoryScores),
           missing_keywords: JSON.stringify(ranking.missingKeywords),
           posted_date: postedDate || undefined
-        });
+        };
 
-        queued++;
-        console.log(`        ✅ Queued (${easyApply ? 'Easy Apply' : 'External'})`);
+        // Save immediately to database instead of adding to array
+        try {
+          const result = addJobs([job]);
+          if (result.inserted > 0) {
+            queued++;
+            console.log(`        ✅ Saved to database (${easyApply ? 'Easy Apply' : 'External'})`);
+          } else if (result.requeued > 0) {
+            queued++;
+            console.log(`        🔄 Requeued existing job (${easyApply ? 'Easy Apply' : 'External'})`);
+          } else {
+            console.log(`        ⏭️  Skipped (already processed)`);
+          }
+        } catch (error) {
+          console.log(`        ❌ Failed to save: ${(error as Error).message}`);
+        }
       } else {
         console.log(`        ⏭️  Skipped (below threshold)`);
       }
@@ -348,7 +360,7 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
     }
   }
 
-  return { jobs, analyzed, queued };
+  return { analyzed, queued };
 }
 
 function buildSearchUrl(opts: SearchOptions): string {
@@ -426,7 +438,6 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
   console.log('📄 Loading search results...');
   await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
 
-  const allJobs: Omit<Job, 'created_at'>[] = [];
   let totalAnalyzed = 0;
   let totalQueued = 0;
   let currentPage = 1;
@@ -437,7 +448,6 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
     console.log(`\n📄 Processing page ${currentPage}/${pageDisplay}...`);
     
     const pageResult = await processPage(page, minScore, config);
-    allJobs.push(...pageResult.jobs);
     totalAnalyzed += pageResult.analyzed;
     totalQueued += pageResult.queued;
 
@@ -467,44 +477,6 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
     } else {
       break;
     }
-  }
-
-  // Save all jobs to database
-  if (allJobs.length > 0) {
-    const result = addJobs(allJobs);
-    
-    console.log(`\n✨ Database Update Summary:`);
-    if (result.inserted > 0) {
-      console.log(`   ➕ Inserted: ${result.inserted} new job${result.inserted === 1 ? '' : 's'}`);
-    }
-    if (result.requeued > 0) {
-      console.log(`   🔄 Requeued: ${result.requeued} previously reported job${result.requeued === 1 ? '' : 's'}`);
-    }
-    if (result.skipped > 0) {
-      console.log(`   ⏭️  Skipped: ${result.skipped} job${result.skipped === 1 ? '' : 's'}`);
-      
-      // Group skipped jobs by reason
-      const byReason = result.skippedDetails.reduce((acc, detail) => {
-        const key = `${detail.reason} (${detail.currentStatus})`;
-        if (!acc[key]) acc[key] = [];
-        acc[key].push(detail);
-        return acc;
-      }, {} as Record<string, typeof result.skippedDetails>);
-      
-      for (const [reason, details] of Object.entries(byReason)) {
-        console.log(`      • ${reason}: ${details.length}`);
-        if (details.length <= 3) {
-          details.forEach(d => console.log(`        - ${d.title} at ${d.company}`));
-        }
-      }
-    }
-    
-    const totalProcessed = result.inserted + result.requeued;
-    if (totalProcessed === 0) {
-      console.log(`\n⚠️  No new jobs added to queue. All ${allJobs.length} job${allJobs.length === 1 ? ' was' : 's were'} already in the database.`);
-    }
-  } else {
-    console.log('\n⚠️  No jobs met the criteria');
   }
 
   await browser.close();
