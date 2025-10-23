@@ -291,20 +291,24 @@ function generateHTML(jobs: Job[]): string {
       cursor: pointer;
       user-select: none;
       position: relative;
+      color: white;
+      background-color: #0066cc;
     }
 
     th:hover {
       background-color: #0052a3;
-    }
-
-    th:hover {
       color: white !important;
     }
 
-    th::after {
+    th[onclick]::after {
       content: ' ↕';
-      opacity: 0.5;
+      opacity: 0.7;
       font-size: 12px;
+      margin-left: 4px;
+    }
+    
+    th[onclick]:hover::after {
+      opacity: 1;
     }
 
     td {
