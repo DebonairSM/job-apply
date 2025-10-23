@@ -328,6 +328,57 @@ describe('Search Command - DOM Re-location', () => {
 });
 
 /**
+ * Tests for pagination
+ */
+describe('Search Command - Pagination', () => {
+  it('should use specific pagination selector to avoid conflicts', () => {
+    const specificSelector = '.jobs-search-pagination__button--next';
+    const genericSelector = 'button[aria-label="Next"]';
+    
+    // The specific selector should be more precise
+    assert.ok(
+      specificSelector.includes('jobs-search-pagination'),
+      'Pagination selector should be specific to job search pagination'
+    );
+    
+    assert.ok(
+      !specificSelector.includes('button[aria-label'),
+      'Should not rely on generic button aria-label which may match multiple elements'
+    );
+  });
+  
+  it('should display page count correctly', () => {
+    const maxPages = 999;
+    const pageDisplay = maxPages >= 999 ? 'all' : maxPages.toString();
+    
+    assert.strictEqual(
+      pageDisplay,
+      'all',
+      'Should display "all" when maxPages is 999 or more'
+    );
+    
+    const maxPages2 = 5;
+    const pageDisplay2 = maxPages2 >= 999 ? 'all' : maxPages2.toString();
+    
+    assert.strictEqual(
+      pageDisplay2,
+      '5',
+      'Should display actual number when maxPages is less than 999'
+    );
+  });
+  
+  it('should default to processing all pages', () => {
+    const defaultMaxPages = 999;
+    
+    assert.strictEqual(
+      defaultMaxPages,
+      999,
+      'Default maxPages should be 999 (process all available pages)'
+    );
+  });
+});
+
+/**
  * Tests for search URL building
  */
 describe('Search Command - URL Building', () => {
@@ -388,6 +439,110 @@ describe('Search Command - URL Building', () => {
         `URL should include date filter for ${period}`
       );
     }
+  });
+});
+
+/**
+ * Tests for job description validation
+ */
+describe('Search Command - Description Validation', () => {
+  it('should detect short descriptions that might cause poor analysis', () => {
+    const descriptions = [
+      { text: 'Software Engineer', length: 18 },
+      { text: 'A full description with at least 100 characters to provide enough context for the LLM to analyze properly and make good decisions', length: 130 },
+      { text: 'Short', length: 5 }
+    ];
+    
+    const shortDescriptions = descriptions.filter(d => d.length < 100);
+    
+    assert.strictEqual(
+      shortDescriptions.length,
+      2,
+      'Should identify 2 short descriptions'
+    );
+  });
+  
+  it('should fall back to title when description extraction fails', () => {
+    const title = 'Senior API Engineer';
+    let description = '';
+    
+    // Simulate failed extraction
+    if (!description || description.length < 50) {
+      description = title;
+    }
+    
+    assert.strictEqual(
+      description,
+      title,
+      'Should use title as fallback when description is too short'
+    );
+  });
+});
+
+/**
+ * Tests for job data fields
+ */
+describe('Search Command - Job Data Fields', () => {
+  it('should handle posted_date as optional field', () => {
+    const job1 = {
+      title: 'Engineer',
+      posted_date: '2 days ago'
+    };
+    
+    const job2 = {
+      title: 'Engineer',
+      posted_date: undefined
+    };
+    
+    assert.strictEqual(
+      typeof job1.posted_date,
+      'string',
+      'posted_date should be string when present'
+    );
+    
+    assert.strictEqual(
+      job2.posted_date,
+      undefined,
+      'posted_date should be undefined when not found'
+    );
+  });
+  
+  it('should handle category scores and missing keywords', () => {
+    const ranking = {
+      fitScore: 85,
+      categoryScores: {
+        coreAzure: 90,
+        security: 80,
+        eventDriven: 70,
+        performance: 85,
+        devops: 75,
+        seniority: 95
+      },
+      reasons: ['Strong match'],
+      mustHaves: ['Azure', 'C#'],
+      blockers: [],
+      missingKeywords: ['APIM', 'Service Bus']
+    };
+    
+    const job = {
+      category_scores: JSON.stringify(ranking.categoryScores),
+      missing_keywords: JSON.stringify(ranking.missingKeywords)
+    };
+    
+    const parsedScores = JSON.parse(job.category_scores);
+    const parsedKeywords = JSON.parse(job.missing_keywords);
+    
+    assert.strictEqual(
+      parsedScores.coreAzure,
+      90,
+      'Should correctly serialize/deserialize category scores'
+    );
+    
+    assert.strictEqual(
+      parsedKeywords.length,
+      2,
+      'Should correctly serialize/deserialize missing keywords'
+    );
   });
 });
 

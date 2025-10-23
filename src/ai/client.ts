@@ -24,6 +24,9 @@ export async function askOllama<T>(
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 180000); // 180 second timeout (3 minutes)
+      
       const response = await fetch(`${config.ollamaBaseUrl}/api/generate`, {
         method: 'POST',
         headers: {
@@ -36,8 +39,11 @@ export async function askOllama<T>(
             temperature: attempt > 0 ? 0.0 : temperature  // Use zero temp on retries for consistency
           },
           stream: false
-        })
+        }),
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);

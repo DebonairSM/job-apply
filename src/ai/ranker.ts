@@ -10,90 +10,38 @@ export interface JobInput {
 
 // Rank a job against user profile using multi-category evaluation
 export async function rankJob(job: JobInput, profile: string): Promise<RankOutput> {
-  const prompt = `You are a specialized Azure API Engineer job evaluator.
+  // Truncate description to 1000 chars for faster processing
+  const desc = job.description.substring(0, 1000);
+  
+  const prompt = `Evaluate job match for Azure API Engineer role.
 
-CANDIDATE PROFILE:
-${profile}
+JOB: ${job.title} at ${job.company}
+DESCRIPTION: ${desc}
 
-EVALUATION CRITERIA (rate each category 0-100):
+Rate fit 0-100 for each area (parenthesis shows weight for final score):
+- coreAzure (weight 30%): How well does job match Azure, APIM, .NET Core, Functions?
+- security (weight 20%): OAuth, JWT, Azure AD, API security?
+- eventDriven (weight 15%): Service Bus, Event Grid, messaging?
+- performance (weight 15%): Redis, caching, monitoring?
+- devops (weight 10%): CI/CD, Docker, IaC?
+- seniority (weight 10%): Senior/Lead level + Remote work?
 
-1. Core Azure API Skills (${PROFILES.coreAzure.weight}% weight)
-   Must have: ${PROFILES.coreAzure.mustHave.join(', ')}
-   Preferred: ${PROFILES.coreAzure.preferred.join(', ')}
-   Score 100 if job requires most must-haves and many preferred.
-   Score 0 if none of these technologies are mentioned.
+Calculate fitScore = (coreAzure*0.30 + security*0.20 + eventDriven*0.15 + performance*0.15 + devops*0.10 + seniority*0.10)
 
-2. Security & Governance (${PROFILES.security.weight}% weight)
-   Must have: ${PROFILES.security.mustHave.join(', ')}
-   Preferred: ${PROFILES.security.preferred.join(', ')}
-   Score 100 if authentication/security is core requirement.
-   Score 50 if mentioned but not emphasized.
-   Score 0 if not mentioned at all.
+Return JSON with YOUR SCORES (not the weights):
+{"fitScore":75,"categoryScores":{"coreAzure":85,"security":70,"eventDriven":60,"performance":80,"devops":70,"seniority":90},"reasons":["Strong Azure match","Senior level"],"mustHaves":["Azure","C#"],"blockers":[],"missingKeywords":["APIM"]}`;
 
-3. Event-Driven Architecture (${PROFILES.eventDriven.weight}% weight)
-   Must have: ${PROFILES.eventDriven.mustHave.join(', ')}
-   Preferred: ${PROFILES.eventDriven.preferred.join(', ')}
-   Score 100 if messaging/events are primary focus.
-   Score 50 if mentioned as secondary skill.
-   Score 0 if not mentioned.
-
-4. Performance & Reliability (${PROFILES.performance.weight}% weight)
-   Preferred: ${PROFILES.performance.preferred.join(', ')}
-   Score 100 if performance/observability emphasized.
-   Score 50 if testing/monitoring mentioned.
-   Score 0 if not mentioned.
-
-5. DevOps & CI/CD (${PROFILES.devops.weight}% weight)
-   Preferred: ${PROFILES.devops.preferred.join(', ')}
-   Score 100 if DevOps is core responsibility.
-   Score 50 if CI/CD mentioned as requirement.
-   Score 0 if not mentioned.
-
-6. Seniority & Role Type (${PROFILES.seniority.weight}% weight)
-   Must have: ${PROFILES.seniority.mustHave.join(', ')}
-   Preferred: ${PROFILES.seniority.preferred.join(', ')}
-   Score 100 if Senior/Lead AND Remote.
-   Score 50 if Senior but hybrid/unclear remote.
-   Score 0 if Junior/Mid-level or On-site only.
-
-JOB POSTING:
-Title: ${job.title}
-Company: ${job.company}
-Description:
-${job.description}
-
-Rate each category honestly. A perfect match should score 90-100. Most jobs will score 40-80.
-
-Provide:
-1. categoryScores: Object with score for each category (coreAzure, security, eventDriven, performance, devops, seniority)
-2. fitScore: Weighted average of category scores using the weights shown above
-3. reasons: 3-5 specific reasons why this matches or doesn't (mention specific technologies found/missing)
-4. mustHaves: Key requirements explicitly mentioned in job posting
-5. blockers: Critical dealbreakers (wrong level, wrong tech stack, not remote, etc.)
-6. missingKeywords: Important keywords from evaluation criteria NOT found in job description
-
-Be strict. A job missing Azure should score <30 in coreAzure. A job requiring Python/Java instead of .NET should be flagged as blocker.
-
-Return ONLY this JSON structure (no markdown, no explanation):
-{
-  "fitScore": 75,
-  "categoryScores": {
-    "coreAzure": 80,
-    "security": 70,
-    "eventDriven": 65,
-    "performance": 75,
-    "devops": 80,
-    "seniority": 90
-  },
-  "reasons": ["reason1", "reason2", "reason3"],
-  "mustHaves": ["skill1", "skill2"],
-  "blockers": [],
-  "missingKeywords": ["keyword1", "keyword2"]
-}`;
-
+  const startTime = Date.now();
   const result = await askOllama<RankOutput>(prompt, 'RankOutput', {
-    temperature: 0.1 // Lower temperature for more consistent scoring
+    temperature: 0.1, // Lower temperature for more consistent JSON output
+    retries: 3  // Increase retries for complex prompts
   });
+  const duration = Date.now() - startTime;
+  
+  // Log performance for monitoring
+  if (process.env.DEBUG) {
+    console.log(`   ⏱️  LLM response time: ${(duration / 1000).toFixed(1)}s`);
+  }
 
   // Validate with Zod
   const validated = RankOutputSchema.parse(result);

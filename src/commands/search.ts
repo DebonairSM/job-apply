@@ -57,12 +57,18 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
   await dismissModals(page);
 
   // Extract job cards - LinkedIn uses scaffold-layout__list-item for job cards
-  let jobCards = page.locator('li.scaffold-layout__list-item');
+  // Try multiple selectors for job cards (LinkedIn changes these frequently)
+  let jobCards = page.locator('li.semantic-search-results-list__list-item');
   let count = await jobCards.count();
   
   // If no results, try alternative selectors one at a time
   if (count === 0) {
-    console.log('   ⚠️  Primary selector found 0 cards, trying alternatives...');
+    jobCards = page.locator('li.scaffold-layout__list-item');
+    count = await jobCards.count();
+  }
+  
+  if (count === 0) {
+    console.log('   ⚠️  Primary selectors found 0 cards, trying older alternatives...');
     jobCards = page.locator('ul.jobs-search__results-list > li');
     count = await jobCards.count();
   }
@@ -79,7 +85,10 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
   let queued = 0;
 
   // Determine which selector to use consistently throughout the loop
-  let cardSelector = 'li.scaffold-layout__list-item';
+  let cardSelector = 'li.semantic-search-results-list__list-item';
+  if (await page.locator(cardSelector).count() === 0) {
+    cardSelector = 'li.scaffold-layout__list-item';
+  }
   if (await page.locator(cardSelector).count() === 0) {
     cardSelector = 'ul.jobs-search__results-list > li';
   }
@@ -100,10 +109,12 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
       }
       
       // Extract job title - LinkedIn's new structure uses artdeco-entity-lockup__title
+      // Note: LinkedIn duplicates text for accessibility (aria-hidden + visually-hidden)
       let title = '';
       const titleSelectors = [
-        '.job-card-job-posting-card-wrapper__title',
-        '.artdeco-entity-lockup__title',
+        '.job-card-job-posting-card-wrapper__title strong',  // Get from <strong> tag to avoid duplicates
+        '.job-card-job-posting-card-wrapper__title span[aria-hidden="true"]',  // Visible span
+        '.artdeco-entity-lockup__title strong',
         '.base-search-card__title',
         'a[data-control-name="job_card_title"]',
         '.job-card-list__title'
@@ -113,7 +124,7 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
         const elem = card.locator(selector).first();
         const count = await elem.count();
         if (count > 0) {
-          const text = await elem.textContent({ timeout: 2000 }).catch(() => null);
+          const text = await elem.innerText({ timeout: 2000 }).catch(() => null);
           if (text && text.trim()) {
             title = text.trim();
             // Clean up title: remove "with verification" and other badges/noise
@@ -146,7 +157,7 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
         const elem = card.locator(selector).first();
         const count = await elem.count();
         if (count > 0) {
-          const text = await elem.textContent({ timeout: 2000 }).catch(() => null);
+          const text = await elem.innerText({ timeout: 2000 }).catch(() => null);
           if (text && text.trim()) {
             company = text.trim();
             break;
@@ -280,6 +291,11 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
       }
 
       analyzed++;
+
+      // Debug: check description length
+      if (description.length < 100) {
+        console.log(`        [DEBUG] Short description (${description.length} chars): ${description.substring(0, 50)}...`);
+      }
 
       // Rank the job
       const ranking = await rankJob(
@@ -431,7 +447,7 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
 
     // Check if there's a next page
     if (currentPage < maxPages) {
-      const nextButton = page.locator('button[aria-label="Next"], button:has-text("Next"), .artdeco-pagination__button--next');
+      const nextButton = page.locator('.jobs-search-pagination__button--next');
       const nextButtonExists = await nextButton.count() > 0;
       
       if (nextButtonExists) {
