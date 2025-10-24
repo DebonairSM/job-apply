@@ -134,7 +134,7 @@ See [Dashboard Quick Start](docs/DASHBOARD_QUICKSTART.md) for detailed setup gui
 Edit `.env` file:
 
 - `MIN_FIT_SCORE`: Minimum score to queue jobs (default: 70)
-- `LLM_MODEL`: AI model (default: llama3.1:8b-instruct)
+- `LLM_MODEL`: AI model (default: llama3.1:8b)
 - `HEADLESS`: Run browser in background (true/false)
 - `ENABLE_TRACING`: Save debug logs (true/false)
 
@@ -169,20 +169,111 @@ flowchart TB
     Rank --> |Score each job| Score{Score >= 70?}
     Score -->|Yes| Queue[(Database: Queued)]
     Score -->|No| Skip[(Database: Skipped)]
+    
+    Queue --> Report[Generate Report]
+    Report --> |Move to reported| Reported[(Database: Reported)]
+    Reported --> |Manual review| Queue
+    
     Queue --> Apply[Apply Command]
     Apply --> Generate[Generate Answers with LLM]
     Generate --> Map[Map Fields with LLM]
     Map --> Detect{Detect ATS}
+    
     Detect -->|Easy Apply| EasyFill[Fill LinkedIn Form]
     Detect -->|Greenhouse| GHFill[Fill Greenhouse Form]
     Detect -->|Lever| LeverFill[Fill Lever Form]
     Detect -->|Workday| WorkdayFill[Fill Workday Form]
+    Detect -->|Unknown ATS| GenericFill[Generic Form Fill]
+    
     EasyFill --> Submit[Submit Application]
     GHFill --> Submit
     LeverFill --> Submit
     WorkdayFill --> Submit
-    Submit --> Done[(Database: Applied)]
+    GenericFill --> Submit
+    
+    Submit --> |Success| Applied[(Database: Applied)]
+    Submit --> |Failure| Skipped[(Database: Skipped)]
+    
+    Applied --> |Manual update| Interview[(Database: Interview)]
+    Applied --> |Manual update| Rejected[(Database: Rejected)]
+    
+    style Queue fill:#e1f5fe
+    style Applied fill:#c8e6c9
+    style Skipped fill:#ffcdd2
+    style Reported fill:#fff3e0
+    style Interview fill:#e8f5e8
+    style Rejected fill:#ffebee
 ```
+
+## Advanced Features
+
+This application demonstrates sophisticated capabilities that can be applied to any AI-powered scraping and automation system:
+
+### 🤖 **Intelligent Content Analysis & Ranking**
+- **Multi-criteria AI Scoring**: Uses weighted scoring across multiple categories (technical skills, seniority, location, etc.) with configurable weights
+- **Profile-based Boolean Search**: Pre-defined search profiles with complex Boolean queries for targeted discovery
+- **Dynamic Content Extraction**: Robust selectors with fallback mechanisms for handling changing website structures
+- **Semantic Job Matching**: AI-powered analysis of job descriptions against user profiles with detailed reasoning
+
+### 🧠 **Advanced AI Integration**
+- **Local LLM Processing**: Runs entirely offline using Ollama with configurable models and temperature settings
+- **Structured AI Output**: Enforces JSON schema validation with retry logic for consistent AI responses
+- **Context-Aware Generation**: Uses RAG (Retrieval-Augmented Generation) with resume context for personalized responses
+- **Multi-step AI Workflows**: Chained AI operations (ranking → answer generation → field mapping) with error handling
+
+### 🔄 **Smart Form Automation**
+- **ATS Detection & Adaptation**: Automatically detects and adapts to different Applicant Tracking Systems (Greenhouse, Lever, Workday)
+- **Intelligent Field Mapping**: Three-tier mapping system (heuristics → cache → AI) for optimal performance and accuracy
+- **Generic Form Fallback**: Handles unknown form types with intelligent field detection and filling
+- **Resume Upload Automation**: Automatic file upload with multiple format support
+
+### 📊 **Real-time Monitoring Dashboard**
+- **Live Statistics**: Real-time metrics with auto-refresh and success rate calculations
+- **Comprehensive Activity Logging**: Detailed execution logs with timestamps, screenshots, and error tracking
+- **Visual Analytics**: Interactive charts and graphs for performance trends and insights
+- **Multi-view Interface**: Dashboard overview, detailed job lists, and activity monitoring in separate views
+
+### 🛡️ **Enterprise-Grade Resilience**
+- **Exponential Backoff Retry**: Intelligent retry mechanisms with configurable delays and maximum attempts
+- **Screenshot & Trace Capture**: Automatic debugging artifacts for failed operations
+- **Session Management**: Persistent browser sessions with automatic restoration
+- **Error Recovery**: Graceful handling of network issues, timeouts, and unexpected page changes
+
+### ⚡ **Performance Optimization**
+- **Multi-level Caching**: Answers cache, label mapping cache, and database query optimization
+- **Batch Processing**: Efficient handling of multiple items with progress tracking
+- **Configurable Delays**: Human-like behavior simulation with random timing variations
+- **Database Transactions**: Atomic operations with rollback capabilities for data integrity
+
+### 🔧 **Advanced Configuration**
+- **Environment-based Settings**: Comprehensive configuration via environment variables
+- **Policy-driven Validation**: YAML-based policy files for controlling AI responses and behavior
+- **Modular Architecture**: Pluggable adapters and components for easy extension
+- **Dry Run Capabilities**: Safe testing mode for validating operations without side effects
+
+### 📈 **Data Management & Analytics**
+- **Comprehensive Status Tracking**: Six-state job lifecycle (queued, applied, interview, rejected, skipped, reported)
+- **Historical Data Retention**: Complete audit trail with timestamps and status change tracking
+- **Export Capabilities**: Data export functionality for external analysis and reporting
+- **Duplicate Detection**: Intelligent duplicate prevention with URL-based deduplication
+
+### 🔍 **Debugging & Troubleshooting**
+- **Visual Debugging**: Screenshot capture at each step with Playwright tracing
+- **Detailed Logging**: Comprehensive logging with different verbosity levels
+- **Error Classification**: Categorized error types with specific handling strategies
+- **Performance Monitoring**: Response time tracking and performance metrics
+
+### 🏗️ **Scalable Architecture**
+- **Type-safe Development**: Full TypeScript implementation with Zod schema validation
+- **Modular Design**: Separated concerns with clear interfaces and dependency injection
+- **Database Abstraction**: Clean database layer with prepared statements and migrations
+- **API-first Design**: RESTful API endpoints for external integration and monitoring
+
+### 🔐 **Security & Privacy**
+- **Local Processing**: All AI operations run locally without external API calls
+- **Session Persistence**: Secure session storage with automatic cleanup
+- **Input Validation**: Comprehensive input sanitization and validation
+- **Error Sanitization**: Safe error messages without sensitive information exposure
 
 ## Architecture
 
@@ -191,13 +282,13 @@ flowchart TB
 1. **Search & Rank**: Fetch jobs from LinkedIn, LLM scores each job, queues high-fit matches to database
 2. **Prepare Answers**: LLM generates application responses based on your profile, validates against policy
 3. **Fill Forms**: Detect ATS type, map canonical fields to form fields, fill and submit
+4. **Monitor & Analyze**: Real-time dashboard provides live statistics, activity logs, and performance metrics
 
 ### Components
 
 **Commands** (`src/commands/`)
 - `search.ts` - Search LinkedIn and rank jobs
 - `apply.ts` - Apply to queued jobs
-- `report.ts` - Generate HTML reports
 - `login.ts` - Authenticate with LinkedIn
 
 **AI** (`src/ai/`)
@@ -214,6 +305,14 @@ flowchart TB
 - `lever.ts` - Lever ATS support
 - `workday.ts` - Workday ATS support
 
+**Dashboard** (`src/dashboard/`)
+- `server.ts` - Express API server (port 3001)
+- `routes/` - REST API endpoints (stats, jobs, runs, analytics)
+- `client/` - React frontend application (port 3000)
+  - `components/` - UI components (Dashboard, JobsList, ActivityLog)
+  - `hooks/` - Custom React hooks for data fetching
+  - `lib/` - Frontend utilities and API client
+
 **Library** (`src/lib/`)
 - `db.ts` - SQLite database operations
 - `session.ts` - Browser session management
@@ -221,20 +320,28 @@ flowchart TB
 - `resilience.ts` - Retry and error handling
 
 **Data Storage**
-- `data/` - SQLite database (jobs, answers, logs)
+- `data/` - SQLite database (jobs, answers, logs, runs)
 - `resumes/` - Resume files for RAG context
 - `storage/` - LinkedIn session state
 - `artifacts/` - Debug screenshots and traces
-- `reports/` - Generated HTML reports
+- `dist/` - Built dashboard frontend assets
 
 ### Tech Stack
 
+**Core Automation**
 - TypeScript 5.6
 - Playwright (browser automation)
 - SQLite (better-sqlite3)
 - Ollama + Llama 3.1 8B
 - Zod (validation)
 - Yargs (CLI)
+
+**Dashboard**
+- React (frontend framework)
+- Express (backend API server)
+- TanStack Query (data fetching & caching)
+- Tailwind CSS (styling)
+- Vite (build tool & dev server)
 
 ### Tests
 

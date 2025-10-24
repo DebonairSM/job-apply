@@ -104,9 +104,46 @@ export function initDb(): void {
       key TEXT NOT NULL,
       locator TEXT,
       confidence REAL NOT NULL,
+      success_count INTEGER DEFAULT 0,
+      failure_count INTEGER DEFAULT 0,
+      field_type TEXT,
+      input_strategy TEXT,
       last_seen_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Migrate existing label_map table to add learning columns
+  try {
+    database.exec(`
+      ALTER TABLE label_map ADD COLUMN success_count INTEGER DEFAULT 0;
+    `);
+  } catch (error) {
+    // Column already exists, ignore
+  }
+  
+  try {
+    database.exec(`
+      ALTER TABLE label_map ADD COLUMN failure_count INTEGER DEFAULT 0;
+    `);
+  } catch (error) {
+    // Column already exists, ignore
+  }
+  
+  try {
+    database.exec(`
+      ALTER TABLE label_map ADD COLUMN field_type TEXT;
+    `);
+  } catch (error) {
+    // Column already exists, ignore
+  }
+  
+  try {
+    database.exec(`
+      ALTER TABLE label_map ADD COLUMN input_strategy TEXT;
+    `);
+  } catch (error) {
+    // Column already exists, ignore
+  }
 
   // Runs/execution log table
   database.exec(`
@@ -458,6 +495,10 @@ export interface LabelMapping {
   key: string;
   locator?: string;
   confidence: number;
+  success_count?: number;
+  failure_count?: number;
+  field_type?: string;
+  input_strategy?: string;
   last_seen_at?: string;
 }
 
@@ -470,16 +511,60 @@ export function getLabelMapping(label: string): LabelMapping | null {
 export function saveLabelMapping(mapping: LabelMapping): void {
   const database = getDb();
   const stmt = database.prepare(`
-    INSERT OR REPLACE INTO label_map (label, key, locator, confidence, last_seen_at)
-    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+    INSERT OR REPLACE INTO label_map (label, key, locator, confidence, success_count, failure_count, field_type, input_strategy, last_seen_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
   `);
-  stmt.run(mapping.label, mapping.key, mapping.locator ?? null, mapping.confidence);
+  stmt.run(
+    mapping.label, 
+    mapping.key, 
+    mapping.locator ?? null, 
+    mapping.confidence,
+    mapping.success_count ?? 0,
+    mapping.failure_count ?? 0,
+    mapping.field_type ?? null,
+    mapping.input_strategy ?? null
+  );
 }
 
 export function getAllMappings(): LabelMapping[] {
   const database = getDb();
   const stmt = database.prepare('SELECT * FROM label_map ORDER BY last_seen_at DESC');
   return stmt.all() as LabelMapping[];
+}
+
+// Learning system functions
+export function updateMappingSuccess(label: string, locator: string): void {
+  const database = getDb();
+  const stmt = database.prepare(`
+    UPDATE label_map 
+    SET success_count = success_count + 1, 
+        locator = ?,
+        last_seen_at = CURRENT_TIMESTAMP
+    WHERE label = ?
+  `);
+  stmt.run(locator, label);
+}
+
+export function updateMappingFailure(label: string): void {
+  const database = getDb();
+  const stmt = database.prepare(`
+    UPDATE label_map 
+    SET failure_count = failure_count + 1,
+        last_seen_at = CURRENT_TIMESTAMP
+    WHERE label = ?
+  `);
+  stmt.run(label);
+}
+
+export function getLabelMappingByKey(key: string): LabelMapping[] {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM label_map WHERE key = ? ORDER BY confidence DESC');
+  return stmt.all(key) as LabelMapping[];
+}
+
+export function calculateDynamicConfidence(baseConfidence: number, successCount: number, failureCount: number): number {
+  let confidence = baseConfidence * (1 + (successCount * 0.05)) * (1 - (failureCount * 0.1));
+  return Math.max(0.5, Math.min(1.0, confidence));
 }
 
 export function clearLabelMappings(): void {

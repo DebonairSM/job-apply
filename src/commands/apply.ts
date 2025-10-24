@@ -29,6 +29,14 @@ async function fillEasyApply(
   resumePath: string,
   dryRun: boolean
 ): Promise<boolean> {
+  // Log learning progress at start
+  if (process.env.DEBUG) {
+    const { getAllMappings } = await import('../lib/db.js');
+    const allMappings = getAllMappings();
+    const mappingsWithSelectors = allMappings.filter(m => m.locator);
+    console.log(`🧠 Starting application with ${mappingsWithSelectors.length} learned selectors`);
+  }
+
   // Find the Easy Apply button using JavaScript to avoid overlay issues
   const easyApplyButton = await page.evaluate(() => {
     // Find all buttons on the page
@@ -242,13 +250,56 @@ async function fillEasyApply(
         if (!value) continue;
 
         try {
-          await fillFieldByLabel(page, mapping.label, value);
+          const result = await fillFieldByLabel(page, mapping.label, value);
+          
+          if (result.success && result.locator) {
+            // Import database functions for learning
+            const { saveLabelMapping, updateMappingSuccess, updateMappingFailure } = await import('../lib/db.js');
+            
+            // Update mapping with learned selector and metadata
+            saveLabelMapping({
+              label: mapping.label,
+              key: mapping.key,
+              locator: result.locator,
+              confidence: mapping.confidence,
+              field_type: result.fieldType,
+              input_strategy: result.inputStrategy
+            });
+            
+            // Update success metrics
+            updateMappingSuccess(mapping.label, result.locator);
+            
+            if (process.env.DEBUG) {
+              console.log(`      📚 Learned selector for "${mapping.label}": ${result.locator}`);
+            }
+          } else if (!result.success) {
+            // Update failure metrics if we had a cached selector
+            const { getLabelMapping, updateMappingFailure } = await import('../lib/db.js');
+            const cached = getLabelMapping(mapping.label);
+            if (cached?.locator) {
+              updateMappingFailure(mapping.label);
+              if (process.env.DEBUG) {
+                console.log(`      📉 Updated failure count for "${mapping.label}"`);
+              }
+            }
+          }
         } catch (error) {
           // Log but continue if a field fails to fill
           if (process.env.DEBUG) {
             console.log(`      Warning: Failed to fill "${mapping.label}": ${(error as Error).message}`);
           }
         }
+      }
+
+      // Log learning statistics for this step
+      if (process.env.DEBUG) {
+        const { getAllMappings } = await import('../lib/db.js');
+        const allMappings = getAllMappings();
+        const mappingsWithSelectors = allMappings.filter(m => m.locator);
+        const totalSuccesses = allMappings.reduce((sum, m) => sum + (m.success_count || 0), 0);
+        const totalFailures = allMappings.reduce((sum, m) => sum + (m.failure_count || 0), 0);
+        
+        console.log(`      📊 Learning Stats: ${mappingsWithSelectors.length} cached selectors, ${totalSuccesses} successes, ${totalFailures} failures`);
       }
 
       // Try to upload resume
@@ -277,11 +328,35 @@ async function fillEasyApply(
 
     if (action === 'submit') {
       console.log('   ✅ Application submitted!');
+      
+      // Log final learning summary
+      if (process.env.DEBUG) {
+        const { getAllMappings } = await import('../lib/db.js');
+        const allMappings = getAllMappings();
+        const mappingsWithSelectors = allMappings.filter(m => m.locator);
+        const totalSuccesses = allMappings.reduce((sum, m) => sum + (m.success_count || 0), 0);
+        const totalFailures = allMappings.reduce((sum, m) => sum + (m.failure_count || 0), 0);
+        
+        console.log(`🎓 Learning Summary: ${mappingsWithSelectors.length} selectors cached, ${totalSuccesses} total successes, ${totalFailures} total failures`);
+      }
+      
       return true;
     }
 
     if (action === 'done') {
       console.log('   ✅ Application completed!');
+      
+      // Log final learning summary
+      if (process.env.DEBUG) {
+        const { getAllMappings } = await import('../lib/db.js');
+        const allMappings = getAllMappings();
+        const mappingsWithSelectors = allMappings.filter(m => m.locator);
+        const totalSuccesses = allMappings.reduce((sum, m) => sum + (m.success_count || 0), 0);
+        const totalFailures = allMappings.reduce((sum, m) => sum + (m.failure_count || 0), 0);
+        
+        console.log(`🎓 Learning Summary: ${mappingsWithSelectors.length} selectors cached, ${totalSuccesses} total successes, ${totalFailures} total failures`);
+      }
+      
       return true;
     }
 
@@ -459,7 +534,82 @@ function isNumericField(label: string): boolean {
   );
 }
 
-async function fillFieldByLabel(page: Page, label: string, value: string): Promise<void> {
+// Helper function to extract stable CSS selector from an element
+async function extractStableSelector(element: any): Promise<string | null> {
+  try {
+    // Get element attributes
+    const tagName = await element.evaluate((el: Element) => el.tagName.toLowerCase());
+    const id = await element.getAttribute('id');
+    const name = await element.getAttribute('name');
+    const type = await element.getAttribute('type');
+    const ariaLabel = await element.getAttribute('aria-label');
+    
+    // Priority order for stable selectors
+    if (id && id.trim()) {
+      return `#${id.trim()}`;
+    }
+    
+    if (name && name.trim()) {
+      return `${tagName}[name="${name.trim()}"]`;
+    }
+    
+    if (type && ariaLabel) {
+      return `${tagName}[type="${type}"][aria-label="${ariaLabel}"]`;
+    }
+    
+    if (type) {
+      return `${tagName}[type="${type}"]`;
+    }
+    
+    // Fallback to tag name only (least stable)
+    return tagName;
+  } catch (error) {
+    return null;
+  }
+}
+
+// Helper function to detect field type and input strategy
+async function detectFieldTypeAndStrategy(element: any): Promise<{fieldType: string, inputStrategy: string}> {
+  try {
+    const tagName = await element.evaluate((el: Element) => el.tagName.toLowerCase());
+    const type = await element.getAttribute('type');
+    
+    let fieldType = tagName;
+    let inputStrategy = 'fill';
+    
+    if (tagName === 'input') {
+      fieldType = type || 'text';
+      
+      switch (type) {
+        case 'checkbox':
+        case 'radio':
+          inputStrategy = 'check';
+          break;
+        case 'file':
+          inputStrategy = 'setInputFiles';
+          break;
+        default:
+          inputStrategy = 'fill';
+      }
+    } else if (tagName === 'select') {
+      inputStrategy = 'selectOption';
+    } else if (tagName === 'textarea') {
+      inputStrategy = 'fill';
+    }
+    
+    return { fieldType, inputStrategy };
+  } catch (error) {
+    return { fieldType: 'unknown', inputStrategy: 'fill' };
+  }
+}
+
+async function fillFieldByLabel(page: Page, label: string, value: string): Promise<{
+  success: boolean;
+  method: string;
+  locator?: string;
+  fieldType?: string;
+  inputStrategy?: string;
+}> {
   // Determine the actual value to fill
   let fillValue = value;
   
@@ -468,22 +618,71 @@ async function fillFieldByLabel(page: Page, label: string, value: string): Promi
     fillValue = extractNumericValue(value);
   }
   
+  // Import database functions
+  const { getLabelMapping } = await import('../lib/db.js');
+  
+  // 1. Try cached selector first
+  const cached = getLabelMapping(label);
+  if (cached?.locator) {
+    try {
+      const element = page.locator(cached.locator);
+      if (await element.count() > 0) {
+        const input = element.first();
+        await input.clear();
+        await input.fill(fillValue);
+        
+        // Extract metadata for successful fill
+        const { fieldType, inputStrategy } = await detectFieldTypeAndStrategy(input);
+        
+        if (process.env.DEBUG) {
+          console.log(`      ✓ Used cached selector for "${label}": ${cached.locator}`);
+        }
+        
+        return {
+          success: true,
+          method: 'cached_selector',
+          locator: cached.locator,
+          fieldType,
+          inputStrategy
+        };
+      }
+    } catch (error) {
+      if (process.env.DEBUG) {
+        console.log(`      ⚠️ Cached selector failed for "${label}": ${cached.locator}`);
+      }
+    }
+  }
+  
+  // 2. Try getByLabel
   try {
-    // Try getByLabel
     const byLabel = page.getByLabel(label);
     if (await byLabel.count() > 0) {
       const input = byLabel.first();
-      // Clear first, then fill
       await input.clear();
       await input.fill(fillValue);
-      return;
+      
+      // Extract selector and metadata
+      const locator = await extractStableSelector(input);
+      const { fieldType, inputStrategy } = await detectFieldTypeAndStrategy(input);
+      
+      if (process.env.DEBUG) {
+        console.log(`      ✓ Filled "${label}" via getByLabel${locator ? ` (selector: ${locator})` : ''}`);
+      }
+      
+      return {
+        success: true,
+        method: 'getByLabel',
+        locator: locator || undefined,
+        fieldType,
+        inputStrategy
+      };
     }
   } catch (error) {
     // Try other methods
   }
 
+  // 3. Try finding label and then associated input
   try {
-    // Try finding label and then associated input
     const labelElem = page.locator(`label:has-text("${label}")`);
     if (await labelElem.count() > 0) {
       const forAttr = await labelElem.first().getAttribute('for');
@@ -491,16 +690,40 @@ async function fillFieldByLabel(page: Page, label: string, value: string): Promi
         const input = page.locator(`#${forAttr}`);
         if (await input.count() > 0) {
           const field = input.first();
-          // Clear first, then fill
           await field.clear();
           await field.fill(fillValue);
-          return;
+          
+          // Extract metadata
+          const locator = `#${forAttr}`;
+          const { fieldType, inputStrategy } = await detectFieldTypeAndStrategy(field);
+          
+          if (process.env.DEBUG) {
+            console.log(`      ✓ Filled "${label}" via label+for (selector: ${locator})`);
+          }
+          
+          return {
+            success: true,
+            method: 'label_for',
+            locator,
+            fieldType,
+            inputStrategy
+          };
         }
       }
     }
   } catch (error) {
     // Ignore
   }
+  
+  // 4. All methods failed
+  if (process.env.DEBUG) {
+    console.log(`      ✗ Failed to fill "${label}"`);
+  }
+  
+  return {
+    success: false,
+    method: 'none'
+  };
 }
 
 async function nextOrSubmit(page: Page, dryRun: boolean): Promise<'next' | 'submit' | 'done' | 'stuck'> {
