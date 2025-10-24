@@ -77,7 +77,7 @@ export async function rankJob(job: JobInput, profileKey: string): Promise<RankOu
   const desc = job.description.substring(0, 1000);
   
   // Get profile-specific scoring criteria
-  const scoring = generateProfileScoringCriteria(actualProfileKey);
+  const scoring = await generateProfileScoringCriteria(actualProfileKey);
   
   const prompt = `Evaluate job match for ${scoring.profileName} role.
 
