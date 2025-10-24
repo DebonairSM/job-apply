@@ -37,16 +37,22 @@ function generateProfileScoringCriteria(profileKey: string): {
     throw new Error(`Unknown profile: ${profileKey}`);
   }
 
+  // Get adjusted weights from learning system
+  const { getActiveWeights } = require('./weight-manager.js');
+  const adjustedWeights = getActiveWeights();
+
   const criteria: string[] = [];
   const weights: string[] = [];
   const categoryNames: string[] = [];
 
-  // Build scoring criteria based on profile configuration
+  // Build scoring criteria based on adjusted weights
   Object.entries(PROFILES).forEach(([key, prof]) => {
-    const weightPercent = prof.weight;
-    const weightDecimal = weightPercent / 100;
+    const baseWeight = prof.weight;
+    const adjustment = adjustedWeights[key] || 0;
+    const finalWeight = baseWeight + adjustment;
+    const weightDecimal = finalWeight / 100;
     
-    criteria.push(`- ${key} (weight ${weightPercent}%): How well does job match ${prof.description.toLowerCase()}?`);
+    criteria.push(`- ${key} (weight ${finalWeight.toFixed(1)}%): How well does job match ${prof.description.toLowerCase()}?`);
     weights.push(`${key}*${weightDecimal}`);
     categoryNames.push(key);
   });

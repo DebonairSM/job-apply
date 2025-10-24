@@ -88,7 +88,25 @@ export async function askOllama<T>(
     }
   }
 
-  throw new Error(`Failed to get valid JSON from Ollama after ${maxRetries + 1} attempts: ${lastError?.message}`);
+  const errorMessage = `Failed to get valid JSON from Ollama after ${maxRetries + 1} attempts: ${lastError?.message}`;
+  
+  // Log error to database if we have a job context
+  if (process.env.JOB_ID) {
+    try {
+      const { logRun } = await import('../lib/db.js');
+      logRun({
+        job_id: process.env.JOB_ID,
+        step: 'ollama_json_parse',
+        ok: false,
+        log: errorMessage
+      });
+    } catch (dbError) {
+      // Don't let database logging errors interfere with the main error
+      console.error('Failed to log Ollama error to database:', dbError);
+    }
+  }
+  
+  throw new Error(errorMessage);
 }
 
 // Check if Ollama is available

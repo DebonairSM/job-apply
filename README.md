@@ -276,6 +276,20 @@ This application demonstrates sophisticated capabilities that can be applied to 
 - **Visual Analytics**: Interactive charts and graphs for performance trends and insights
 - **Multi-view Interface**: Dashboard overview, detailed job lists, and activity monitoring in separate views
 
+### 🧠 **Rejection Reason Learning System**
+- **Immediate Weight Adjustment**: Each rejection triggers analysis using keyword patterns and LLM to adjust profile category weights automatically
+- **Pattern-Based Filtering**: Builds blocklists for companies with repeated rejections and avoids jobs with problematic keywords
+- **Dual Analysis Methods**: Combines keyword extraction for common patterns with LLM-powered analysis for nuanced rejection reasons
+- **Real-time Learning**: System learns from rejections immediately, adjusting scoring weights and building filters without manual intervention
+- **Dashboard Monitoring**: View active weight adjustments, rejection patterns, and learning history in real-time
+- **Intelligent Filtering**: Filters jobs before ranking to save processing time and avoid similar rejections
+
+**Example Learning Scenarios:**
+- Multiple "too junior" rejections → decreases seniority weight and filters junior-level jobs
+- "Wrong tech stack - no Python" rejections → blocks Python jobs and adjusts tech stack weights
+- Repeated rejections from same company → adds company to blocklist
+- "Not remote" rejections → increases remote work weight and filters on-site jobs
+
 ### 🛡️ **Enterprise-Grade Resilience**
 - **Exponential Backoff Retry**: Intelligent retry mechanisms with configurable delays and maximum attempts
 - **Screenshot & Trace Capture**: Automatic debugging artifacts for failed operations

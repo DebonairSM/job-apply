@@ -129,7 +129,14 @@ export function ActivityLog() {
   return (
     <div className="p-4 sm:p-6 lg:p-8">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 sm:mb-8 space-y-4 sm:space-y-0">
-        <h1 className="text-2xl sm:text-3xl font-bold">Activity Log</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl sm:text-3xl font-bold">Activity Log</h1>
+          {activities && (
+            <span className="bg-red-100 text-red-800 text-xs font-medium px-2 py-1 rounded-full">
+              {activities.filter(a => a.type === 'run_error').length} errors
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-4">
           <label className="flex items-center gap-2">
             <input
@@ -207,7 +214,7 @@ export function ActivityLog() {
               <div
                 key={activity.id}
                 className={`border-b border-gray-100 p-3 sm:p-4 hover:bg-gray-50 transition-colors ${
-                  activity.type === 'run_error' ? 'bg-red-50/30' : ''
+                  activity.type === 'run_error' ? 'bg-red-50 border-l-4 border-l-red-400' : ''
                 }`}
               >
                 <div className="flex items-start gap-3 sm:gap-4">

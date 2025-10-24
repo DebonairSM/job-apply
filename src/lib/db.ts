@@ -87,6 +87,33 @@ export function initDb(): void {
     // Column already exists, ignore
   }
 
+  // Rejection patterns table
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS rejection_patterns (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      pattern_type TEXT NOT NULL,
+      pattern_value TEXT NOT NULL,
+      count INTEGER DEFAULT 1,
+      last_seen TEXT DEFAULT CURRENT_TIMESTAMP,
+      weight_adjustment REAL DEFAULT 0,
+      profile_category TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Weight adjustments history table
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS weight_adjustments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      profile_category TEXT NOT NULL,
+      old_weight REAL NOT NULL,
+      new_weight REAL NOT NULL,
+      reason TEXT NOT NULL,
+      rejection_id TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Answers cache table
   database.exec(`
     CREATE TABLE IF NOT EXISTS answers (
@@ -364,6 +391,68 @@ export function updateJobStatus(jobId: string, status: Job['status'], appliedMet
   const database = getDb();
   const stmt = database.prepare('UPDATE jobs SET status = ?, applied_method = ?, rejection_reason = ?, status_updated_at = ? WHERE id = ?');
   stmt.run(status, appliedMethod ?? null, rejectionReason ?? null, new Date().toISOString(), jobId);
+  
+  // Trigger learning on rejection
+  if (status === 'rejected' && rejectionReason) {
+    // Use dynamic import to avoid circular dependencies
+    analyzeAndLearnFromRejection(jobId, rejectionReason).catch(error => {
+      console.error('Error learning from rejection:', error);
+    });
+  }
+}
+
+// Analyze rejection and apply learning
+async function analyzeAndLearnFromRejection(jobId: string, rejectionReason: string): Promise<void> {
+  try {
+    const job = getJobById(jobId);
+    if (!job) {
+      console.error(`Job ${jobId} not found for rejection analysis`);
+      return;
+    }
+    
+    // Dynamic import to avoid circular dependencies
+    const { analyzeRejectionWithLLM } = await import('../ai/rejection-analyzer.js');
+    const { applyWeightAdjustment } = await import('../ai/weight-manager.js');
+    const { saveRejectionPattern } = await import('../lib/db.js');
+    
+    // Analyze rejection
+    const analysis = await analyzeRejectionWithLLM(rejectionReason, job);
+    
+    // Save patterns
+    for (const pattern of analysis.patterns) {
+      saveRejectionPattern({
+        type: pattern.type,
+        value: pattern.value,
+        confidence: pattern.confidence,
+        profileCategory: undefined,
+        weightAdjustment: 0
+      });
+    }
+    
+    // Apply weight adjustments immediately
+    for (const adjustment of analysis.suggestedAdjustments) {
+      applyWeightAdjustment(
+        adjustment.category,
+        adjustment.adjustment,
+        adjustment.reason,
+        jobId
+      );
+    }
+    
+    // Log learning summary
+    if (analysis.patterns.length > 0 || analysis.suggestedAdjustments.length > 0) {
+      console.log(`📚 Learning from rejection: ${job.title} at ${job.company}`);
+      console.log(`   Patterns found: ${analysis.patterns.length}`);
+      console.log(`   Weight adjustments: ${analysis.suggestedAdjustments.length}`);
+      
+      for (const adjustment of analysis.suggestedAdjustments) {
+        console.log(`   📊 Adjusted ${adjustment.category} by ${adjustment.adjustment > 0 ? '+' : ''}${adjustment.adjustment}% - ${adjustment.reason}`);
+      }
+    }
+    
+  } catch (error) {
+    console.error('Error in rejection learning analysis:', error);
+  }
 }
 
 export interface JobStats {
@@ -804,6 +893,154 @@ export function clearAllCaches(): void {
   const database = getDb();
   database.prepare('DELETE FROM answers').run();
   database.prepare('DELETE FROM label_map').run();
+}
+
+// Rejection learning database functions
+
+export interface RejectionPattern {
+  id?: number;
+  pattern_type: string;
+  pattern_value: string;
+  count: number;
+  last_seen: string;
+  weight_adjustment: number;
+  profile_category?: string;
+  created_at: string;
+}
+
+export interface WeightAdjustment {
+  id?: number;
+  profile_category: string;
+  old_weight: number;
+  new_weight: number;
+  reason: string;
+  rejection_id?: string;
+  created_at: string;
+}
+
+export function saveRejectionPattern(pattern: {
+  type: string;
+  value: string;
+  confidence: number;
+  profileCategory?: string;
+  weightAdjustment?: number;
+}): void {
+  const database = getDb();
+  
+  // Check if pattern already exists
+  const existing = database.prepare(`
+    SELECT id, count FROM rejection_patterns 
+    WHERE pattern_type = ? AND pattern_value = ?
+  `).get(pattern.type, pattern.value);
+  
+  if (existing) {
+    // Update existing pattern
+    database.prepare(`
+      UPDATE rejection_patterns 
+      SET count = count + 1, last_seen = CURRENT_TIMESTAMP,
+          weight_adjustment = ?, profile_category = ?
+      WHERE id = ?
+    `).run(pattern.weightAdjustment || 0, pattern.profileCategory, existing.id);
+  } else {
+    // Insert new pattern
+    database.prepare(`
+      INSERT INTO rejection_patterns 
+      (pattern_type, pattern_value, count, weight_adjustment, profile_category)
+      VALUES (?, ?, 1, ?, ?)
+    `).run(pattern.type, pattern.value, pattern.weightAdjustment || 0, pattern.profileCategory);
+  }
+}
+
+export function getRejectionPatternsByType(type: string): RejectionPattern[] {
+  const database = getDb();
+  return database.prepare(`
+    SELECT * FROM rejection_patterns 
+    WHERE pattern_type = ? 
+    ORDER BY count DESC, last_seen DESC
+  `).all(type) as RejectionPattern[];
+}
+
+export function getAllRejectionPatterns(): RejectionPattern[] {
+  const database = getDb();
+  return database.prepare(`
+    SELECT * FROM rejection_patterns 
+    ORDER BY count DESC, last_seen DESC
+  `).all() as RejectionPattern[];
+}
+
+export function getWeightAdjustments(): WeightAdjustment[] {
+  const database = getDb();
+  return database.prepare(`
+    SELECT * FROM weight_adjustments 
+    ORDER BY created_at DESC
+  `).all() as WeightAdjustment[];
+}
+
+export function saveWeightAdjustment(adjustment: {
+  profile_category: string;
+  old_weight: number;
+  new_weight: number;
+  reason: string;
+  rejection_id?: string;
+}): void {
+  const database = getDb();
+  database.prepare(`
+    INSERT INTO weight_adjustments 
+    (profile_category, old_weight, new_weight, reason, rejection_id)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(
+    adjustment.profile_category,
+    adjustment.old_weight,
+    adjustment.new_weight,
+    adjustment.reason,
+    adjustment.rejection_id
+  );
+}
+
+export function getCurrentWeightAdjustments(): Record<string, number> {
+  const database = getDb();
+  const adjustments = database.prepare(`
+    SELECT profile_category, SUM(new_weight - old_weight) as total_adjustment
+    FROM weight_adjustments
+    GROUP BY profile_category
+  `).all() as Array<{ profile_category: string; total_adjustment: number }>;
+  
+  const result: Record<string, number> = {};
+  for (const adj of adjustments) {
+    result[adj.profile_category] = adj.total_adjustment;
+  }
+  return result;
+}
+
+export function getRejectionStats(): {
+  totalRejections: number;
+  topPatterns: Array<{ type: string; value: string; count: number }>;
+  recentAdjustments: WeightAdjustment[];
+} {
+  const database = getDb();
+  
+  const totalRejections = database.prepare(`
+    SELECT COUNT(*) as count FROM jobs WHERE status = 'rejected'
+  `).get() as { count: number };
+  
+  const topPatterns = database.prepare(`
+    SELECT pattern_type as type, pattern_value as value, count
+    FROM rejection_patterns
+    ORDER BY count DESC
+    LIMIT 10
+  `).all() as Array<{ type: string; value: string; count: number }>;
+  
+  const recentAdjustments = database.prepare(`
+    SELECT * FROM weight_adjustments
+    ORDER BY created_at DESC
+    LIMIT 10
+  `).all() as WeightAdjustment[];
+  
+  return {
+    totalRejections: totalRejections.count,
+    topPatterns,
+    recentAdjustments
+  };
 }
 
 // Initialize on import

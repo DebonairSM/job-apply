@@ -820,6 +820,9 @@ export async function applyCommand(opts: ApplyOptions): Promise<void> {
     try {
       await startTracing(context, job.id);
 
+      // Set job context for error logging
+      process.env.JOB_ID = job.id;
+
       // Generate answers
       const answersData = await synthesizeAnswers(
         job.id,
@@ -830,6 +833,9 @@ export async function applyCommand(opts: ApplyOptions): Promise<void> {
 
       console.log(`   📄 Using resume: ${answersData.resumeVariant}`);
       const resumePath = getResumePath(answersData.resumeVariant);
+      
+      // Clear job context
+      delete process.env.JOB_ID;
 
       // Navigate to job
       await page.goto(job.url, { waitUntil: 'domcontentloaded' });

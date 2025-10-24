@@ -511,11 +511,29 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
         continue;
       }
 
+      // Check rejection filters before ranking
+      const { applyFilters } = await import('../ai/rejection-filters.js');
+      const filterResult = applyFilters({ title, company, description });
+      if (filterResult.blocked) {
+        console.log(`   ${analyzed}/${count} ${title} at ${company}`);
+        console.log(`        ⚠️  Filtered: ${filterResult.reason}`);
+        continue;
+      }
+
+      // Generate job ID for context
+      const jobId = crypto.createHash('md5').update(link).digest('hex');
+      
+      // Set job context for error logging
+      process.env.JOB_ID = jobId;
+      
       // Rank the job (expensive LLM operation - only for new jobs)
       const ranking = await rankJob(
         { title, company, description },
         opts.profile || 'coreAzure' // Use the actual profile from CLI, fallback to coreAzure
       );
+      
+      // Clear job context
+      delete process.env.JOB_ID;
 
       console.log(`   ${analyzed}/${count} ${title} at ${company}`);
       console.log(`        Score: ${ranking.fitScore}/100`);
@@ -531,7 +549,6 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
       }
 
       if (ranking.fitScore >= minScore) {
-        const jobId = crypto.createHash('md5').update(link).digest('hex');
         
         const job = {
           id: jobId,
@@ -573,6 +590,23 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
 
     } catch (error) {
       console.log(`   ⚠️  Error processing job ${i + 1}: ${(error as Error).message}`);
+      
+      // Log error to database if we have job context
+      if (process.env.JOB_ID) {
+        try {
+          const { logRun } = await import('../lib/db.js');
+          logRun({
+            job_id: process.env.JOB_ID,
+            step: 'job_processing',
+            ok: false,
+            log: (error as Error).message
+          });
+        } catch (dbError) {
+          console.error('Failed to log job processing error to database:', dbError);
+        }
+        // Clear job context
+        delete process.env.JOB_ID;
+      }
     }
   }
 

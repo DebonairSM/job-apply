@@ -22,7 +22,20 @@ export function CategoryScoreBar({ category, score, maxScore = 100 }: CategorySc
   };
 
   const formatCategoryName = (category: string) => {
-    return category
+    // Map category keys to proper display names
+    const categoryNameMap: Record<string, string> = {
+      coreAzure: 'Azure Platform Development',
+      coreNet: '.NET Development',
+      security: 'Security & Governance',
+      eventDriven: 'Event-Driven Architecture',
+      performance: 'Performance & Reliability',
+      devops: 'DevOps & CI/CD',
+      seniority: 'Seniority & Role Type',
+      legacyModernization: 'Legacy Modernization'
+    };
+    
+    // Return mapped name or fallback to formatted camelCase
+    return categoryNameMap[category] || category
       .replace(/([A-Z])/g, ' $1')
       .replace(/^./, str => str.toUpperCase())
       .trim();

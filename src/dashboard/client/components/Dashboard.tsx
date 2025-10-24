@@ -1,6 +1,7 @@
 import { useStats } from '../hooks/useStats';
 import { useRecentActivity } from '../hooks/useRecentActivity';
 import { StatCard } from './StatCard';
+import { LearningPanel } from './LearningPanel';
 
 export function Dashboard() {
   const { data: stats, isLoading: statsLoading } = useStats();
@@ -41,6 +42,34 @@ export function Dashboard() {
           color="purple"
         />
       </div>
+
+      {/* Error Summary */}
+      {activity && activity.some(job => job.status === 'skipped' && job.rejection_reason?.includes('Error')) && (
+        <div className="mb-6 sm:mb-8">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+            <h2 className="text-lg font-bold text-red-800 mb-2">⚠️ Recent Errors</h2>
+            <div className="space-y-2">
+              {activity
+                .filter(job => job.status === 'skipped' && job.rejection_reason?.includes('Error'))
+                .slice(0, 3)
+                .map((job) => (
+                  <div key={job.id} className="text-sm text-red-700">
+                    <span className="font-medium">{job.title} at {job.company}:</span>
+                    <span className="ml-2">{job.rejection_reason}</span>
+                  </div>
+                ))}
+            </div>
+            <div className="mt-3">
+              <a 
+                href="/activity" 
+                className="text-red-600 hover:text-red-800 text-sm font-medium underline"
+              >
+                View all errors in Activity Log →
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Application Method Breakdown */}
       <div className="mb-6 sm:mb-8">
@@ -109,6 +138,11 @@ export function Dashboard() {
             color="gray"
           />
         </div>
+      </div>
+
+      {/* Learning System */}
+      <div className="mb-6 sm:mb-8">
+        <LearningPanel />
       </div>
 
       {/* Recent Activity */}
