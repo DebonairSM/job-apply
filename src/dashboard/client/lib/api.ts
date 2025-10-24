@@ -88,6 +88,12 @@ export const api = {
     const response = await fetch(`${API_BASE}/stats/recent-activity?${searchParams}`);
     if (!response.ok) throw new Error('Failed to fetch recent activity');
     return response.json();
+  },
+
+  async getCompleteJobData(jobId: string): Promise<any> {
+    const response = await fetch(`${API_BASE}/jobs/${jobId}/complete-data`);
+    if (!response.ok) throw new Error('Failed to fetch complete job data');
+    return response.json();
   }
 };
 

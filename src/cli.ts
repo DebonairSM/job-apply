@@ -70,9 +70,15 @@ yargs(hideBin(process.argv))
           type: 'number',
           default: 1
         })
+        .option('update-descriptions', {
+          alias: 'u',
+          describe: 'Update missing job descriptions for existing jobs',
+          type: 'boolean',
+          default: false
+        })
         .check((argv) => {
-          if (!argv.keywords && !argv.profile) {
-            throw new Error('Either keywords or --profile must be specified');
+          if (!argv.keywords && !argv.profile && !argv['update-descriptions']) {
+            throw new Error('Either keywords, --profile, or --update-descriptions must be specified');
           }
           return true;
         });
@@ -86,7 +92,8 @@ yargs(hideBin(process.argv))
         datePosted: argv.date as 'day' | 'week' | 'month' | undefined,
         minScore: argv['min-score'],
         maxPages: argv['max-pages'],
-        startPage: argv['start-page']
+        startPage: argv['start-page'],
+        updateDescriptions: argv['update-descriptions']
       });
     }
   )

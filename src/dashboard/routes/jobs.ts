@@ -1,5 +1,5 @@
 import express from 'express';
-import { getJobsByStatus, getJobById, updateJobStatus } from '../../lib/db.js';
+import { getJobsByStatus, getJobById, updateJobStatus, getAnswers, getRunHistory, getAllMappings } from '../../lib/db.js';
 
 const router = express.Router();
 
@@ -69,6 +69,55 @@ router.put('/:id/status', (req, res) => {
   } catch (error) {
     console.error('Error updating job:', error);
     res.status(500).json({ error: 'Failed to update job' });
+  }
+});
+
+router.get('/:id/complete-data', (req, res) => {
+  try {
+    const jobId = req.params.id;
+    
+    // Get the main job record
+    const job = getJobById(jobId);
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    
+    // Get application answers
+    const answers = getAnswers(jobId);
+    
+    // Get run logs for this job
+    const runLogs = getRunHistory(jobId, 100); // Get last 100 runs
+    
+    // Get all label mappings (they're global, not job-specific)
+    const labelMappings = getAllMappings();
+    
+    // Calculate metadata
+    const metadata = {
+      totalRunLogs: runLogs.length,
+      hasScreenshots: runLogs.some(run => run.screenshot_path),
+      hasAnswers: !!answers,
+      lastExecution: runLogs.length > 0 ? runLogs[0].started_at : null,
+      successfulRuns: runLogs.filter(run => run.ok).length,
+      failedRuns: runLogs.filter(run => !run.ok).length
+    };
+    
+    // Compile complete data
+    const completeData = {
+      job,
+      answers: answers ? {
+        json: JSON.parse(answers.json),
+        resumeVariant: answers.resume_variant,
+        createdAt: answers.created_at
+      } : null,
+      runLogs,
+      labelMappings,
+      metadata
+    };
+    
+    res.json(completeData);
+  } catch (error) {
+    console.error('Error fetching complete job data:', error);
+    res.status(500).json({ error: 'Failed to fetch complete job data' });
   }
 });
 

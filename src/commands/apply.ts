@@ -601,7 +601,7 @@ export async function applyCommand(opts: ApplyOptions): Promise<void> {
       const answersData = await synthesizeAnswers(
         job.id,
         job.title,
-        '', // Description not stored, but cached answers will be used
+        job.description || '', // Use stored description or fallback to empty string
         config.profileSummary
       );
 

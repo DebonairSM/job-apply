@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useJobs } from '../hooks/useJobs';
 import { api } from '../lib/api';
 import { Job } from '../lib/types';
+import { JobDetailsPanel } from './JobDetailsPanel';
 
 const statusColors = {
   queued: 'bg-yellow-100 text-yellow-800',
@@ -11,6 +12,9 @@ const statusColors = {
   skipped: 'bg-gray-100 text-gray-800',
   reported: 'bg-purple-100 text-purple-800'
 };
+
+type SortField = 'title' | 'company' | 'rank' | 'status' | 'type' | 'date';
+type SortDirection = 'asc' | 'desc';
 
 export function JobsList() {
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -22,6 +26,9 @@ export function JobsList() {
   const [rejectingJobId, setRejectingJobId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string>('');
   const [clickedJobId, setClickedJobId] = useState<string | null>(null);
+  const [expandedJobIds, setExpandedJobIds] = useState<Set<string>>(new Set());
+  const [sortField, setSortField] = useState<SortField>('date');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   
   const { data, isLoading, refetch } = useJobs({
     status: statusFilter || undefined,
@@ -46,8 +53,8 @@ export function JobsList() {
     }
   }, [clickedJobId]);
 
-  // Client-side filtering for additional filters
-  const filteredJobs = data?.jobs.filter(job => {
+  // Client-side filtering and sorting
+  const filteredAndSortedJobs = data?.jobs.filter(job => {
     // Applied method filter
     if (appliedMethodFilter) {
       if (appliedMethodFilter === 'manual' && job.applied_method !== 'manual') return false;
@@ -66,6 +73,42 @@ export function JobsList() {
     if (minRank > 0 && (job.rank || 0) < minRank) return false;
     
     return true;
+  }).sort((a, b) => {
+    let aValue: any;
+    let bValue: any;
+    
+    switch (sortField) {
+      case 'title':
+        aValue = a.title.toLowerCase();
+        bValue = b.title.toLowerCase();
+        break;
+      case 'company':
+        aValue = a.company.toLowerCase();
+        bValue = b.company.toLowerCase();
+        break;
+      case 'rank':
+        aValue = a.rank || 0;
+        bValue = b.rank || 0;
+        break;
+      case 'status':
+        aValue = a.status;
+        bValue = b.status;
+        break;
+      case 'type':
+        aValue = a.easy_apply ? 'easy' : 'external';
+        bValue = b.easy_apply ? 'easy' : 'external';
+        break;
+      case 'date':
+        aValue = new Date(a.created_at || '').getTime();
+        bValue = new Date(b.created_at || '').getTime();
+        break;
+      default:
+        return 0;
+    }
+    
+    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
   }) || [];
 
   const handleMarkAsApplied = async (jobId: string) => {
@@ -148,10 +191,67 @@ export function JobsList() {
     setClickedJobId(null);
   };
 
+  const toggleJobExpansion = (jobId: string) => {
+    setExpandedJobIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(jobId)) {
+        newSet.delete(jobId);
+      } else {
+        newSet.add(jobId);
+      }
+      return newSet;
+    });
+  };
+
+  const expandAllJobs = () => {
+    const allJobIds = new Set(filteredAndSortedJobs.map(job => job.id));
+    setExpandedJobIds(allJobIds);
+  };
+
+  const collapseAllJobs = () => {
+    setExpandedJobIds(new Set());
+  };
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortIcon = (field: SortField) => {
+    if (sortField !== field) {
+      return (
+        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+        </svg>
+      );
+    }
+    
+    return sortDirection === 'asc' ? (
+      <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+      </svg>
+    ) : (
+      <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+      </svg>
+    );
+  };
+
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Jobs</h1>
+        <div className="flex items-center gap-4">
+          <h1 className="text-3xl font-bold">Jobs</h1>
+          {expandedJobIds.size > 0 && (
+            <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+              {expandedJobIds.size} expanded
+            </span>
+          )}
+        </div>
         <div className="flex gap-3">
           {clickedJobId && (
             <button
@@ -161,6 +261,24 @@ export function JobsList() {
               <span>✨</span>
               Clear Highlight
             </button>
+          )}
+          {filteredAndSortedJobs.length > 0 && (
+            <>
+              <button
+                onClick={expandAllJobs}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+              >
+                <span>📖</span>
+                Expand All
+              </button>
+              <button
+                onClick={collapseAllJobs}
+                className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+              >
+                <span>📕</span>
+                Collapse All
+              </button>
+            </>
           )}
           <button
             onClick={handleExport}
@@ -255,7 +373,7 @@ export function JobsList() {
       <div className="bg-white border-2 border-gray-200 rounded-lg overflow-hidden">
         {isLoading ? (
           <div className="p-8 text-center">Loading jobs...</div>
-        ) : !filteredJobs.length ? (
+        ) : !filteredAndSortedJobs.length ? (
           <div className="p-8 text-center text-gray-500">
             {data?.jobs.length ? 'No jobs match your filters' : 'No jobs found'}
           </div>
@@ -264,22 +382,61 @@ export function JobsList() {
             <thead className="bg-gray-50 border-b-2 border-gray-200">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Title
+                  Details
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Company
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('title')}
+                >
+                  <div className="flex items-center gap-1">
+                    Title
+                    {getSortIcon('title')}
+                  </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Rank
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('company')}
+                >
+                  <div className="flex items-center gap-1">
+                    Company
+                    {getSortIcon('company')}
+                  </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('rank')}
+                >
+                  <div className="flex items-center gap-1">
+                    Rank
+                    {getSortIcon('rank')}
+                  </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Type
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('status')}
+                >
+                  <div className="flex items-center gap-1">
+                    Status
+                    {getSortIcon('status')}
+                  </div>
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('type')}
+                >
+                  <div className="flex items-center gap-1">
+                    Type
+                    {getSortIcon('type')}
+                  </div>
+                </th>
+                <th 
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  onClick={() => handleSort('date')}
+                >
+                  <div className="flex items-center gap-1">
+                    Date
+                    {getSortIcon('date')}
+                  </div>
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -287,80 +444,109 @@ export function JobsList() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredJobs.map((job: Job) => (
-                <tr 
-                  key={job.id} 
-                  className={`hover:bg-gray-50 ${
-                    clickedJobId === job.id 
-                      ? 'bg-cyan-100 border-2 border-cyan-400 shadow-lg shadow-cyan-200' 
-                      : ''
-                  }`}
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <a 
-                      href={job.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:text-blue-800 font-medium"
-                      onClick={() => handleJobClick(job.id)}
+              {filteredAndSortedJobs.map((job: Job) => {
+                const isExpanded = expandedJobIds.has(job.id);
+                return (
+                  <React.Fragment key={job.id}>
+                    <tr 
+                      className={`hover:bg-gray-50 ${
+                        clickedJobId === job.id 
+                          ? 'bg-cyan-100 border-2 border-cyan-400 shadow-lg shadow-cyan-200' 
+                          : ''
+                      }`}
                     >
-                      {job.title}
-                    </a>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {job.company}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="font-bold text-lg">
-                      {job.rank || 'N/A'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusColors[job.status]}`}>
-                      {getStatusDisplay(job)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {job.easy_apply ? '⚡ Easy Apply' : '🔗 External'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {job.created_at ? (() => {
-                      // SQLite stores as 'YYYY-MM-DD HH:MM:SS' in UTC, need to append 'Z' for proper parsing
-                      const timestamp = job.created_at.includes('Z') ? job.created_at : `${job.created_at}Z`;
-                      return new Date(timestamp).toLocaleString(undefined, {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: true
-                      });
-                    })() : 'N/A'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex gap-2">
-                      {(job.status === 'queued' || job.status === 'reported') && (
+                      <td className="px-6 py-4 whitespace-nowrap">
                         <button
-                          onClick={() => handleMarkAsApplied(job.id)}
-                          disabled={updatingJobIds.has(job.id)}
-                          className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
+                          onClick={() => toggleJobExpansion(job.id)}
+                          className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-200 transition-colors"
+                          title={isExpanded ? 'Collapse details' : 'Expand details'}
                         >
-                          {updatingJobIds.has(job.id) ? 'Updating...' : 'Mark Applied'}
+                          <svg
+                            className={`w-4 h-4 text-gray-600 transition-transform duration-200 ${
+                              isExpanded ? 'rotate-180' : ''
+                            }`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
                         </button>
-                      )}
-                      {(job.status === 'queued' || job.status === 'reported') && (
-                        <button
-                          onClick={() => handleRejectClick(job.id)}
-                          disabled={updatingJobIds.has(job.id)}
-                          className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <a 
+                          href={job.url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 font-medium"
+                          onClick={() => handleJobClick(job.id)}
                         >
-                          {updatingJobIds.has(job.id) ? 'Updating...' : 'Reject'}
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                          {job.title}
+                        </a>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {job.company}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="font-bold text-lg">
+                          {job.rank || 'N/A'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusColors[job.status]}`}>
+                          {getStatusDisplay(job)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {job.easy_apply ? '⚡ Easy Apply' : '🔗 External'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        {job.created_at ? (() => {
+                          // SQLite stores as 'YYYY-MM-DD HH:MM:SS' in UTC, need to append 'Z' for proper parsing
+                          const timestamp = job.created_at.includes('Z') ? job.created_at : `${job.created_at}Z`;
+                          return new Date(timestamp).toLocaleString(undefined, {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true
+                          });
+                        })() : 'N/A'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex gap-2">
+                          {(job.status === 'queued' || job.status === 'reported') && (
+                            <button
+                              onClick={() => handleMarkAsApplied(job.id)}
+                              disabled={updatingJobIds.has(job.id)}
+                              className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
+                            >
+                              {updatingJobIds.has(job.id) ? 'Updating...' : 'Mark Applied'}
+                            </button>
+                          )}
+                          {(job.status === 'queued' || job.status === 'reported') && (
+                            <button
+                              onClick={() => handleRejectClick(job.id)}
+                              disabled={updatingJobIds.has(job.id)}
+                              className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
+                            >
+                              {updatingJobIds.has(job.id) ? 'Updating...' : 'Reject'}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                    {isExpanded && (
+                      <tr key={`${job.id}-details`}>
+                        <td colSpan={8} className="p-0">
+                          <JobDetailsPanel job={job} />
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -368,8 +554,8 @@ export function JobsList() {
 
       {data && data.total > 0 && (
         <div className="mt-4 text-sm text-gray-600">
-          Showing {filteredJobs.length} of {data.total} jobs
-          {filteredJobs.length < data.jobs.length && (
+          Showing {filteredAndSortedJobs.length} of {data.total} jobs
+          {filteredAndSortedJobs.length < data.jobs.length && (
             <span className="text-gray-500"> (filtered from {data.jobs.length})</span>
           )}
         </div>

@@ -30,6 +30,7 @@ export interface Job {
   category_scores?: string;
   missing_keywords?: string;
   posted_date?: string;
+  description?: string;
   created_at?: string;
 }
 

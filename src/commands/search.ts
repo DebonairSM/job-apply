@@ -1,6 +1,6 @@
 import { chromium, Page } from 'playwright';
 import { STORAGE_STATE_PATH, loadConfig, hasSession } from '../lib/session.js';
-import { addJobs, Job, AddJobsResult, jobExistsByUrl, getJobByUrl } from '../lib/db.js';
+import { addJobs, Job, AddJobsResult, jobExistsByUrl, getJobByUrl, getJobsByStatus, getDb } from '../lib/db.js';
 import { rankJob } from '../ai/ranker.js';
 import { randomDelay } from '../lib/resilience.js';
 import { BOOLEAN_SEARCHES } from '../ai/profiles.js';
@@ -15,6 +15,7 @@ export interface SearchOptions {
   minScore?: number;
   maxPages?: number;
   startPage?: number;
+  updateDescriptions?: boolean;
 }
 
 async function dismissModals(page: Page, silent = false): Promise<void> {
@@ -27,6 +28,94 @@ async function dismissModals(page: Page, silent = false): Promise<void> {
   } catch (error) {
     // Silently ignore errors in modal dismissal
   }
+}
+
+// Function to update existing jobs with missing descriptions
+async function updateMissingDescriptions(page: Page, limit: number = 10): Promise<number> {
+  console.log('🔍 Checking for jobs with missing descriptions...');
+  
+  const jobsWithoutDesc = getJobsByStatus().filter((job: Job) => !job.description || job.description.trim().length < 30);
+  
+  if (jobsWithoutDesc.length === 0) {
+    console.log('✅ All jobs have descriptions');
+    return 0;
+  }
+  
+  console.log(`📋 Found ${jobsWithoutDesc.length} jobs without descriptions. Updating first ${limit}...`);
+  
+  let updated = 0;
+  for (let i = 0; i < Math.min(limit, jobsWithoutDesc.length); i++) {
+    const job = jobsWithoutDesc[i];
+    console.log(`\n🔄 Updating description for: ${job.title} at ${job.company}`);
+    
+    try {
+      await page.goto(job.url, { waitUntil: 'networkidle', timeout: 30000 });
+      await page.waitForTimeout(2000);
+      
+      // Use the same improved description extraction logic
+      const descSelectors = [
+        '.jobs-description__content',
+        '.jobs-description',
+        '.jobs-box__html-content',
+        'div[id*="job-details"]',
+        'article.jobs-description__container',
+        '.jobs-details__main-content',
+        '[data-test-id="job-description"]',
+        '.job-description',
+        '.description',
+        'div[class*="description"]',
+        'div[class*="content"]',
+        'section[class*="description"]',
+        'main .jobs-description',
+        '.jobs-details',
+        '.job-details',
+        'div[role="main"]',
+        'main',
+        'article'
+      ];
+      
+      let description = '';
+      let descriptionFound = false;
+      
+      for (const selector of descSelectors) {
+        try {
+          const descPane = page.locator(selector).first();
+          const count = await descPane.count();
+          if (count === 0) continue;
+          
+          await descPane.waitFor({ state: 'visible', timeout: 2000 });
+          const text = await descPane.innerText({ timeout: 3000 });
+          
+          if (text && text.trim().length > 30) {
+            description = text.trim();
+            descriptionFound = true;
+            break;
+          }
+        } catch (error) {
+          continue;
+        }
+      }
+      
+      if (descriptionFound) {
+        // Update the job in database
+        const database = getDb();
+        const updateStmt = database.prepare('UPDATE jobs SET description = ? WHERE id = ?');
+        updateStmt.run(description, job.id);
+        updated++;
+        console.log(`   ✅ Updated description`);
+      } else {
+        console.log(`   ⚠️  Could not extract description`);
+      }
+      
+      await randomDelay();
+      
+    } catch (error) {
+      console.log(`   ❌ Error updating job: ${(error as Error).message}`);
+    }
+  }
+  
+  console.log(`\n✅ Updated ${updated} job descriptions`);
+  return updated;
 }
 
 async function processPage(page: Page, minScore: number, config: any): Promise<{ analyzed: number, queued: number }> {
@@ -263,41 +352,81 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
 
       // Extract full description from detail pane - try multiple selectors
       const descSelectors = [
+        // Current LinkedIn selectors (2024)
         '.jobs-description__content',
         '.jobs-description',
         '.jobs-box__html-content',
         'div[id*="job-details"]',
         'article.jobs-description__container',
-        '.jobs-details__main-content'
+        '.jobs-details__main-content',
+        // Additional selectors for different layouts
+        '[data-test-id="job-description"]',
+        '.job-description',
+        '.description',
+        'div[class*="description"]',
+        'div[class*="content"]',
+        'section[class*="description"]',
+        'main .jobs-description',
+        '.jobs-details',
+        '.job-details',
+        // Fallback selectors
+        'div[role="main"]',
+        'main',
+        'article'
       ];
       
       let description = '';
+      let descriptionFound = false;
+      
+      // Wait a bit longer for content to load
+      await page.waitForTimeout(2000);
+      
       for (const selector of descSelectors) {
         try {
           const descPane = page.locator(selector).first();
-          await descPane.waitFor({ state: 'visible', timeout: 3000 });
-          description = await descPane.innerText({ timeout: 2000 });
-          if (description && description.length > 50) {
-            break; // Found valid description
+          const count = await descPane.count();
+          if (count === 0) continue;
+          
+          await descPane.waitFor({ state: 'visible', timeout: 2000 });
+          const text = await descPane.innerText({ timeout: 3000 });
+          
+          if (text && text.trim().length > 30) {
+            description = text.trim();
+            descriptionFound = true;
+            break;
           }
-        } catch {
-          continue; // Try next selector
+        } catch (error) {
+          // Continue to next selector
+          continue;
         }
       }
       
-      if (!description || description.length < 50) {
+      // If no description found, try to get any text content from the main area
+      if (!descriptionFound) {
+        try {
+          const mainContent = page.locator('main, [role="main"], .jobs-details, .job-details').first();
+          const count = await mainContent.count();
+          if (count > 0) {
+            await mainContent.waitFor({ state: 'visible', timeout: 2000 });
+            const text = await mainContent.innerText({ timeout: 3000 });
+            if (text && text.trim().length > 30) {
+              description = text.trim();
+              descriptionFound = true;
+            }
+          }
+        } catch (error) {
+          console.log(`   ⚠️  Fallback description extraction failed: ${(error as Error).message}`);
+        }
+      }
+      
+      if (!descriptionFound) {
         console.log(`   ⚠️  Could not extract description for: ${title}`);
         description = title; // Fallback to title
       }
 
       analyzed++;
 
-      // Debug: check description length
-      if (description.length < 100) {
-        console.log(`        [DEBUG] Short description (${description.length} chars): ${description.substring(0, 50)}...`);
-      }
-
-      // 🚀 PERFORMANCE OPTIMIZATION: Check for duplicates BEFORE expensive LLM analysis
+      // Check for duplicates before expensive LLM analysis
       if (jobExistsByUrl(link)) {
         const existingJob = getJobByUrl(link);
         console.log(`   ${analyzed}/${count} ${title} at ${company}`);
@@ -334,13 +463,14 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
           url: link,
           easy_apply: easyApply,
           rank: ranking.fitScore,
-          status: 'queued',
+          status: 'queued' as const,
           fit_reasons: JSON.stringify(ranking.reasons),
           must_haves: JSON.stringify(ranking.mustHaves),
           blockers: JSON.stringify(ranking.blockers),
           category_scores: JSON.stringify(ranking.categoryScores),
           missing_keywords: JSON.stringify(ranking.missingKeywords),
-          posted_date: postedDate || undefined
+          posted_date: postedDate || undefined,
+          description: description || undefined
         };
 
         // Save immediately to database instead of adding to array
@@ -348,12 +478,12 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
           const result = addJobs([job]);
           if (result.inserted > 0) {
             queued++;
-            console.log(`        ✅ Saved to database (${easyApply ? 'Easy Apply' : 'External'})`);
+            console.log(`        ✅ Queued (${easyApply ? 'Easy Apply' : 'External'})`);
           } else if (result.requeued > 0) {
             queued++;
-            console.log(`        🔄 Requeued existing job (${easyApply ? 'Easy Apply' : 'External'})`);
+            console.log(`        🔄 Requeued`);
           } else {
-            console.log(`        ⏭️  Skipped (already processed)`);
+            console.log(`        ⏭️  Skipped`);
           }
         } catch (error) {
           console.log(`        ❌ Failed to save: ${(error as Error).message}`);
@@ -423,6 +553,36 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
   const minScore = opts.minScore ?? config.minFitScore;
   const maxPages = opts.maxPages ?? 999;
   const startPage = opts.startPage ?? 1;
+
+  // Handle update descriptions mode
+  if (opts.updateDescriptions) {
+    console.log('🔄 Starting description update mode...');
+    console.log('   This will update job descriptions for existing jobs with missing descriptions');
+    console.log();
+    
+    const browser = await chromium.launch({
+      headless: false,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+    
+    try {
+      const context = await browser.newContext({
+        storageState: './storage/storageState.json'
+      });
+      
+      const page = await context.newPage();
+      await page.setViewportSize({ width: 1280, height: 720 });
+      
+      const updated = await updateMissingDescriptions(page, 20); // Update up to 20 jobs
+      
+      console.log(`\n✅ Description update complete. Updated ${updated} jobs.`);
+      
+    } finally {
+      await browser.close();
+    }
+    
+    return;
+  }
 
   console.log('🔍 Starting job search...');
   if (opts.profile) {

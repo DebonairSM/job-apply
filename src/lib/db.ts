@@ -38,6 +38,7 @@ export function initDb(): void {
       category_scores TEXT,
       missing_keywords TEXT,
       posted_date TEXT,
+      description TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       status_updated_at TEXT
     )
@@ -76,6 +77,12 @@ export function initDb(): void {
   
   try {
     database.exec(`ALTER TABLE jobs ADD COLUMN status_updated_at TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+  
+  try {
+    database.exec(`ALTER TABLE jobs ADD COLUMN description TEXT`);
   } catch (e) {
     // Column already exists, ignore
   }
@@ -133,6 +140,7 @@ export interface Job {
   category_scores?: string; // JSON string
   missing_keywords?: string; // JSON string
   posted_date?: string; // When the job was posted on LinkedIn
+  description?: string; // Full job description text
   created_at?: string; // When we added it to our database
   status_updated_at?: string; // When the status was last changed
 }
@@ -150,13 +158,13 @@ export function addJobs(jobs: Omit<Job, 'created_at'>[]): AddJobsResult {
   const checkExistingStmt = database.prepare('SELECT id, status FROM jobs WHERE id = ?');
   
   const insertStmt = database.prepare(`
-    INSERT INTO jobs (id, title, company, url, easy_apply, rank, status, fit_reasons, must_haves, blockers, category_scores, missing_keywords, posted_date, created_at, status_updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO jobs (id, title, company, url, easy_apply, rank, status, fit_reasons, must_haves, blockers, category_scores, missing_keywords, posted_date, description, created_at, status_updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   const updateStmt = database.prepare(`
     UPDATE jobs 
-    SET status = ?, rank = ?, fit_reasons = ?, must_haves = ?, blockers = ?, category_scores = ?, missing_keywords = ?, posted_date = ?, status_updated_at = ?
+    SET status = ?, rank = ?, fit_reasons = ?, must_haves = ?, blockers = ?, category_scores = ?, missing_keywords = ?, posted_date = ?, description = ?, status_updated_at = ?
     WHERE id = ?
   `);
 
@@ -186,6 +194,7 @@ export function addJobs(jobs: Omit<Job, 'created_at'>[]): AddJobsResult {
             job.category_scores ?? null,
             job.missing_keywords ?? null,
             job.posted_date ?? null,
+            job.description ?? null,
             now,
             job.id
           );
@@ -227,6 +236,7 @@ export function addJobs(jobs: Omit<Job, 'created_at'>[]): AddJobsResult {
             job.category_scores ?? null,
             job.missing_keywords ?? null,
             job.posted_date ?? null,
+            job.description ?? null,
             now,
             null  // Don't set status_updated_at for new jobs
           );
