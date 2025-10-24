@@ -100,12 +100,22 @@ node scripts/reset-jobs.js
 
 ### Dashboard
 
-Monitor your automation in real-time with the web dashboard:
+Monitor your automation in real-time with the web dashboard.
 
+**Initial Setup:**
 ```bash
+# Install dependencies (if not already done)
+npm install
+
+# Start the dashboard
 npm run dashboard:dev
 ```
 
+This starts:
+- Backend API server on **http://localhost:3001**
+- Frontend React app on **http://localhost:3000**
+
+**Access the Dashboard:**
 Open http://localhost:3000 to access:
 - Live job statistics and success rates
 - Complete jobs list with filtering
@@ -114,7 +124,10 @@ Open http://localhost:3000 to access:
 - Screenshot viewer for debugging
 - Auto-refreshing every 5 seconds
 
-See [Dashboard Documentation](docs/dashboard-monitoring-system.plan.md) for complete details.
+**Stop the Dashboard:**
+Press `Ctrl+C` in the terminal where the dashboard is running.
+
+See [Dashboard Quick Start](docs/DASHBOARD_QUICKSTART.md) for detailed setup guide and troubleshooting.
 
 ## Configuration
 

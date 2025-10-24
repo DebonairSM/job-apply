@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useJobs } from '../hooks/useJobs';
 import { api } from '../lib/api';
 import { Job } from '../lib/types';
@@ -21,12 +21,30 @@ export function JobsList() {
   const [updatingJobIds, setUpdatingJobIds] = useState<Set<string>>(new Set());
   const [rejectingJobId, setRejectingJobId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string>('');
+  const [clickedJobId, setClickedJobId] = useState<string | null>(null);
   
   const { data, isLoading, refetch } = useJobs({
     status: statusFilter || undefined,
     easyApply: easyApplyFilter === 'true' ? true : easyApplyFilter === 'false' ? false : undefined,
     limit: 100
   });
+
+  // Load clicked job ID from localStorage on component mount
+  useEffect(() => {
+    const savedClickedJobId = localStorage.getItem('clickedJobId');
+    if (savedClickedJobId) {
+      setClickedJobId(savedClickedJobId);
+    }
+  }, []);
+
+  // Save clicked job ID to localStorage when it changes
+  useEffect(() => {
+    if (clickedJobId) {
+      localStorage.setItem('clickedJobId', clickedJobId);
+    } else {
+      localStorage.removeItem('clickedJobId');
+    }
+  }, [clickedJobId]);
 
   // Client-side filtering for additional filters
   const filteredJobs = data?.jobs.filter(job => {
@@ -55,6 +73,10 @@ export function JobsList() {
     try {
       await api.updateJobStatus(jobId, 'applied', 'manual');
       await refetch();
+      // Clear highlight if this was the highlighted job
+      if (clickedJobId === jobId) {
+        clearHighlight();
+      }
     } catch (error) {
       console.error('Failed to update job:', error);
       alert('Failed to mark job as applied');
@@ -84,6 +106,10 @@ export function JobsList() {
       await refetch();
       setRejectingJobId(null);
       setRejectionReason('');
+      // Clear highlight if this was the highlighted job
+      if (clickedJobId === rejectingJobId) {
+        clearHighlight();
+      }
     } catch (error) {
       console.error('Failed to reject job:', error);
       alert('Failed to reject job');
@@ -114,17 +140,36 @@ export function JobsList() {
     window.open(url, '_blank');
   };
 
+  const handleJobClick = (jobId: string) => {
+    setClickedJobId(jobId);
+  };
+
+  const clearHighlight = () => {
+    setClickedJobId(null);
+  };
+
   return (
     <div className="p-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">Jobs</h1>
-        <button
-          onClick={handleExport}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
-        >
-          <span>📥</span>
-          Export CSV
-        </button>
+        <div className="flex gap-3">
+          {clickedJobId && (
+            <button
+              onClick={clearHighlight}
+              className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+            >
+              <span>✨</span>
+              Clear Highlight
+            </button>
+          )}
+          <button
+            onClick={handleExport}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+          >
+            <span>📥</span>
+            Export CSV
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -243,13 +288,21 @@ export function JobsList() {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredJobs.map((job: Job) => (
-                <tr key={job.id} className="hover:bg-gray-50">
+                <tr 
+                  key={job.id} 
+                  className={`hover:bg-gray-50 ${
+                    clickedJobId === job.id 
+                      ? 'bg-cyan-100 border-2 border-cyan-400 shadow-lg shadow-cyan-200' 
+                      : ''
+                  }`}
+                >
                   <td className="px-6 py-4 whitespace-nowrap">
                     <a 
                       href={job.url} 
                       target="_blank" 
                       rel="noopener noreferrer"
                       className="text-blue-600 hover:text-blue-800 font-medium"
+                      onClick={() => handleJobClick(job.id)}
                     >
                       {job.title}
                     </a>
