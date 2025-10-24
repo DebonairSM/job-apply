@@ -127,9 +127,9 @@ export function ActivityLog() {
   }
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Activity Log</h1>
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 sm:mb-8 space-y-4 sm:space-y-0">
+        <h1 className="text-2xl sm:text-3xl font-bold">Activity Log</h1>
         <div className="flex items-center gap-4">
           <label className="flex items-center gap-2">
             <input
@@ -144,13 +144,13 @@ export function ActivityLog() {
       </div>
 
       {/* Filters */}
-      <div className="mb-6 flex gap-4 flex-wrap">
+      <div className="mb-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div>
           <label className="block text-sm font-medium mb-2">Type</label>
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className="border border-gray-300 rounded-lg px-4 py-2"
+            className="border border-gray-300 rounded-lg px-3 sm:px-4 py-2 w-full text-sm sm:text-base"
           >
             <option value="all">All Types</option>
             <option value="job_created">Job Created</option>
@@ -165,7 +165,7 @@ export function ActivityLog() {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="border border-gray-300 rounded-lg px-4 py-2"
+            className="border border-gray-300 rounded-lg px-3 sm:px-4 py-2 w-full text-sm sm:text-base"
           >
             <option value="all">All Statuses</option>
             <option value="queued">Queued</option>
@@ -182,7 +182,7 @@ export function ActivityLog() {
           <select
             value={limit}
             onChange={(e) => setLimit(Number(e.target.value))}
-            className="border border-gray-300 rounded-lg px-4 py-2"
+            className="border border-gray-300 rounded-lg px-3 sm:px-4 py-2 w-full text-sm sm:text-base"
           >
             <option value={50}>50</option>
             <option value={100}>100</option>
@@ -206,43 +206,45 @@ export function ActivityLog() {
             {filteredActivities.map((activity) => (
               <div
                 key={activity.id}
-                className={`border-b border-gray-100 p-4 hover:bg-gray-50 transition-colors ${
+                className={`border-b border-gray-100 p-3 sm:p-4 hover:bg-gray-50 transition-colors ${
                   activity.type === 'run_error' ? 'bg-red-50/30' : ''
                 }`}
               >
-                <div className="flex items-start gap-4">
+                <div className="flex items-start gap-3 sm:gap-4">
                   {/* Icon */}
-                  <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-lg ${getActivityColor(activity.type, activity.success)}`}>
+                  <div className={`flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-sm sm:text-lg ${getActivityColor(activity.type, activity.success)}`}>
                     {getActivityIcon(activity.type, activity.success)}
                   </div>
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-gray-900">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
+                      <span className="font-medium text-gray-900 text-sm sm:text-base truncate">
                         {activity.job_title && activity.job_company 
                           ? `${activity.job_title} at ${activity.job_company}`
                           : activity.job_id
                         }
                       </span>
-                      {getStatusBadge(activity.job_status)}
-                      {activity.job_rank && (
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
-                          Rank: {activity.job_rank}
-                        </span>
-                      )}
-                      {activity.applied_method && (
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          activity.applied_method === 'automatic' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-orange-100 text-orange-800'
-                        }`}>
-                          {activity.applied_method}
-                        </span>
-                      )}
+                      <div className="flex flex-wrap gap-1 sm:gap-2">
+                        {getStatusBadge(activity.job_status)}
+                        {activity.job_rank && (
+                          <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                            Rank: {activity.job_rank}
+                          </span>
+                        )}
+                        {activity.applied_method && (
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            activity.applied_method === 'automatic' 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-orange-100 text-orange-800'
+                          }`}>
+                            {activity.applied_method}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="text-sm text-gray-600 mb-2">
+                    <div className="text-xs sm:text-sm text-gray-600 mb-2">
                       {activity.message}
                     </div>
 
@@ -256,13 +258,13 @@ export function ActivityLog() {
                     )}
 
                     {activity.rejection_reason && (
-                      <div className="text-sm text-red-600 bg-red-50 p-2 rounded mb-2">
+                      <div className="text-xs sm:text-sm text-red-600 bg-red-50 p-2 rounded mb-2">
                         <strong>Rejection Reason:</strong> {activity.rejection_reason}
                       </div>
                     )}
 
                     {activity.fit_reasons && (
-                      <div className="text-sm text-green-600 bg-green-50 p-2 rounded mb-2">
+                      <div className="text-xs sm:text-sm text-green-600 bg-green-50 p-2 rounded mb-2">
                         <strong>Fit Reasons:</strong> {activity.fit_reasons}
                       </div>
                     )}

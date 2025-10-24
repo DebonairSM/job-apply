@@ -242,63 +242,67 @@ export function JobsList() {
   };
 
   return (
-    <div className="p-8">
-      <div className="flex justify-between items-center mb-8">
+    <div className="p-4 sm:p-6 lg:p-8">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 sm:mb-8 space-y-4 sm:space-y-0">
         <div className="flex items-center gap-4">
-          <h1 className="text-3xl font-bold">Jobs</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold">Jobs</h1>
           {expandedJobIds.size > 0 && (
-            <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+            <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs sm:text-sm font-medium">
               {expandedJobIds.size} expanded
             </span>
           )}
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           {clickedJobId && (
             <button
               onClick={clearHighlight}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+              className="bg-gray-500 hover:bg-gray-600 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
             >
               <span>✨</span>
-              Clear Highlight
+              <span className="hidden sm:inline">Clear Highlight</span>
+              <span className="sm:hidden">Clear</span>
             </button>
           )}
           {filteredAndSortedJobs.length > 0 && (
             <>
               <button
                 onClick={expandAllJobs}
-                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                className="bg-green-600 hover:bg-green-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
               >
                 <span>📖</span>
-                Expand All
+                <span className="hidden sm:inline">Expand All</span>
+                <span className="sm:hidden">Expand</span>
               </button>
               <button
                 onClick={collapseAllJobs}
-                className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                className="bg-orange-600 hover:bg-orange-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
               >
                 <span>📕</span>
-                Collapse All
+                <span className="hidden sm:inline">Collapse All</span>
+                <span className="sm:hidden">Collapse</span>
               </button>
             </>
           )}
           <button
             onClick={handleExport}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
           >
             <span>📥</span>
-            Export CSV
+            <span className="hidden sm:inline">Export CSV</span>
+            <span className="sm:hidden">Export</span>
           </button>
         </div>
       </div>
 
       {/* Filters */}
       <div className="mb-6 space-y-4">
-        <div className="flex gap-4 flex-wrap">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium mb-2">Status</label>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="border border-gray-300 rounded-lg px-4 py-2"
+              className="border border-gray-300 rounded-lg px-3 sm:px-4 py-2 w-full text-sm sm:text-base"
             >
               <option value="">All</option>
               <option value="queued">Queued</option>
@@ -315,7 +319,7 @@ export function JobsList() {
             <select
               value={easyApplyFilter}
               onChange={(e) => setEasyApplyFilter(e.target.value)}
-              className="border border-gray-300 rounded-lg px-4 py-2"
+              className="border border-gray-300 rounded-lg px-3 sm:px-4 py-2 w-full text-sm sm:text-base"
             >
               <option value="">All</option>
               <option value="true">Yes</option>
@@ -328,7 +332,7 @@ export function JobsList() {
             <select
               value={appliedMethodFilter}
               onChange={(e) => setAppliedMethodFilter(e.target.value)}
-              className="border border-gray-300 rounded-lg px-4 py-2"
+              className="border border-gray-300 rounded-lg px-3 sm:px-4 py-2 w-full text-sm sm:text-base"
             >
               <option value="">All</option>
               <option value="manual">Manual</option>
@@ -336,14 +340,14 @@ export function JobsList() {
             </select>
           </div>
 
-          <div className="flex-1 min-w-[200px]">
-            <label className="block text-sm font-medium mb-2">Search (Title/Company)</label>
+          <div className="sm:col-span-2 lg:col-span-1">
+            <label className="block text-sm font-medium mb-2">Search</label>
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search jobs..."
-              className="border border-gray-300 rounded-lg px-4 py-2 w-full"
+              className="border border-gray-300 rounded-lg px-3 sm:px-4 py-2 w-full text-sm sm:text-base"
             />
           </div>
         </div>
@@ -378,7 +382,8 @@ export function JobsList() {
             {data?.jobs.length ? 'No jobs match your filters' : 'No jobs found'}
           </div>
         ) : (
-          <table className="w-full">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[800px]">
             <thead className="bg-gray-50 border-b-2 border-gray-200">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -548,7 +553,8 @@ export function JobsList() {
                 );
               })}
             </tbody>
-          </table>
+            </table>
+          </div>
         )}
       </div>
 

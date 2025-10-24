@@ -16,14 +16,14 @@ const colorClasses = {
 
 export function StatCard({ title, value, icon, color = 'blue' }: StatCardProps) {
   return (
-    <div className={`border-2 rounded-lg p-6 ${colorClasses[color]}`}>
+    <div className={`border-2 rounded-lg p-4 sm:p-6 ${colorClasses[color]}`}>
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-medium opacity-75">{title}</p>
-          <p className="text-3xl font-bold mt-2">{value}</p>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs sm:text-sm font-medium opacity-75 truncate">{title}</p>
+          <p className="text-2xl sm:text-3xl font-bold mt-1 sm:mt-2">{value}</p>
         </div>
         {icon && (
-          <div className="text-4xl opacity-50">{icon}</div>
+          <div className="text-2xl sm:text-4xl opacity-50 flex-shrink-0 ml-2">{icon}</div>
         )}
       </div>
     </div>

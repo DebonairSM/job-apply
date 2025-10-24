@@ -65,6 +65,19 @@ Available profiles: `core`, `security`, `event-driven`, `performance`, `devops`,
 - **`core-net`**: Core .NET development roles with C#, ASP.NET, MVC, and Entity Framework
 - **`legacy-modernization`**: Legacy system modernization roles with VB.NET, WebForms, ASP.NET MVC, and cloud migration
 
+#### Copy-Paste Profile Commands
+
+```bash
+npm run search -- --profile core
+npm run search -- --profile security
+npm run search -- --profile event-driven
+npm run search -- --profile performance
+npm run search -- --profile devops
+npm run search -- --profile backend
+npm run search -- --profile core-net
+npm run search -- --profile legacy-modernization
+```
+
 ### Check Status
 
 ```bash
