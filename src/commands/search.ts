@@ -8,7 +8,7 @@ import crypto from 'crypto';
 
 export interface SearchOptions {
   keywords?: string;
-  profile?: 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend';
+  profile?: 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization';
   location?: string;
   remote?: boolean;
   datePosted?: 'day' | 'week' | 'month';
@@ -168,7 +168,7 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
     count = await jobCards.count();
   }
   
-  console.log(`📊 Found ${count} job cards to analyze`);
+  console.log(`📊 Found ${count} job cards to analyze\n`);
 
   let analyzed = 0;
   let queued = 0;
@@ -193,6 +193,7 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
       // Ensure card is visible
       const isVisible = await card.isVisible({ timeout: 2000 }).catch(() => false);
       if (!isVisible) {
+        console.log(`   ⚠️  Skipping job ${i + 1}: card not visible`);
         continue;
       }
       
@@ -231,6 +232,7 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
       }
       
       if (!title) {
+        console.log(`   ⚠️  Skipping job ${i + 1}: title not found`);
         continue;
       }
       
@@ -292,6 +294,7 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
       }
       
       if (!jobId) {
+        console.log(`   ⚠️  Skipping job ${i + 1}: job ID not found`);
         continue;
       }
       
@@ -303,6 +306,7 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
       const alreadyApplied = await appliedIndicator.count() > 0;
       
       if (alreadyApplied) {
+        console.log(`   ⏭️  Skipping job ${i + 1}: Already applied - ${title} at ${company}`);
         continue;
       }
 
@@ -501,6 +505,9 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
 
       // Check for duplicates before expensive LLM analysis
       if (jobExistsByUrl(link)) {
+        const existingJob = getJobByUrl(link);
+        console.log(`   ${analyzed}/${count} ${title} at ${company}`);
+        console.log(`        ⏭️  Skipped (already in database - ${existingJob?.status || 'unknown'} status)`);
         continue;
       }
 
@@ -510,7 +517,18 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
         config.profileSummary
       );
 
-      console.log(`   ${analyzed}/${count} ${title} at ${company} (${ranking.fitScore}/100)`);
+      console.log(`   ${analyzed}/${count} ${title} at ${company}`);
+      console.log(`        Score: ${ranking.fitScore}/100`);
+      console.log(`        Azure: ${ranking.categoryScores.coreAzure} | Security: ${ranking.categoryScores.security} | Events: ${ranking.categoryScores.eventDriven}`);
+      console.log(`        Perf: ${ranking.categoryScores.performance} | DevOps: ${ranking.categoryScores.devops} | Senior: ${ranking.categoryScores.seniority}`);
+      
+      if (ranking.blockers.length > 0) {
+        console.log(`        ⚠️  Blockers: ${ranking.blockers.join(', ')}`);
+      }
+      
+      if (ranking.missingKeywords.length > 0 && ranking.missingKeywords.length <= 3) {
+        console.log(`        ⚠️  Missing: ${ranking.missingKeywords.join(', ')}`);
+      }
 
       if (ranking.fitScore >= minScore) {
         const jobId = crypto.createHash('md5').update(link).digest('hex');
@@ -541,16 +559,20 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
           } else if (result.requeued > 0) {
             queued++;
             console.log(`        🔄 Requeued`);
+          } else {
+            console.log(`        ⏭️  Skipped`);
           }
         } catch (error) {
           console.log(`        ❌ Failed to save: ${(error as Error).message}`);
         }
+      } else {
+        console.log(`        ⏭️  Skipped (below threshold)`);
       }
 
       await randomDelay();
 
     } catch (error) {
-      // Continue to next job on error
+      console.log(`   ⚠️  Error processing job ${i + 1}: ${(error as Error).message}`);
     }
   }
 
@@ -640,6 +662,23 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
   }
 
   console.log('🔍 Starting job search...');
+  const startTime = Date.now();
+  if (opts.profile) {
+    console.log(`   Profile: ${opts.profile} (using Boolean search)`);
+  } else {
+    console.log(`   Keywords: ${opts.keywords}`);
+  }
+  if (opts.location) console.log(`   Location: ${opts.location}`);
+  if (opts.remote && !opts.profile) console.log(`   Remote: Yes`);
+  if (opts.datePosted) console.log(`   Date Posted: < ${opts.datePosted}`);
+  console.log(`   Min Fit Score: ${minScore}`);
+  console.log(`   Start Page: ${startPage}`);
+  if (maxPages < 999) {
+    console.log(`   Max Pages: ${maxPages}`);
+  } else {
+    console.log(`   Max Pages: All available`);
+  }
+  console.log();
 
   const browser = await chromium.launch({
     headless: config.headless,
@@ -661,11 +700,16 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
   // Process pages in a loop
   while (currentPage <= maxPages) {
     const pageDisplay = maxPages >= 999 ? 'all' : maxPages.toString();
-    console.log(`📄 Processing page ${currentPage}/${pageDisplay}...`);
+    console.log(`\n📄 Processing page ${currentPage}/${pageDisplay}...`);
     
     const pageResult = await processPage(page, minScore, config);
     totalAnalyzed += pageResult.analyzed;
     totalQueued += pageResult.queued;
+
+    console.log(`\n📊 Page ${currentPage} Summary:`);
+    console.log(`   Analyzed: ${pageResult.analyzed}`);
+    console.log(`   Queued: ${pageResult.queued}`);
+    console.log(`   Success Rate: ${pageResult.analyzed > 0 ? Math.round((pageResult.queued / pageResult.analyzed) * 100) : 0}%`);
 
     // Check if there's a next page
     if (currentPage < maxPages) {
@@ -673,14 +717,17 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
       const nextButtonExists = await nextButton.count() > 0;
       
       if (nextButtonExists) {
+        console.log(`\n➡️  Navigating to page ${currentPage + 1}...`);
         try {
           await nextButton.click({ timeout: 5000 });
           await page.waitForTimeout(3000); // Wait for page to load
           currentPage++;
         } catch (error) {
+          console.log(`   ⚠️  Could not navigate to next page: ${(error as Error).message}`);
           break;
         }
       } else {
+        console.log(`\n🏁 No more pages available (reached end of results)`);
         break;
       }
     } else {
@@ -690,11 +737,18 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
 
   await browser.close();
 
+  const endTime = Date.now();
+  const totalTime = Math.round((endTime - startTime) / 1000);
+  const jobsPerMinute = totalTime > 0 ? Math.round((totalAnalyzed / totalTime) * 60) : 0;
+
   console.log(`\n📈 Final Summary:`);
   console.log(`   Pages Processed: ${currentPage}`);
   console.log(`   Total Analyzed: ${totalAnalyzed}`);
   console.log(`   Total Queued: ${totalQueued}`);
-  console.log(`   Min Score: ${minScore}`);
+  console.log(`   Overall Success Rate: ${totalAnalyzed > 0 ? Math.round((totalQueued / totalAnalyzed) * 100) : 0}%`);
+  console.log(`   Min Score Threshold: ${minScore}`);
+  console.log(`   Average Jobs per Page: ${currentPage > 0 ? Math.round(totalAnalyzed / currentPage) : 0}`);
+  console.log(`   Processing Time: ${totalTime}s (${jobsPerMinute} jobs/min)`);
   console.log('\n✅ Search complete!\n');
 }
 

@@ -8,17 +8,19 @@ Testing completed on October 23, 2025 at 4:33 PM.
 ### What Was Built
 
 #### Backend (Express Server)
-- ✅ Express server running on port 3001
+- ✅ Express server running on port 3001 with HTTPS support
 - ✅ REST API with CORS enabled
 - ✅ Statistics endpoint (`/api/stats`)
 - ✅ Jobs listing endpoint (`/api/jobs`)
 - ✅ Run history endpoint (`/api/runs`)
+- ✅ Analytics endpoint (`/api/analytics`)
 - ✅ Health check endpoint (`/api/health`)
 - ✅ Pagination and filtering support
+- ✅ HTTPS configuration with SSL certificates
 
 #### Frontend (React + Vite)
 - ✅ React application with TypeScript
-- ✅ Vite dev server with hot reload
+- ✅ Vite dev server with hot reload and HTTPS
 - ✅ TanStack Query for data fetching
 - ✅ Tailwind CSS for styling
 - ✅ Auto-refresh every 5 seconds
@@ -38,6 +40,7 @@ Testing completed on October 23, 2025 at 4:33 PM.
 - ✅ Run logs with success/failure indicators
 - ✅ Screenshot availability indicators
 - ✅ Responsive layout
+- ✅ HTTPS support (no browser security warnings)
 
 ### How to Use
 
@@ -46,7 +49,7 @@ Start the dashboard:
 npm run dashboard:dev
 ```
 
-Access at: http://localhost:3000
+Access at: https://localhost:3000
 
 The dashboard automatically connects to the shared SQLite database and displays real-time data from the automation system.
 

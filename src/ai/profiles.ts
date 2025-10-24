@@ -11,7 +11,7 @@ export interface TechnicalProfile {
 export const PROFILES: Record<string, TechnicalProfile> = {
   coreAzure: {
     name: 'Core Azure API Skills',
-    weight: 30,
+    weight: 20,
     mustHave: [
       'Azure', 
       'Microsoft Azure', 
@@ -38,7 +38,7 @@ export const PROFILES: Record<string, TechnicalProfile> = {
   
   security: {
     name: 'Security & Governance',
-    weight: 20,
+    weight: 15,
     mustHave: [
       'OAuth 2.0',
       'OAuth',
@@ -60,7 +60,7 @@ export const PROFILES: Record<string, TechnicalProfile> = {
   
   eventDriven: {
     name: 'Event-Driven Architecture',
-    weight: 15,
+    weight: 10,
     mustHave: [
       'Service Bus',
       'Event Grid',
@@ -82,7 +82,7 @@ export const PROFILES: Record<string, TechnicalProfile> = {
   
   performance: {
     name: 'Performance & Reliability',
-    weight: 15,
+    weight: 10,
     mustHave: [],
     preferred: [
       'Load Testing',
@@ -106,7 +106,7 @@ export const PROFILES: Record<string, TechnicalProfile> = {
   
   devops: {
     name: 'DevOps & CI/CD',
-    weight: 10,
+    weight: 5,
     mustHave: [],
     preferred: [
       'Azure DevOps',
@@ -127,7 +127,7 @@ export const PROFILES: Record<string, TechnicalProfile> = {
   
   seniority: {
     name: 'Seniority & Role Type',
-    weight: 10,
+    weight: 5,
     mustHave: [
       'Senior',
       'Lead',
@@ -144,6 +144,58 @@ export const PROFILES: Record<string, TechnicalProfile> = {
       'Distributed'
     ],
     description: 'Required seniority level and remote work options'
+  },
+  
+  coreNet: {
+    name: 'Core .NET Development',
+    weight: 20,
+    mustHave: [
+      'C#',
+      '.NET Core',
+      '.NET 6',
+      '.NET 8',
+      'ASP.NET',
+      'MVC'
+    ],
+    preferred: [
+      '.NET Framework',
+      'Entity Framework',
+      'EF Core',
+      'SQL Server',
+      'REST API',
+      'Web API',
+      'Blazor',
+      'Razor Pages',
+      'Dependency Injection',
+      'LINQ'
+    ],
+    description: 'Core .NET development skills and frameworks'
+  },
+  
+  legacyModernization: {
+    name: 'Legacy Modernization',
+    weight: 10,
+    mustHave: [
+      'VB.NET',
+      'WebForms',
+      'ASP.NET MVC',
+      'Legacy'
+    ],
+    preferred: [
+      'Modernization',
+      'Migration',
+      'Cloud Migration',
+      'Azure',
+      'Microservices',
+      'API',
+      '.NET Core',
+      '.NET 6',
+      '.NET 8',
+      'Modernization Project',
+      'Legacy System',
+      'System Migration'
+    ],
+    description: 'Legacy system modernization and migration capabilities'
   }
 };
 
@@ -159,7 +211,11 @@ export const BOOLEAN_SEARCHES: Record<string, string> = {
   
   devops: '("Senior API Engineer" OR "Senior Backend Engineer" OR "Azure DevOps Engineer") AND (Azure OR "Microsoft Azure") AND (APIM OR "API Management") AND ("Azure DevOps" OR "GitHub Actions" OR Docker OR Bicep OR ARM) AND ("Azure Functions" OR "App Services") AND (C# OR ".NET Core" OR ".NET 8") AND (REST OR OpenAPI OR Swagger) AND Remote',
   
-  backend: '("Senior Backend Engineer" OR "Senior API Engineer" OR "Azure Developer" OR ".NET Core Developer") AND (Azure OR "Microsoft Azure") AND (C# OR ".NET Core" OR ".NET 6" OR ".NET 8") AND (REST OR API OR APIM OR "API Management") AND ("Azure Functions" OR "App Services") AND (Redis OR SQL OR "EF Core") AND Remote'
+  backend: '("Senior Backend Engineer" OR "Senior API Engineer" OR "Azure Developer" OR ".NET Core Developer") AND (Azure OR "Microsoft Azure") AND (C# OR ".NET Core" OR ".NET 6" OR ".NET 8") AND (REST OR API OR APIM OR "API Management") AND ("Azure Functions" OR "App Services") AND (Redis OR SQL OR "EF Core") AND Remote',
+  
+  'core-net': '("Senior .NET Developer" OR "Senior Software Engineer" OR ".NET Developer" OR "C# Developer") AND (C# OR ".NET Core" OR ".NET 6" OR ".NET 8") AND (ASP.NET OR MVC OR "Web API" OR "REST API") AND (Entity Framework OR "EF Core" OR SQL OR Database) AND (Senior OR Lead OR Principal) AND Remote',
+  
+  'legacy-modernization': '("Senior .NET Developer" OR "Legacy Developer" OR "Modernization Engineer" OR "Migration Specialist") AND ((VB.NET OR WebForms OR "ASP.NET MVC" OR Legacy) OR (Modernization OR Migration OR "Cloud Migration")) AND (C# OR ".NET Core" OR ".NET 6" OR ".NET 8") AND (Azure OR Cloud OR "System Migration") AND (Senior OR Lead OR Principal) AND Remote'
 };
 
 // Validate profile weights sum to 100

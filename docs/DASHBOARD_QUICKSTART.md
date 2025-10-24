@@ -12,7 +12,7 @@ npm run dashboard:dev
 npm run dashboard:prod
 ```
 
-Open **http://localhost:3000** in your browser.
+Open **https://localhost:3000** in your browser.
 
 ## What You'll See
 
@@ -46,8 +46,8 @@ Press `Ctrl+C` in the dashboard terminal.
 - API endpoints for programmatic access
 
 ### Architecture
-- Backend: Express API server (port 3001)
-- Frontend: React app (port 3000)
+- Backend: Express API server (port 3001) with HTTPS
+- Frontend: React app (port 3000) with HTTPS
 - Database: SQLite integration
 - Auto-refresh: 5-second intervals
 

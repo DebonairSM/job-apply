@@ -52,7 +52,18 @@ npm run search -- --profile core --start-page 2
 npm run search -- --profile security --start 3 --max-pages 2
 ```
 
-Available profiles: `core`, `security`, `event-driven`, `performance`, `devops`, `backend`
+Available profiles: `core`, `security`, `event-driven`, `performance`, `devops`, `backend`, `core-net`, `legacy-modernization`
+
+#### Profile Descriptions
+
+- **`core`**: Azure API Engineer roles with API Management, Functions, and Service Bus
+- **`security`**: Security-focused roles with OAuth, JWT, Entra ID, and API Governance  
+- **`event-driven`**: Event-driven architecture roles with Service Bus, Event Grid, and messaging
+- **`performance`**: Performance optimization roles with load testing, Redis, and monitoring
+- **`devops`**: DevOps roles with Azure DevOps, GitHub Actions, Docker, and infrastructure
+- **`backend`**: General backend development roles with Azure, .NET, and APIs
+- **`core-net`**: Core .NET development roles with C#, ASP.NET, MVC, and Entity Framework
+- **`legacy-modernization`**: Legacy system modernization roles with VB.NET, WebForms, ASP.NET MVC, and cloud migration
 
 ### Check Status
 
@@ -92,6 +103,19 @@ npm run clear-cache answers
 npm run clear-cache mapping
 ```
 
+### Test Commands
+
+```bash
+# Run mapper evaluation tests
+npm run test
+
+# Run all tests (recommended)
+npm run test:all
+
+# Run selector learning system tests only
+npm run test:learning
+```
+
 ### Reset Skipped Jobs
 
 ```bash
@@ -112,17 +136,22 @@ npm run dashboard:dev
 ```
 
 This starts:
-- Backend API server on **http://localhost:3001**
-- Frontend React app on **http://localhost:3000**
+- Backend API server on **https://localhost:3001**
+- Frontend React app on **https://localhost:3000**
 
 **Access the Dashboard:**
-Open http://localhost:3000 to access:
+Open https://localhost:3000 to access:
 - Live job statistics and success rates
 - Complete jobs list with filtering
 - Activity log with run history
-- Analytics charts and trends
-- Screenshot viewer for debugging
 - Auto-refreshing every 5 seconds
+
+**Dashboard Features (Phase A - Complete):**
+- Real-time job statistics with success rate calculation
+- Filterable jobs table with status and Easy Apply filtering
+- Activity log with run history and success/failure indicators
+- Screenshot availability indicators for debugging
+- Responsive layout with tab-based navigation
 
 **Stop the Dashboard:**
 Press `Ctrl+C` in the terminal where the dashboard is running.
@@ -144,7 +173,7 @@ Place resumes (PDF or DOCX) in `resumes/` folder.
 
 ## Job Scoring
 
-AI evaluates jobs across weighted categories (Core Azure/API Skills 30%, Security 20%, Event-Driven 15%, Performance 15%, DevOps 10%, Seniority 10%). Scores above 70 are queued for application.
+AI evaluates jobs across weighted categories (Core Azure/API Skills 20%, Security 15%, Event-Driven 10%, Performance 10%, DevOps 5%, Seniority 5%, Core .NET Development 20%, Legacy Modernization 10%). Scores above 70 are queued for application.
 
 ## Common Issues
 
@@ -366,11 +395,14 @@ npx tsx --test tests/integration.test.ts
 
 Additional documentation is available in the `docs/` folder:
 
+- [Profile Creation Guide](docs/PROFILE_CREATION_GUIDE.md) - How to create new search profiles
+- [Testing Guide](docs/TESTING_GUIDE.md) - Comprehensive testing system documentation
 - [Dashboard Monitoring System](docs/dashboard-monitoring-system.plan.md) - Complete dashboard architecture and development plan
 - [Dashboard Quick Start](docs/DASHBOARD_QUICKSTART.md) - Quick setup guide for the dashboard
 - [Dashboard Status](docs/DASHBOARD_STATUS.md) - Current dashboard implementation status
 - [HTTPS Setup](docs/HTTPS_SETUP_COMPLETE.md) - HTTPS configuration guide
 - [Phase A Test Report](docs/PHASE_A_TEST_REPORT.md) - Testing results and validation
+- [Documentation Index](docs/README.md) - Complete documentation overview
 
 ## Disclaimer
 
