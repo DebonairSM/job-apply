@@ -7,6 +7,7 @@ import { dirname, join } from 'path';
 import statsRouter from './routes/stats.js';
 import jobsRouter from './routes/jobs.js';
 import runsRouter from './routes/runs.js';
+import analyticsRouter from './routes/analytics.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -18,10 +19,15 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+// Serve artifacts (screenshots, traces, etc.)
+const artifactsPath = join(__dirname, '../../artifacts');
+app.use('/artifacts', express.static(artifactsPath));
+
 // API Routes
 app.use('/api/stats', statsRouter);
 app.use('/api/jobs', jobsRouter);
 app.use('/api/runs', runsRouter);
+app.use('/api/analytics', analyticsRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -45,7 +51,7 @@ const httpsOptions = {
 };
 
 // Start HTTPS server
-https.createServer(httpsOptions, app).listen(PORT, '0.0.0.0', () => {
+https.createServer(httpsOptions, app).listen(Number(PORT), '0.0.0.0', () => {
   console.log(`📊 Dashboard server running on https://localhost:${PORT}`);
   console.log(`   API available at https://localhost:${PORT}/api`);
   console.log(`   Network access: https://192.168.1.214:${PORT}`);

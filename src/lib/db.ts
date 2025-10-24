@@ -31,19 +31,27 @@ export function initDb(): void {
       rank INTEGER,
       status TEXT DEFAULT 'queued',
       applied_method TEXT,
+      rejection_reason TEXT,
       fit_reasons TEXT,
       must_haves TEXT,
       blockers TEXT,
       category_scores TEXT,
       missing_keywords TEXT,
       posted_date TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      status_updated_at TEXT
     )
   `);
 
   // Migration: Add new columns if they don't exist
   try {
     database.exec(`ALTER TABLE jobs ADD COLUMN applied_method TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+  
+  try {
+    database.exec(`ALTER TABLE jobs ADD COLUMN rejection_reason TEXT`);
   } catch (e) {
     // Column already exists, ignore
   }
@@ -62,6 +70,12 @@ export function initDb(): void {
   
   try {
     database.exec(`ALTER TABLE jobs ADD COLUMN posted_date TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+  
+  try {
+    database.exec(`ALTER TABLE jobs ADD COLUMN status_updated_at TEXT`);
   } catch (e) {
     // Column already exists, ignore
   }
@@ -112,6 +126,7 @@ export interface Job {
   rank?: number;
   status: 'queued' | 'applied' | 'interview' | 'rejected' | 'skipped' | 'reported';
   applied_method?: 'automatic' | 'manual';
+  rejection_reason?: string;
   fit_reasons?: string;
   must_haves?: string;
   blockers?: string;
@@ -119,6 +134,7 @@ export interface Job {
   missing_keywords?: string; // JSON string
   posted_date?: string; // When the job was posted on LinkedIn
   created_at?: string; // When we added it to our database
+  status_updated_at?: string; // When the status was last changed
 }
 
 export interface AddJobsResult {
@@ -134,13 +150,13 @@ export function addJobs(jobs: Omit<Job, 'created_at'>[]): AddJobsResult {
   const checkExistingStmt = database.prepare('SELECT id, status FROM jobs WHERE id = ?');
   
   const insertStmt = database.prepare(`
-    INSERT INTO jobs (id, title, company, url, easy_apply, rank, status, fit_reasons, must_haves, blockers, category_scores, missing_keywords, posted_date)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO jobs (id, title, company, url, easy_apply, rank, status, fit_reasons, must_haves, blockers, category_scores, missing_keywords, posted_date, created_at, status_updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   const updateStmt = database.prepare(`
     UPDATE jobs 
-    SET status = ?, rank = ?, fit_reasons = ?, must_haves = ?, blockers = ?, category_scores = ?, missing_keywords = ?, posted_date = ?
+    SET status = ?, rank = ?, fit_reasons = ?, must_haves = ?, blockers = ?, category_scores = ?, missing_keywords = ?, posted_date = ?, status_updated_at = ?
     WHERE id = ?
   `);
 
@@ -160,6 +176,7 @@ export function addJobs(jobs: Omit<Job, 'created_at'>[]): AddJobsResult {
         // Job exists - decide whether to requeue or skip
         if (existing.status === 'reported') {
           // Requeue previously reported jobs
+          const now = new Date().toISOString();
           updateStmt.run(
             'queued', // Change status back to queued
             job.rank ?? null,
@@ -169,6 +186,7 @@ export function addJobs(jobs: Omit<Job, 'created_at'>[]): AddJobsResult {
             job.category_scores ?? null,
             job.missing_keywords ?? null,
             job.posted_date ?? null,
+            now,
             job.id
           );
           result.requeued++;
@@ -194,6 +212,7 @@ export function addJobs(jobs: Omit<Job, 'created_at'>[]): AddJobsResult {
       } else {
         // New job - insert it
         try {
+          const now = new Date().toISOString();
           insertStmt.run(
             job.id,
             job.title,
@@ -207,7 +226,9 @@ export function addJobs(jobs: Omit<Job, 'created_at'>[]): AddJobsResult {
             job.blockers ?? null,
             job.category_scores ?? null,
             job.missing_keywords ?? null,
-            job.posted_date ?? null
+            job.posted_date ?? null,
+            now,
+            null  // Don't set status_updated_at for new jobs
           );
           result.inserted++;
         } catch (error) {
@@ -259,23 +280,43 @@ export function getJobsByStatus(status?: string, easyApply?: boolean): Job[] {
   }));
 }
 
-export function getJobById(id: string): Job | null {
+export function jobExistsByUrl(url: string): boolean {
   const database = getDb();
-  const stmt = database.prepare('SELECT * FROM jobs WHERE id = ?');
-  const row = stmt.get(id) as any;
+  const stmt = database.prepare('SELECT 1 FROM jobs WHERE url = ? LIMIT 1');
+  const result = stmt.get(url);
+  return !!result;
+}
 
+export function getJobByUrl(url: string): Job | null {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM jobs WHERE url = ?');
+  const row = stmt.get(url) as any;
+  
   if (!row) return null;
-
+  
   return {
     ...row,
     easy_apply: row.easy_apply === 1
   };
 }
 
-export function updateJobStatus(jobId: string, status: Job['status'], appliedMethod?: 'automatic' | 'manual'): void {
+export function getJobById(id: string): Job | null {
   const database = getDb();
-  const stmt = database.prepare('UPDATE jobs SET status = ?, applied_method = ? WHERE id = ?');
-  stmt.run(status, appliedMethod ?? null, jobId);
+  const stmt = database.prepare('SELECT * FROM jobs WHERE id = ?');
+  const row = stmt.get(id) as any;
+  
+  if (!row) return null;
+  
+  return {
+    ...row,
+    easy_apply: row.easy_apply === 1
+  };
+}
+
+export function updateJobStatus(jobId: string, status: Job['status'], appliedMethod?: 'automatic' | 'manual', rejectionReason?: string): void {
+  const database = getDb();
+  const stmt = database.prepare('UPDATE jobs SET status = ?, applied_method = ?, rejection_reason = ?, status_updated_at = ? WHERE id = ?');
+  stmt.run(status, appliedMethod ?? null, rejectionReason ?? null, new Date().toISOString(), jobId);
 }
 
 export interface JobStats {
@@ -313,6 +354,69 @@ export function getJobStats(): JobStats {
   }
 
   return stats;
+}
+
+export interface EnhancedStats {
+  totalManual: number;
+  totalAutomatic: number;
+  appliedToday: number;
+  appliedThisWeek: number;
+  appliedThisMonth: number;
+}
+
+export function getEnhancedStats(): EnhancedStats {
+  const database = getDb();
+  
+  // Get manual vs automatic breakdown
+  const methodStmt = database.prepare(`
+    SELECT applied_method, COUNT(*) as count
+    FROM jobs
+    WHERE status = 'applied' AND applied_method IS NOT NULL
+    GROUP BY applied_method
+  `);
+  const methodRows = methodStmt.all() as Array<{ applied_method: string; count: number }>;
+  
+  let totalManual = 0;
+  let totalAutomatic = 0;
+  for (const row of methodRows) {
+    if (row.applied_method === 'manual') totalManual = row.count;
+    if (row.applied_method === 'automatic') totalAutomatic = row.count;
+  }
+  
+  // Get applications by time period
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const weekStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+  
+  const todayStmt = database.prepare(`
+    SELECT COUNT(*) as count
+    FROM jobs
+    WHERE status = 'applied' AND created_at >= ?
+  `);
+  const appliedToday = (todayStmt.get(todayStart) as { count: number }).count;
+  
+  const weekStmt = database.prepare(`
+    SELECT COUNT(*) as count
+    FROM jobs
+    WHERE status = 'applied' AND created_at >= ?
+  `);
+  const appliedThisWeek = (weekStmt.get(weekStart) as { count: number }).count;
+  
+  const monthStmt = database.prepare(`
+    SELECT COUNT(*) as count
+    FROM jobs
+    WHERE status = 'applied' AND created_at >= ?
+  `);
+  const appliedThisMonth = (monthStmt.get(monthStart) as { count: number }).count;
+  
+  return {
+    totalManual,
+    totalAutomatic,
+    appliedToday,
+    appliedThisWeek,
+    appliedThisMonth
+  };
 }
 
 // Answer operations
@@ -422,6 +526,177 @@ export function getRunHistory(jobId?: string, limit: number = 50): RunLog[] {
     ...row,
     ok: row.ok === 1
   }));
+}
+
+// Recent job activity for dashboard
+export interface JobActivity {
+  id: string;
+  title: string;
+  company: string;
+  status: Job['status'];
+  applied_method?: 'automatic' | 'manual';
+  rejection_reason?: string;
+  created_at: string;
+  status_updated_at?: string;
+}
+
+// Comprehensive activity log entry
+export interface ActivityEntry {
+  id: string;
+  type: 'job_created' | 'job_updated' | 'run_step' | 'run_error' | 'run_success';
+  timestamp: string;
+  job_id?: string;
+  job_title?: string;
+  job_company?: string;
+  job_status?: Job['status'];
+  job_rank?: number;
+  applied_method?: 'automatic' | 'manual';
+  step?: string;
+  success?: boolean;
+  message?: string;
+  screenshot_path?: string;
+  rejection_reason?: string;
+  fit_reasons?: string;
+  duration_ms?: number;
+}
+
+export function getRecentJobActivity(limit: number = 10): JobActivity[] {
+  const database = getDb();
+  
+  // Get jobs that have been updated recently (not just created)
+  // We'll look for jobs with applied_method or rejection_reason as indicators of activity
+  const query = `
+    SELECT id, title, company, status, applied_method, rejection_reason, created_at, status_updated_at
+    FROM jobs 
+    WHERE applied_method IS NOT NULL 
+       OR rejection_reason IS NOT NULL 
+       OR status IN ('applied', 'rejected', 'interview')
+    ORDER BY COALESCE(status_updated_at, created_at) DESC 
+    LIMIT ?
+  `;
+  
+  const stmt = database.prepare(query);
+  const rows = stmt.all(limit) as any[];
+  
+  return rows.map(row => ({
+    id: row.id,
+    title: row.title,
+    company: row.company,
+    status: row.status,
+    applied_method: row.applied_method,
+    rejection_reason: row.rejection_reason,
+    created_at: row.created_at,
+    status_updated_at: row.status_updated_at
+  }));
+}
+
+export function getComprehensiveActivity(limit: number = 100): ActivityEntry[] {
+  const database = getDb();
+  const activities: ActivityEntry[] = [];
+  
+  // Convert SQLite timestamp to ISO format
+  const formatTimestamp = (timestamp: string) => {
+    if (!timestamp) return timestamp;
+    // If it's already ISO format, return as is
+    if (timestamp.includes('T') && timestamp.includes('Z')) {
+      return timestamp;
+    }
+    // If it's SQLite format (YYYY-MM-DD HH:MM:SS), convert to ISO
+    if (timestamp.includes(' ') && timestamp.match(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/)) {
+      // Replace space with T and add Z to make it proper ISO format
+      return timestamp.replace(' ', 'T') + 'Z';
+    }
+    return timestamp;
+  };
+  
+  // Get recent job activities (created and updated)
+  const jobQuery = `
+    SELECT 
+      id, title, company, status, rank, applied_method, rejection_reason, 
+      fit_reasons, created_at, status_updated_at
+    FROM jobs 
+    ORDER BY COALESCE(status_updated_at, created_at) DESC 
+    LIMIT ?
+  `;
+  
+  const jobStmt = database.prepare(jobQuery);
+  const jobs = jobStmt.all(limit) as any[];
+  
+  // Convert jobs to activity entries
+  for (const job of jobs) {
+    const createdTimestamp = formatTimestamp(job.created_at);
+    const updatedTimestamp = job.status_updated_at ? formatTimestamp(job.status_updated_at) : null;
+    
+    // Only create job_created activity if this is a new job (no status updates yet)
+    if (!updatedTimestamp || updatedTimestamp === createdTimestamp) {
+      activities.push({
+        id: `job-created-${job.id}`,
+        type: 'job_created',
+        timestamp: createdTimestamp,
+        job_id: job.id,
+        job_title: job.title,
+        job_company: job.company,
+        job_status: job.status,
+        job_rank: job.rank,
+        message: `New job found: ${job.title} at ${job.company}`
+      });
+    } else {
+      // Job has been updated - show the update activity instead
+      activities.push({
+        id: `job-updated-${job.id}`,
+        type: 'job_updated',
+        timestamp: updatedTimestamp,
+        job_id: job.id,
+        job_title: job.title,
+        job_company: job.company,
+        job_status: job.status,
+        job_rank: job.rank,
+        applied_method: job.applied_method,
+        rejection_reason: job.rejection_reason,
+        message: `Job status updated to ${job.status}${job.applied_method ? ` (${job.applied_method})` : ''}`
+      });
+    }
+  }
+  
+  // Get recent run activities
+  const runQuery = `
+    SELECT r.*, j.title, j.company, j.status as job_status, j.rank
+    FROM runs r
+    LEFT JOIN jobs j ON r.job_id = j.id
+    ORDER BY r.started_at DESC 
+    LIMIT ?
+  `;
+  
+  const runStmt = database.prepare(runQuery);
+  const runs = runStmt.all(limit) as any[];
+  
+  // Convert runs to activity entries
+  for (const run of runs) {
+    const duration = run.ended_at && run.started_at 
+      ? new Date(run.ended_at).getTime() - new Date(run.started_at).getTime()
+      : undefined;
+    
+    activities.push({
+      id: `run-${run.id}`,
+      type: run.ok ? 'run_success' : 'run_error',
+      timestamp: formatTimestamp(run.started_at),
+      job_id: run.job_id,
+      job_title: run.title,
+      job_company: run.company,
+      job_status: run.job_status,
+      step: run.step,
+      success: run.ok === 1,
+      message: run.log || `${run.step} ${run.ok ? 'completed successfully' : 'failed'}`,
+      screenshot_path: run.screenshot_path,
+      duration_ms: duration
+    });
+  }
+  
+  // Sort all activities by timestamp (most recent first)
+  activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  
+  // Return limited results
+  return activities.slice(0, limit);
 }
 
 // Cache clearing operations

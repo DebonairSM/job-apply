@@ -1,4 +1,4 @@
-import { JobStats, JobsResponse, RunsResponse, Job } from './types';
+import { JobStats, JobsResponse, RunsResponse, Job, JobActivity, ActivityEntry } from './types';
 
 const API_BASE = '/api';
 
@@ -54,20 +54,39 @@ export const api = {
   async updateJobStatus(
     jobId: string, 
     status: string, 
-    appliedMethod?: 'automatic' | 'manual'
+    appliedMethod?: 'automatic' | 'manual',
+    rejectionReason?: string
   ): Promise<Job> {
     const response = await fetch(`${API_BASE}/jobs/${jobId}/status`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ status, applied_method: appliedMethod }),
+      body: JSON.stringify({ status, applied_method: appliedMethod, rejection_reason: rejectionReason }),
     });
 
     if (!response.ok) {
       throw new Error('Failed to update job status');
     }
 
+    return response.json();
+  },
+
+  async getActivity(limit?: number): Promise<ActivityEntry[]> {
+    const searchParams = new URLSearchParams();
+    if (limit) searchParams.set('limit', String(limit));
+
+    const response = await fetch(`${API_BASE}/stats/activity?${searchParams}`);
+    if (!response.ok) throw new Error('Failed to fetch activity');
+    return response.json();
+  },
+
+  async getRecentActivity(limit?: number): Promise<JobActivity[]> {
+    const searchParams = new URLSearchParams();
+    if (limit) searchParams.set('limit', String(limit));
+
+    const response = await fetch(`${API_BASE}/stats/recent-activity?${searchParams}`);
+    if (!response.ok) throw new Error('Failed to fetch recent activity');
     return response.json();
   }
 };

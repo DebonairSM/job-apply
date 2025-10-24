@@ -1,6 +1,6 @@
 import { chromium, Page } from 'playwright';
 import { STORAGE_STATE_PATH, loadConfig, hasSession } from '../lib/session.js';
-import { addJobs, Job, AddJobsResult } from '../lib/db.js';
+import { addJobs, Job, AddJobsResult, jobExistsByUrl, getJobByUrl } from '../lib/db.js';
 import { rankJob } from '../ai/ranker.js';
 import { randomDelay } from '../lib/resilience.js';
 import { BOOLEAN_SEARCHES } from '../ai/profiles.js';
@@ -296,7 +296,15 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
         console.log(`        [DEBUG] Short description (${description.length} chars): ${description.substring(0, 50)}...`);
       }
 
-      // Rank the job
+      // 🚀 PERFORMANCE OPTIMIZATION: Check for duplicates BEFORE expensive LLM analysis
+      if (jobExistsByUrl(link)) {
+        const existingJob = getJobByUrl(link);
+        console.log(`   ${analyzed}/${count} ${title} at ${company}`);
+        console.log(`        ⏭️  Skipped (already in database - ${existingJob?.status || 'unknown'} status)`);
+        continue;
+      }
+
+      // Rank the job (expensive LLM operation - only for new jobs)
       const ranking = await rankJob(
         { title, company, description },
         config.profileSummary

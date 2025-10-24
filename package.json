@@ -15,10 +15,12 @@
     "test": "tsx --test tests/**/*.test.ts",
     "dashboard:dev": "concurrently \"tsx src/dashboard/server.ts\" \"vite\"",
     "dashboard:build": "vite build",
-    "dashboard:serve": "tsx src/dashboard/server.ts"
+    "dashboard:serve": "tsx src/dashboard/server.ts",
+    "dashboard:prod": "npm run dashboard:build && npm run dashboard:serve"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.5",
+    "@tanstack/react-virtual": "^3.13.12",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/react": "^19.2.2",

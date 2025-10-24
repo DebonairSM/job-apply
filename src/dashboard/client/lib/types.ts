@@ -7,6 +7,11 @@ export interface JobStats {
   reported: number;
   total: number;
   successRate: number;
+  totalManual: number;
+  totalAutomatic: number;
+  appliedToday: number;
+  appliedThisWeek: number;
+  appliedThisMonth: number;
 }
 
 export interface Job {
@@ -18,6 +23,7 @@ export interface Job {
   rank?: number;
   status: 'queued' | 'applied' | 'interview' | 'rejected' | 'skipped' | 'reported';
   applied_method?: 'automatic' | 'manual';
+  rejection_reason?: string;
   fit_reasons?: string;
   must_haves?: string;
   blockers?: string;
@@ -48,5 +54,35 @@ export interface JobsResponse {
 export interface RunsResponse {
   runs: RunLog[];
   total: number;
+}
+
+export interface JobActivity {
+  id: string;
+  title: string;
+  company: string;
+  status: 'queued' | 'applied' | 'interview' | 'rejected' | 'skipped' | 'reported';
+  applied_method?: 'automatic' | 'manual';
+  rejection_reason?: string;
+  created_at: string;
+  status_updated_at?: string;
+}
+
+export interface ActivityEntry {
+  id: string;
+  type: 'job_created' | 'job_updated' | 'run_step' | 'run_error' | 'run_success';
+  timestamp: string;
+  job_id?: string;
+  job_title?: string;
+  job_company?: string;
+  job_status?: 'queued' | 'applied' | 'interview' | 'rejected' | 'skipped' | 'reported';
+  job_rank?: number;
+  applied_method?: 'automatic' | 'manual';
+  step?: string;
+  success?: boolean;
+  message?: string;
+  screenshot_path?: string;
+  rejection_reason?: string;
+  fit_reasons?: string;
+  duration_ms?: number;
 }
 
