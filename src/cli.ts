@@ -64,6 +64,12 @@ yargs(hideBin(process.argv))
           type: 'number',
           default: 999
         })
+        .option('start-page', {
+          alias: 'start',
+          describe: 'Page number to start from (default: 1)',
+          type: 'number',
+          default: 1
+        })
         .check((argv) => {
           if (!argv.keywords && !argv.profile) {
             throw new Error('Either keywords or --profile must be specified');
@@ -79,7 +85,8 @@ yargs(hideBin(process.argv))
         remote: argv.remote,
         datePosted: argv.date as 'day' | 'week' | 'month' | undefined,
         minScore: argv['min-score'],
-        maxPages: argv['max-pages']
+        maxPages: argv['max-pages'],
+        startPage: argv['start-page']
       });
     }
   )

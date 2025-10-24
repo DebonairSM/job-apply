@@ -14,6 +14,7 @@ export interface SearchOptions {
   datePosted?: 'day' | 'week' | 'month';
   minScore?: number;
   maxPages?: number;
+  startPage?: number;
 }
 
 async function dismissModals(page: Page, silent = false): Promise<void> {
@@ -371,7 +372,7 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
   return { analyzed, queued };
 }
 
-function buildSearchUrl(opts: SearchOptions): string {
+function buildSearchUrl(opts: SearchOptions, page: number = 1): string {
   const params = new URLSearchParams();
   
   // Use profile-based Boolean search if specified, otherwise use keywords
@@ -401,6 +402,11 @@ function buildSearchUrl(opts: SearchOptions): string {
     params.set('f_TPR', dateMap[opts.datePosted]);
   }
 
+  // Add page parameter for pagination
+  if (page > 1) {
+    params.set('start', ((page - 1) * 25).toString()); // LinkedIn shows 25 jobs per page
+  }
+
   // Add origin parameter to match LinkedIn's search behavior
   params.set('origin', 'JOBS_HOME_SEARCH_BUTTON');
 
@@ -416,6 +422,7 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
   const config = loadConfig();
   const minScore = opts.minScore ?? config.minFitScore;
   const maxPages = opts.maxPages ?? 999;
+  const startPage = opts.startPage ?? 1;
 
   console.log('🔍 Starting job search...');
   if (opts.profile) {
@@ -427,6 +434,7 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
   if (opts.remote && !opts.profile) console.log(`   Remote: Yes`);
   if (opts.datePosted) console.log(`   Date Posted: < ${opts.datePosted}`);
   console.log(`   Min Fit Score: ${minScore}`);
+  console.log(`   Start Page: ${startPage}`);
   if (maxPages < 999) {
     console.log(`   Max Pages: ${maxPages}`);
   } else {
@@ -442,13 +450,13 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
   const context = await browser.newContext({ storageState: STORAGE_STATE_PATH });
   const page = await context.newPage();
 
-  const searchUrl = buildSearchUrl(opts);
+  const searchUrl = buildSearchUrl(opts, startPage);
   console.log('📄 Loading search results...');
   await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
 
   let totalAnalyzed = 0;
   let totalQueued = 0;
-  let currentPage = 1;
+  let currentPage = startPage;
 
   // Process pages in a loop
   while (currentPage <= maxPages) {

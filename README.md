@@ -46,6 +46,10 @@ npm run search "Data Analyst" -- --remote --date week --min-score 80
 npm run search -- --profile core
 npm run search -- --profile security
 npm run search -- --profile backend
+
+# Start from specific page
+npm run search -- --profile core --start-page 2
+npm run search -- --profile security --start 3 --max-pages 2
 ```
 
 Available profiles: `core`, `security`, `event-driven`, `performance`, `devops`, `backend`
@@ -94,7 +98,7 @@ npm run clear-cache mapping
 node scripts/reset-jobs.js
 ```
 
-### Dashboard (New!)
+### Dashboard
 
 Monitor your automation in real-time with the web dashboard:
 
@@ -106,9 +110,11 @@ Open http://localhost:3000 to access:
 - Live job statistics and success rates
 - Complete jobs list with filtering
 - Activity log with run history
+- Analytics charts and trends
+- Screenshot viewer for debugging
 - Auto-refreshing every 5 seconds
 
-See `src/dashboard/README.md` for details.
+See [Dashboard Documentation](docs/dashboard-monitoring-system.plan.md) for complete details.
 
 ## Configuration
 
@@ -227,6 +233,16 @@ npx tsx --test tests/mapper.test.ts
 npx tsx --test tests/ranker.test.ts
 npx tsx --test tests/integration.test.ts
 ```
+
+## Documentation
+
+Additional documentation is available in the `docs/` folder:
+
+- [Dashboard Monitoring System](docs/dashboard-monitoring-system.plan.md) - Complete dashboard architecture and development plan
+- [Dashboard Quick Start](docs/DASHBOARD_QUICKSTART.md) - Quick setup guide for the dashboard
+- [Dashboard Status](docs/DASHBOARD_STATUS.md) - Current dashboard implementation status
+- [HTTPS Setup](docs/HTTPS_SETUP_COMPLETE.md) - HTTPS configuration guide
+- [Phase A Test Report](docs/PHASE_A_TEST_REPORT.md) - Testing results and validation
 
 ## Disclaimer
 
