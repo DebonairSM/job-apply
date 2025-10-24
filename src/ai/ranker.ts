@@ -2,34 +2,89 @@ import { askOllama } from './client.js';
 import { RankOutput, RankOutputSchema } from '../lib/validation.js';
 import { PROFILES } from './profiles.js';
 
+// Map CLI profile names (kebab-case) to profile keys (camelCase)
+const PROFILE_NAME_MAP: Record<string, string> = {
+  'core': 'coreAzure',
+  'security': 'security',
+  'event-driven': 'eventDriven',
+  'performance': 'performance',
+  'devops': 'devops',
+  'backend': 'coreNet', // Map backend to coreNet for now
+  'core-net': 'coreNet',
+  'legacy-modernization': 'legacyModernization'
+};
+
+function getProfileKey(cliProfileName: string): string {
+  return PROFILE_NAME_MAP[cliProfileName] || cliProfileName;
+}
+
 export interface JobInput {
   title: string;
   company: string;
   description: string;
 }
 
-// Rank a job against user profile using multi-category evaluation
-export async function rankJob(job: JobInput, profile: string): Promise<RankOutput> {
+// Generate profile-specific scoring criteria
+function generateProfileScoringCriteria(profileKey: string): {
+  criteria: string;
+  formula: string;
+  categories: string[];
+  profileName: string;
+  profileDescription: string;
+} {
+  const profile = PROFILES[profileKey];
+  if (!profile) {
+    throw new Error(`Unknown profile: ${profileKey}`);
+  }
+
+  const criteria: string[] = [];
+  const weights: string[] = [];
+  const categoryNames: string[] = [];
+
+  // Build scoring criteria based on profile configuration
+  Object.entries(PROFILES).forEach(([key, prof]) => {
+    const weightPercent = prof.weight;
+    const weightDecimal = weightPercent / 100;
+    
+    criteria.push(`- ${key} (weight ${weightPercent}%): How well does job match ${prof.description.toLowerCase()}?`);
+    weights.push(`${key}*${weightDecimal}`);
+    categoryNames.push(key);
+  });
+
+  const weightFormula = weights.join(' + ');
+  
+  return {
+    criteria: criteria.join('\n'),
+    formula: weightFormula,
+    categories: categoryNames,
+    profileName: profile.name,
+    profileDescription: profile.description
+  };
+}
+
+// Rank a job against user profile using profile-specific evaluation
+export async function rankJob(job: JobInput, profileKey: string): Promise<RankOutput> {
+  // Convert CLI profile name to actual profile key
+  const actualProfileKey = getProfileKey(profileKey);
+  
   // Truncate description to 1000 chars for faster processing
   const desc = job.description.substring(0, 1000);
   
-  const prompt = `Evaluate job match for Azure API Engineer role.
+  // Get profile-specific scoring criteria
+  const scoring = generateProfileScoringCriteria(actualProfileKey);
+  
+  const prompt = `Evaluate job match for ${scoring.profileName} role.
 
 JOB: ${job.title} at ${job.company}
 DESCRIPTION: ${desc}
 
 Rate fit 0-100 for each area (parenthesis shows weight for final score):
-- coreAzure (weight 30%): How well does job match Azure, APIM, .NET Core, Functions?
-- security (weight 20%): OAuth, JWT, Azure AD, API security?
-- eventDriven (weight 15%): Service Bus, Event Grid, messaging?
-- performance (weight 15%): Redis, caching, monitoring?
-- devops (weight 10%): CI/CD, Docker, IaC?
-- seniority (weight 10%): Senior/Lead level + Remote work?
+${scoring.criteria}
 
-Calculate fitScore = (coreAzure*0.30 + security*0.20 + eventDriven*0.15 + performance*0.15 + devops*0.10 + seniority*0.10)
+Calculate fitScore = (${scoring.formula})
 
 Return JSON with YOUR SCORES (not the weights):
-{"fitScore":75,"categoryScores":{"coreAzure":85,"security":70,"eventDriven":60,"performance":80,"devops":70,"seniority":90},"reasons":["Strong Azure match","Senior level"],"mustHaves":["Azure","C#"],"blockers":[],"missingKeywords":["APIM"]}`;
+{"fitScore":75,"categoryScores":{"${scoring.categories.join('":85,"')}":85},"reasons":["Strong match","Good fit"],"mustHaves":["Required skill"],"blockers":[],"missingKeywords":["Missing skill"]}`;
 
   const startTime = Date.now();
   const result = await askOllama<RankOutput>(prompt, 'RankOutput', {

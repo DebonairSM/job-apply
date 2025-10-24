@@ -11,7 +11,7 @@ export interface TechnicalProfile {
 export const PROFILES: Record<string, TechnicalProfile> = {
   coreAzure: {
     name: 'Core Azure API Skills',
-    weight: 20,
+    weight: 25,
     mustHave: [
       'Azure', 
       'Microsoft Azure', 

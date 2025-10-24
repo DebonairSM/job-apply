@@ -118,7 +118,7 @@ async function updateMissingDescriptions(page: Page, limit: number = 10): Promis
   return updated;
 }
 
-async function processPage(page: Page, minScore: number, config: any): Promise<{ analyzed: number, queued: number }> {
+async function processPage(page: Page, minScore: number, config: any, opts: SearchOptions): Promise<{ analyzed: number, queued: number }> {
   // Wait for initial results to load
   await page.waitForTimeout(2000);
   
@@ -514,7 +514,7 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
       // Rank the job (expensive LLM operation - only for new jobs)
       const ranking = await rankJob(
         { title, company, description },
-        config.profileSummary
+        opts.profile || 'coreAzure' // Use the actual profile from CLI, fallback to coreAzure
       );
 
       console.log(`   ${analyzed}/${count} ${title} at ${company}`);
@@ -702,7 +702,7 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
     const pageDisplay = maxPages >= 999 ? 'all' : maxPages.toString();
     console.log(`\n📄 Processing page ${currentPage}/${pageDisplay}...`);
     
-    const pageResult = await processPage(page, minScore, config);
+    const pageResult = await processPage(page, minScore, config, opts);
     totalAnalyzed += pageResult.analyzed;
     totalQueued += pageResult.queued;
 
