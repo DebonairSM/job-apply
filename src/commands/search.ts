@@ -529,10 +529,10 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
       }
 
       // Generate job ID for context
-      const jobId = crypto.createHash('md5').update(link).digest('hex');
+      const jobHashId = crypto.createHash('md5').update(link).digest('hex');
       
       // Set job context for error logging
-      process.env.JOB_ID = jobId;
+      process.env.JOB_ID = jobHashId;
       
       // Rank the job (expensive LLM operation - only for new jobs)
       const ranking = await rankJob(
@@ -559,7 +559,7 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
       if (ranking.fitScore >= minScore) {
         
         const job = {
-          id: jobId,
+          id: jobHashId,
           title,
           company,
           url: link,

@@ -32,7 +32,8 @@ const testSuites = [
     name: 'Rejection Learning System Tests',
     files: [
       'rejection-learning.test.ts',
-      'rejection-learning-integration.test.ts'
+      'rejection-learning-integration.test.ts',
+      'rejection-logic-fix.test.ts'
     ]
   }
 ];
@@ -127,6 +128,7 @@ async function runAllTests() {
     console.log('   • Form filling integration');
     console.log('   • Rejection learning system');
     console.log('   • Weight adjustment and filtering');
+    console.log('   • Rejection logic validation');
     console.log('   • End-to-end workflows');
   } else {
     console.log('\n⚠️  Some tests failed. Please review the output above.');

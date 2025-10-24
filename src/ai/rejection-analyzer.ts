@@ -30,21 +30,24 @@ const REJECTION_KEYWORDS = {
   seniority: [
     'too junior', 'not senior enough', 'need more experience', 'junior level',
     'not enough experience', 'lack experience', 'entry level', 'mid level',
-    'need senior', 'require senior', 'senior required'
+    'need senior', 'require senior', 'senior required', 'overqualified',
+    'too senior', 'overqualified for', 'overqualified for this'
   ],
   techStack: [
     'wrong stack', 'different tech', 'not familiar with', 'no experience with',
     'different technology', 'tech stack', 'technology stack', 'not our stack',
-    'unfamiliar with', 'no knowledge of', 'different framework'
+    'unfamiliar with', 'no knowledge of', 'different framework', 'python',
+    'no python', 'python experience', 'c#', 'java', 'javascript'
   ],
   location: [
     'location', 'not remote', 'office required', 'must be in', 'relocation',
     'on-site', 'onsite', 'in office', 'office work', 'not available',
-    'geographic', 'time zone', 'timezone'
+    'geographic', 'time zone', 'timezone', 'requires office work'
   ],
   compensation: [
     'salary', 'compensation', 'pay', 'budget', 'rate', 'cost',
-    'too expensive', 'over budget', 'salary range', 'compensation range'
+    'too expensive', 'over budget', 'salary range', 'compensation range',
+    'salary expectations', 'budget constraints', 'over our budget'
   ],
   company: [
     'company culture', 'not a fit', 'team fit', 'cultural fit',
@@ -72,6 +75,77 @@ export function analyzeRejectionKeywords(reason: string): RejectionPattern[] {
   return patterns;
 }
 
+// Convert rejection patterns to weight adjustments with correct logic
+export function convertPatternsToAdjustments(patterns: RejectionPattern[]): SuggestedAdjustment[] {
+  const adjustments: SuggestedAdjustment[] = [];
+  
+  for (const pattern of patterns) {
+    let adjustment: SuggestedAdjustment | null = null;
+    
+    switch (pattern.type) {
+      case 'seniority':
+        if (pattern.value.includes('junior') || pattern.value.includes('not senior') || pattern.value.includes('not enough experience')) {
+          // Too junior = need MORE seniority
+          adjustment = {
+            category: 'seniority',
+            currentWeight: 5, // Will be updated with actual current weight
+            adjustment: +2,
+            reason: `Too junior - prioritizing more senior jobs`
+          };
+        } else if (pattern.value.includes('senior') || pattern.value.includes('overqualified')) {
+          // Too senior = need LESS seniority
+          adjustment = {
+            category: 'seniority',
+            currentWeight: 5,
+            adjustment: -2,
+            reason: `Too senior - considering mid-level jobs`
+          };
+        }
+        break;
+        
+      case 'techStack':
+        // Wrong tech stack = need LESS of that tech
+        adjustment = {
+          category: 'coreAzure', // Default to coreAzure, could be more specific
+          currentWeight: 20,
+          adjustment: -2,
+          reason: `Wrong tech stack - avoiding ${pattern.value}`
+        };
+        break;
+        
+      case 'location':
+        if (pattern.value.includes('not remote') || pattern.value.includes('office required')) {
+          // Not remote = need MORE remote jobs
+          adjustment = {
+            category: 'performance', // Could be a separate remote category
+            currentWeight: 10,
+            adjustment: +1,
+            reason: `Location issue - prioritizing remote jobs`
+          };
+        }
+        break;
+        
+      case 'compensation':
+        if (pattern.value.includes('too expensive') || pattern.value.includes('over budget')) {
+          // Too expensive = need LESS expensive jobs
+          adjustment = {
+            category: 'seniority', // Senior jobs tend to be more expensive
+            currentWeight: 5,
+            adjustment: -1,
+            reason: `Compensation issue - considering mid-level roles`
+          };
+        }
+        break;
+    }
+    
+    if (adjustment) {
+      adjustments.push(adjustment);
+    }
+  }
+  
+  return adjustments;
+}
+
 // Analyze rejection reason using LLM for nuanced understanding
 export async function analyzeRejectionWithLLM(reason: string, job: Job): Promise<RejectionAnalysis> {
   const prompt = `Analyze this job rejection reason and identify patterns to avoid similar jobs.
@@ -93,8 +167,16 @@ Identify patterns and suggest adjustments:
 2. ADJUSTMENTS: Suggest weight adjustments for profile categories
    Available categories: coreAzure, security, eventDriven, performance, devops, seniority, coreNet, legacyModernization
    Adjustment range: -5 to +5 percentage points
-   - Negative adjustment: Reduce weight if category led to rejection
-   - Positive adjustment: Increase weight if category was undervalued
+   
+   CORRECT LOGIC:
+   - "Too junior" → INCREASE seniority weight (need more senior jobs)
+   - "Too senior" → DECREASE seniority weight (consider mid-level jobs)
+   - "Wrong tech stack" → DECREASE that tech weight (avoid that technology)
+   - "Missing skill" → INCREASE that skill weight (need more of that skill)
+   - "Not enough experience" → INCREASE seniority weight (need more experience)
+   - "Overqualified" → DECREASE seniority weight (consider lower level)
+   
+   Think: What does the rejection tell us we need MORE or LESS of?
 
 3. FILTERS: Suggest filters to avoid similar jobs
    - block_company: Block specific companies
@@ -114,8 +196,8 @@ Return JSON format:
     {
       "category": "seniority",
       "currentWeight": 5,
-      "adjustment": -2,
-      "reason": "Multiple rejections for being too junior"
+      "adjustment": +2,
+      "reason": "Too junior - need to prioritize more senior jobs"
     }
   ],
   "filters": [
@@ -150,6 +232,18 @@ Return JSON format:
       }
     }
     
+    // Add keyword-based adjustments with correct logic
+    const keywordAdjustments = convertPatternsToAdjustments(keywordPatterns);
+    for (const keywordAdjustment of keywordAdjustments) {
+      // Check if LLM already suggested this category adjustment
+      const exists = enhancedAnalysis.suggestedAdjustments.some(adj => 
+        adj.category === keywordAdjustment.category
+      );
+      if (!exists) {
+        enhancedAnalysis.suggestedAdjustments.push(keywordAdjustment);
+      }
+    }
+    
     return enhancedAnalysis;
   } catch (error) {
     console.error('Error analyzing rejection with LLM:', error);
@@ -169,11 +263,13 @@ Return JSON format:
       }
     }
     
-    // Fallback to keyword analysis only
+    // Fallback to keyword analysis only with correct logic
     const keywordPatterns = analyzeRejectionKeywords(reason);
+    const keywordAdjustments = convertPatternsToAdjustments(keywordPatterns);
+    
     return {
       patterns: keywordPatterns,
-      suggestedAdjustments: [],
+      suggestedAdjustments: keywordAdjustments,
       filters: []
     };
   }

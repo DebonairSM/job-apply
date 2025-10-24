@@ -25,20 +25,20 @@ export interface JobInput {
 }
 
 // Generate profile-specific scoring criteria
-function generateProfileScoringCriteria(profileKey: string): {
+async function generateProfileScoringCriteria(profileKey: string): Promise<{
   criteria: string;
   formula: string;
   categories: string[];
   profileName: string;
   profileDescription: string;
-} {
+}> {
   const profile = PROFILES[profileKey];
   if (!profile) {
     throw new Error(`Unknown profile: ${profileKey}`);
   }
 
   // Get adjusted weights from learning system
-  const { getActiveWeights } = require('./weight-manager.js');
+  const { getActiveWeights } = await import('./weight-manager.js');
   const adjustedWeights = getActiveWeights();
 
   const criteria: string[] = [];

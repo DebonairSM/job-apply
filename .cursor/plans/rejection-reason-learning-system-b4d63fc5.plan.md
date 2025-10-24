@@ -305,4 +305,4 @@ Test cases:
 - [x] Apply rejection filters in search.ts before job ranking
 - [x] Create LearningPanel component and analytics endpoint
 - [x] Document rejection learning system in README Advanced Features section
-- [x] Test rejection learning with sample data and verify weight adjustments
+- [x] Fix remaining test failures in rejection learning system
