@@ -5,6 +5,7 @@ import { JobDescriptionPanel } from './JobDescriptionPanel';
 import { ChipList } from './ChipList';
 import { CategoryScores } from './CategoryScoreBar';
 import { DataQualityBadge } from './DataQualityBadge';
+import { formatDate } from '../lib/dateUtils';
 
 interface JobDetailsPanelProps {
   job: Job;
@@ -118,29 +119,8 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
     }
   };
 
-  const formatDate = (dateString: string | undefined): string => {
-    if (!dateString) return 'N/A';
-    
-    // Check if it's a relative date (e.g., "1 hour ago", "2 days ago")
-    if (dateString.includes('ago') || dateString.includes('day') || dateString.includes('hour') || dateString.includes('week') || dateString.includes('month')) {
-      return dateString; // Return relative date as-is
-    }
-    
-    // Handle absolute timestamps
-    try {
-      const timestamp = dateString.includes('Z') ? dateString : `${dateString}Z`;
-      return new Date(timestamp).toLocaleString(undefined, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      });
-    } catch (error) {
-      // If parsing fails, return the original string
-      return dateString;
-    }
+  const formatDateLocal = (dateString: string | undefined): string => {
+    return formatDate(dateString, job.created_at);
   };
 
   const dataQualityFields = assessDataQuality();
@@ -192,14 +172,14 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
             <div>
               <label className="text-sm font-medium text-gray-600">Posted Date</label>
               <div className="mt-1 text-sm text-gray-900">
-                {formatDate(job.posted_date)}
+                {formatDateLocal(job.posted_date)}
               </div>
             </div>
             
             <div>
               <label className="text-sm font-medium text-gray-600">Created</label>
               <div className="mt-1 text-sm text-gray-900">
-                {formatDate(job.created_at)}
+                {formatDateLocal(job.created_at)}
               </div>
             </div>
             
@@ -207,7 +187,7 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
               <div>
                 <label className="text-sm font-medium text-gray-600">Status Updated</label>
                 <div className="mt-1 text-sm text-gray-900">
-                  {formatDate(job.status_updated_at)}
+                  {formatDateLocal(job.status_updated_at)}
                 </div>
               </div>
             )}
