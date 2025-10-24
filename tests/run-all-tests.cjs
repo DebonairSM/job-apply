@@ -1,19 +1,33 @@
 #!/usr/bin/env node
 
 /**
- * Test Runner for Selector Learning System
+ * Main Test Runner for Job Apply System
  * 
- * This script runs all tests related to the selector learning system
- * and provides a comprehensive validation report.
+ * This script runs all test suites including the selector learning system tests.
  */
 
 const { spawn } = require('child_process');
 const { join } = require('path');
 
-const testFiles = [
-  'selector-learning.test.ts',
-  'form-filling-learning.test.ts', 
-  'selector-learning-integration.test.ts'
+const testSuites = [
+  {
+    name: 'Core System Tests',
+    files: [
+      'integration.test.ts',
+      'login.test.ts', 
+      'mapper.test.ts',
+      'ranker.test.ts',
+      'search.test.ts'
+    ]
+  },
+  {
+    name: 'Selector Learning System Tests',
+    files: [
+      'learning-system/selector-learning.test.ts',
+      'learning-system/form-filling-learning.test.ts',
+      'learning-system/selector-learning-integration.test.ts'
+    ]
+  }
 ];
 
 async function runTest(testFile) {
@@ -48,13 +62,13 @@ async function runTest(testFile) {
   });
 }
 
-async function runAllTests() {
-  console.log('🧪 Running Selector Learning System Tests\n');
+async function runTestSuite(suite) {
+  console.log(`\n🧪 Running ${suite.name}`);
   console.log('=' .repeat(60));
 
   const results = [];
 
-  for (const testFile of testFiles) {
+  for (const testFile of suite.files) {
     console.log(`\n📋 Running ${testFile}...`);
     console.log('-'.repeat(40));
     
@@ -69,13 +83,27 @@ async function runAllTests() {
     }
   }
 
+  return results;
+}
+
+async function runAllTests() {
+  console.log('🚀 Running All Job Apply System Tests\n');
+  console.log('=' .repeat(60));
+
+  const allResults = [];
+
+  for (const suite of testSuites) {
+    const suiteResults = await runTestSuite(suite);
+    allResults.push(...suiteResults);
+  }
+
   // Summary
   console.log('\n' + '='.repeat(60));
-  console.log('📊 TEST SUMMARY');
+  console.log('📊 OVERALL TEST SUMMARY');
   console.log('='.repeat(60));
 
-  const passed = results.filter(r => r.success).length;
-  const total = results.length;
+  const passed = allResults.filter(r => r.success).length;
+  const total = allResults.length;
 
   console.log(`\nTotal Tests: ${total}`);
   console.log(`Passed: ${passed}`);
@@ -83,18 +111,14 @@ async function runAllTests() {
   console.log(`Success Rate: ${((passed / total) * 100).toFixed(1)}%`);
 
   if (passed === total) {
-    console.log('\n🎉 All tests passed! The selector learning system is working correctly.');
-    console.log('\n✨ Key Features Validated:');
-    console.log('   • Database schema with learning metrics');
-    console.log('   • Success/failure tracking');
-    console.log('   • Dynamic confidence calculation');
-    console.log('   • Selector extraction and storage');
-    console.log('   • Cached selector priority');
-    console.log('   • Field type detection');
-    console.log('   • Learning integration');
-    console.log('   • Error handling');
-    console.log('   • Performance benefits');
-    console.log('   • End-to-end learning workflow');
+    console.log('\n🎉 All tests passed! The job apply system is working correctly.');
+    console.log('\n✨ Test Coverage:');
+    console.log('   • Core system functionality');
+    console.log('   • Login and authentication');
+    console.log('   • Job search and mapping');
+    console.log('   • Selector learning system');
+    console.log('   • Form filling integration');
+    console.log('   • End-to-end workflows');
   } else {
     console.log('\n⚠️  Some tests failed. Please review the output above.');
     process.exit(1);

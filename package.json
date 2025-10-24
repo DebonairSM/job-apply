@@ -13,6 +13,8 @@
     "rank": "tsx src/cli.ts rank",
     "clear-cache": "tsx src/cli.ts clear-cache",
     "test": "tsx --test tests/**/*.test.ts",
+    "test:all": "node tests/run-all-tests.cjs",
+    "test:learning": "node tests/learning-system/run-learning-tests.cjs",
     "dashboard:dev": "concurrently \"tsx src/dashboard/server.ts\" \"vite\"",
     "dashboard:build": "vite build",
     "dashboard:serve": "tsx src/dashboard/server.ts",

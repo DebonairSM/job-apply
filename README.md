@@ -224,6 +224,7 @@ This application demonstrates sophisticated capabilities that can be applied to 
 ### 🔄 **Smart Form Automation**
 - **ATS Detection & Adaptation**: Automatically detects and adapts to different Applicant Tracking Systems (Greenhouse, Lever, Workday)
 - **Intelligent Field Mapping**: Three-tier mapping system (heuristics → cache → AI) for optimal performance and accuracy
+- **Selector Learning System**: Captures and learns CSS selectors from successful form fills, improving reliability over time
 - **Generic Form Fallback**: Handles unknown form types with intelligent field detection and filling
 - **Resume Upload Automation**: Automatic file upload with multiple format support
 
@@ -346,6 +347,13 @@ This application demonstrates sophisticated capabilities that can be applied to 
 ### Tests
 
 ```bash
+# Run all tests (recommended)
+npm run test:all
+
+# Run selector learning system tests only
+npm run test:learning
+
+# Run individual test suites
 npm test
 npx tsx --test tests/login.test.ts
 npx tsx --test tests/search.test.ts

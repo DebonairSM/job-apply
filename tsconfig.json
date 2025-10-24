@@ -3,14 +3,15 @@
     "target": "ES2022",
     "module": "ES2022",
     "moduleResolution": "Node",
-    "lib": ["ES2022"],
+    "lib": ["ES2022", "DOM"],
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "forceConsistentCasingInFileNames": true,
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "jsx": "react-jsx"
   },
   "include": ["src/**/*", "tests/**/*"],
   "exclude": ["node_modules", "dist"]

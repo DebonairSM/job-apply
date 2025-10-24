@@ -32,6 +32,7 @@ export interface Job {
   posted_date?: string;
   description?: string;
   created_at?: string;
+  status_updated_at?: string;
 }
 
 export interface RunLog {

@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { Job } from '../lib/types';
 import { CompleteDataModal } from './CompleteDataModal';
+import { JobDescriptionPanel } from './JobDescriptionPanel';
+import { ChipList } from './ChipList';
+import { CategoryScores } from './CategoryScoreBar';
+import { DataQualityBadge } from './DataQualityBadge';
 
 interface JobDetailsPanelProps {
   job: Job;
@@ -15,6 +19,8 @@ interface DataQualityField {
 
 export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
   const [showCompleteData, setShowCompleteData] = useState(false);
+  const [showDescriptionPanel, setShowDescriptionPanel] = useState(false);
+
   // Data quality assessment
   const assessDataQuality = (): DataQualityField[] => {
     const parseJsonField = (value: string | undefined): any => {
@@ -126,18 +132,23 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
   };
 
   const dataQualityFields = assessDataQuality();
-  const missingFields = dataQualityFields.filter(field => !field.hasValue);
-  const emptyFields = dataQualityFields.filter(field => field.hasValue && !field.isComplete);
-  const completeFields = dataQualityFields.filter(field => field.isComplete);
-
   const categoryScores = formatJsonField(job.category_scores);
   const missingKeywords = formatJsonField(job.missing_keywords);
+  const fitReasons = formatJsonField(job.fit_reasons);
+  const mustHaves = formatJsonField(job.must_haves);
+  const blockers = formatJsonField(job.blockers);
 
   return (
     <div className="bg-gray-50 border-t border-gray-200 p-6">
-      {/* Header with View All Data button */}
+      {/* Header with Title and Data Quality Badge */}
       <div className="mb-6 flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Job Analysis</h3>
+        <div className="flex items-center gap-4">
+          <h3 className="text-lg font-semibold text-gray-900">Job Analysis</h3>
+          <DataQualityBadge 
+            fields={dataQualityFields}
+            onClick={() => setShowCompleteData(true)}
+          />
+        </div>
         <button
           onClick={() => setShowCompleteData(true)}
           className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
@@ -147,14 +158,11 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
-        {/* Job Information */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-300 pb-2">
-            Job Information
-          </h3>
-          <div className="space-y-3">
+      <div className="space-y-6">
+        {/* Key Info Section */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <h4 className="text-md font-semibold text-gray-800 mb-3">Job Information</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="text-sm font-medium text-gray-600">Job URL</label>
               <div className="mt-1">
@@ -169,27 +177,17 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
               </div>
             </div>
             
-            {job.description && (
-              <div>
-                <label className="text-sm font-medium text-gray-600">Job Description</label>
-                <div className="mt-1 text-sm text-gray-900 bg-white p-3 rounded-lg border border-gray-200 max-h-32 overflow-y-auto">
-                  <div className="whitespace-pre-wrap">{job.description}</div>
-                </div>
+            <div>
+              <label className="text-sm font-medium text-gray-600">Posted Date</label>
+              <div className="mt-1 text-sm text-gray-900">
+                {formatDate(job.posted_date)}
               </div>
-            )}
+            </div>
             
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-gray-600">Posted Date</label>
-                <div className="mt-1 text-sm text-gray-900">
-                  {formatDate(job.posted_date)}
-                </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-600">Created</label>
-                <div className="mt-1 text-sm text-gray-900">
-                  {formatDate(job.created_at)}
-                </div>
+            <div>
+              <label className="text-sm font-medium text-gray-600">Created</label>
+              <div className="mt-1 text-sm text-gray-900">
+                {formatDate(job.created_at)}
               </div>
             </div>
             
@@ -202,154 +200,118 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
               </div>
             )}
           </div>
+          
+          {job.description && (
+            <div className="mt-4">
+              <button
+                onClick={() => setShowDescriptionPanel(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+              >
+                <span>📄</span>
+                View Full Description
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* AI Analysis Section */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <h4 className="text-md font-semibold text-gray-800 mb-4">AI Analysis</h4>
+          <div className="space-y-4">
+            {/* Fit Reasons */}
+            <div>
+              <label className="text-sm font-medium text-gray-600 mb-2 block">Fit Reasons</label>
+              <ChipList 
+                items={Array.isArray(fitReasons) ? fitReasons : (fitReasons ? [fitReasons] : [])}
+                variant="fit"
+              />
+            </div>
+
+            {/* Must Haves */}
+            <div>
+              <label className="text-sm font-medium text-gray-600 mb-2 block">Must Haves</label>
+              <ChipList 
+                items={Array.isArray(mustHaves) ? mustHaves : (mustHaves ? [mustHaves] : [])}
+                variant="must-have"
+              />
+            </div>
+
+            {/* Blockers */}
+            <div>
+              <label className="text-sm font-medium text-gray-600 mb-2 block">Blockers</label>
+              <ChipList 
+                items={Array.isArray(blockers) ? blockers : (blockers ? [blockers] : [])}
+                variant="blocker"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Performance Metrics */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <h4 className="text-md font-semibold text-gray-800 mb-4">Performance Metrics</h4>
+          <div className="space-y-4">
+            {/* Category Scores */}
+            {categoryScores && (
+              <div>
+                <CategoryScores scores={categoryScores} />
+              </div>
+            )}
+
+            {/* Missing Keywords */}
+            {missingKeywords && (
+              <div>
+                <label className="text-sm font-medium text-gray-600 mb-2 block">Missing Keywords</label>
+                <ChipList 
+                  items={Array.isArray(missingKeywords) ? missingKeywords : [missingKeywords]}
+                  variant="missing"
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Application Details */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-300 pb-2">
-            Application Details
-          </h3>
-          <div className="space-y-3">
-            <div>
-              <label className="text-sm font-medium text-gray-600">Applied Method</label>
-              <div className="mt-1 text-sm text-gray-900">
-                {job.applied_method ? (
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    job.applied_method === 'manual' 
-                      ? 'bg-blue-100 text-blue-800' 
-                      : 'bg-green-100 text-green-800'
-                  }`}>
-                    {job.applied_method === 'manual' ? '🤖 Manual' : '⚡ Automatic'}
-                  </span>
-                ) : 'N/A'}
-              </div>
+        {(job.applied_method || job.rejection_reason) && (
+          <div className="bg-white rounded-lg border border-gray-200 p-4">
+            <h4 className="text-md font-semibold text-gray-800 mb-4">Application Details</h4>
+            <div className="space-y-3">
+              {job.applied_method && (
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Applied Method</label>
+                  <div className="mt-1">
+                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                      job.applied_method === 'manual' 
+                        ? 'bg-blue-100 text-blue-800' 
+                        : 'bg-green-100 text-green-800'
+                    }`}>
+                      {job.applied_method === 'manual' ? '🤖 Manual' : '⚡ Automatic'}
+                    </span>
+                  </div>
+                </div>
+              )}
+              
+              {job.rejection_reason && (
+                <div>
+                  <label className="text-sm font-medium text-gray-600">Rejection Reason</label>
+                  <div className="mt-1 text-sm text-gray-900 bg-red-50 p-3 rounded-lg border border-red-200">
+                    {job.rejection_reason}
+                  </div>
+                </div>
+              )}
             </div>
-            
-            {job.rejection_reason && (
-              <div>
-                <label className="text-sm font-medium text-gray-600">Rejection Reason</label>
-                <div className="mt-1 text-sm text-gray-900 bg-red-50 p-3 rounded-lg border border-red-200">
-                  {job.rejection_reason}
-                </div>
-              </div>
-            )}
           </div>
-        </div>
-
-        {/* AI Analysis */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-300 pb-2">
-            AI Analysis
-          </h3>
-          <div className="space-y-3">
-            {dataQualityFields.map((field) => (
-              <div key={field.name}>
-                <div className="flex items-center gap-2 mb-1">
-                  <label className="text-sm font-medium text-gray-600">{field.name}</label>
-                  {field.isComplete ? (
-                    <span className="text-green-600">✅</span>
-                  ) : field.hasValue ? (
-                    <span className="text-yellow-600">⚠️</span>
-                  ) : (
-                    <span className="text-red-600">❌</span>
-                  )}
-                </div>
-                <div className="text-sm text-gray-900 bg-white p-3 rounded-lg border border-gray-200">
-                  {field.value ? (
-                    <div className="whitespace-pre-wrap">{field.value}</div>
-                  ) : (
-                    <span className="text-gray-500 italic">No data available</span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Data Quality Summary */}
-        <div className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-300 pb-2">
-            Data Quality
-          </h3>
-          <div className="space-y-3">
-            <div className="bg-white p-4 rounded-lg border border-gray-200">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-green-600">✅</span>
-                <span 
-                  className="text-sm font-medium text-gray-700 cursor-help"
-                  title="Core job data: Job Description, Posted Date | AI analysis: Fit Reasons, Must Haves, Blockers, Category Scores, Missing Keywords | Application tracking: Applied Method, Rejection Reason"
-                >
-                  Complete Fields
-                </span>
-              </div>
-              <div className="text-sm text-gray-600">
-                {completeFields.length} of {dataQualityFields.length} fields have data
-              </div>
-            </div>
-
-            {missingFields.length > 0 && (
-              <div className="bg-white p-4 rounded-lg border border-red-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-red-600">❌</span>
-                  <span 
-                    className="text-sm font-medium text-gray-700 cursor-help"
-                    title="Fit Reasons, Must Haves, Blockers, Category Scores, Missing Keywords"
-                  >
-                    Missing Fields
-                  </span>
-                </div>
-                <div className="text-sm text-gray-600">
-                  {missingFields.map(field => field.name).join(', ')}
-                </div>
-              </div>
-            )}
-
-            {emptyFields.length > 0 && (
-              <div className="bg-white p-4 rounded-lg border border-blue-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-blue-600">ℹ️</span>
-                  <span 
-                    className="text-sm font-medium text-gray-700 cursor-help"
-                    title="Fields that are empty but valid (e.g., no blockers found)"
-                  >
-                    Empty Fields
-                  </span>
-                </div>
-                <div className="text-sm text-gray-600">
-                  {emptyFields.map(field => field.name).join(', ')}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* JSON Data Display */}
-      {(categoryScores || missingKeywords) && (
-        <div className="mt-6">
-          <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-300 pb-2 mb-4">
-            Raw Data
-          </h3>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {categoryScores && (
-              <div>
-                <label className="text-sm font-medium text-gray-600 mb-2 block">Category Scores (JSON)</label>
-                <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-xs overflow-x-auto">
-                  {JSON.stringify(categoryScores, null, 2)}
-                </pre>
-              </div>
-            )}
-            {missingKeywords && (
-              <div>
-                <label className="text-sm font-medium text-gray-600 mb-2 block">Missing Keywords (JSON)</label>
-                <pre className="bg-gray-900 text-green-400 p-4 rounded-lg text-xs overflow-x-auto">
-                  {JSON.stringify(missingKeywords, null, 2)}
-                </pre>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Job Description Panel */}
+      <JobDescriptionPanel
+        isOpen={showDescriptionPanel}
+        onClose={() => setShowDescriptionPanel(false)}
+        title={job.title}
+        company={job.company}
+        description={job.description || ''}
+      />
 
       {/* Complete Data Modal */}
       <CompleteDataModal
