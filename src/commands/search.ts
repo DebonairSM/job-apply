@@ -316,7 +316,35 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
 
       // Extract posted date - LinkedIn shows relative time like "1 day ago", "2 weeks ago"
       let postedDate = '';
+      
+      // Function to clean up posted date text
+      const cleanPostedDate = (text: string): string => {
+        if (!text) return '';
+        
+        // Remove "Reposted" prefix if present
+        let cleaned = text.replace(/^Reposted\s*/i, '').trim();
+        
+        // Extract just the time portion if it contains multiple parts
+        const timeMatch = cleaned.match(/(\d+\s+(?:hour|day|week|month|minute|second)s?\s+ago)/i);
+        if (timeMatch) {
+          cleaned = timeMatch[1];
+        }
+        
+        return cleaned;
+      };
       const dateSelectors = [
+        // Job detail page selectors (from the HTML we just examined)
+        '.tvm__text.tvm__text--positive span',
+        '.tvm__text--positive span',
+        '.job-details-jobs-unified-top-card__tertiary-description-container .tvm__text--positive',
+        '.job-details-jobs-unified-top-card__tertiary-description-container span',
+        // More specific selectors for the exact pattern we found
+        '.job-details-jobs-unified-top-card__tertiary-description-container .tvm__text--positive strong span',
+        '.job-details-jobs-unified-top-card__tertiary-description-container strong span',
+        // Selectors for "Reposted" format
+        '.job-details-jobs-unified-top-card__tertiary-description-container .tvm__text--positive strong',
+        '.job-details-jobs-unified-top-card__tertiary-description-container .tvm__text--positive',
+        // Job card selectors (for search results)
         'time',
         '.job-card-container__listed-time',
         '.job-card-container__metadata-item time',
@@ -325,18 +353,64 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
         '.jobs-search-results__list-item time',
         '.job-card-container time',
         '[data-test-id="job-search-card-listing-date"]',
-        '.job-card-container__metadata-item--bullet'
+        '.job-card-container__metadata-item--bullet',
+        // Additional selectors for different layouts
+        '.tvm__text--positive',
+        '.job-details-jobs-unified-top-card__tertiary-description-container',
+        '.job-details-jobs-unified-top-card__primary-description-container'
       ];
       
       for (const selector of dateSelectors) {
+        // Try both card-specific and page-wide selectors
         const dateElem = card.locator(selector).first();
         const count = await dateElem.count();
         if (count > 0) {
           const text = await dateElem.textContent({ timeout: 2000 }).catch(() => null);
           if (text && text.trim()) {
-            postedDate = text.trim();
-            console.log(`   📅 Found posted date: "${postedDate}" using selector: ${selector}`);
-            break;
+            const cleaned = cleanPostedDate(text.trim());
+            if (cleaned) {
+              postedDate = cleaned;
+              console.log(`   📅 Found posted date: "${postedDate}" using selector: ${selector}`);
+              break;
+            }
+          }
+        }
+        
+        // Also try page-wide selectors for job detail pages
+        const pageDateElem = page.locator(selector).first();
+        const pageCount = await pageDateElem.count();
+        if (pageCount > 0) {
+          const text = await pageDateElem.textContent({ timeout: 2000 }).catch(() => null);
+          if (text && text.trim()) {
+            const cleaned = cleanPostedDate(text.trim());
+            if (cleaned) {
+              postedDate = cleaned;
+              console.log(`   📅 Found posted date: "${postedDate}" using page selector: ${selector}`);
+              break;
+            }
+          }
+        }
+      }
+      
+      // Fallback: look for any text containing time-related words
+      if (!postedDate) {
+        const timePatterns = [
+          'ago', 'day', 'hour', 'week', 'month', 'yesterday', 'today', 'minute', 'second'
+        ];
+        
+        for (const pattern of timePatterns) {
+          const timeElem = page.locator(`text=${pattern}`).first();
+          const count = await timeElem.count();
+          if (count > 0) {
+            const text = await timeElem.textContent({ timeout: 1000 }).catch(() => null);
+            if (text && text.trim() && text.includes(pattern)) {
+              const cleaned = cleanPostedDate(text.trim());
+              if (cleaned) {
+                postedDate = cleaned;
+                console.log(`   📅 Found posted date (fallback): "${postedDate}" using pattern: ${pattern}`);
+                break;
+              }
+            }
           }
         }
       }
