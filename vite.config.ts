@@ -6,6 +6,7 @@ import fs from 'fs';
 export default defineConfig({
   plugins: [react()],
   root: 'src/dashboard/client',
+  publicDir: resolve(__dirname, 'public'),
   build: {
     outDir: '../../../dist/client',
     emptyOutDir: true
