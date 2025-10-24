@@ -120,15 +120,27 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
 
   const formatDate = (dateString: string | undefined): string => {
     if (!dateString) return 'N/A';
-    const timestamp = dateString.includes('Z') ? dateString : `${dateString}Z`;
-    return new Date(timestamp).toLocaleString(undefined, {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
+    
+    // Check if it's a relative date (e.g., "1 hour ago", "2 days ago")
+    if (dateString.includes('ago') || dateString.includes('day') || dateString.includes('hour') || dateString.includes('week') || dateString.includes('month')) {
+      return dateString; // Return relative date as-is
+    }
+    
+    // Handle absolute timestamps
+    try {
+      const timestamp = dateString.includes('Z') ? dateString : `${dateString}Z`;
+      return new Date(timestamp).toLocaleString(undefined, {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+    } catch (error) {
+      // If parsing fails, return the original string
+      return dateString;
+    }
   };
 
   const dataQualityFields = assessDataQuality();

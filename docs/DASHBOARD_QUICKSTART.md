@@ -1,130 +1,66 @@
-# Dashboard Quick Start Guide
+# Dashboard Quick Start
 
-## ✅ Phase A Complete and Tested
+## Start Dashboard
 
-The monitoring dashboard is fully operational and ready to use.
-
-## Start the Dashboard
-
+**Development Mode:**
 ```bash
 npm run dashboard:dev
 ```
 
-This starts:
-- Backend API server on **http://localhost:3001**
-- Frontend React app on **http://localhost:3000**
+**Production Mode:**
+```bash
+npm run dashboard:prod
+```
 
-## Access the Dashboard
-
-Open your browser to: **http://localhost:3000**
+Open **http://localhost:3000** in your browser.
 
 ## What You'll See
 
-### Dashboard Tab (Home)
-- Job statistics cards showing counts by status
-- Success rate indicator  
-- Recent activity feed with last 10 runs
-- Real-time updates every 5 seconds
+**Dashboard Tab**: Live job statistics, success rates, recent activity  
+**Jobs Tab**: All jobs with filters (status, Easy Apply vs External)  
+**Activity Tab**: Run history with success/failure indicators
 
-### Jobs Tab
-- Complete job list with all 19 jobs from your database
-- Filter by status (queued, applied, interview, rejected, skipped, reported)
-- Filter by Easy Apply vs External
-- Click job titles to open LinkedIn postings
-- See rank, company, and date for each job
+## Use It
 
-### Activity Tab
-- Complete run history (5 runs currently in database)
-- Success/failure indicators
-- Filter by job ID
-- Screenshot availability status
-- Detailed timestamps
-
-## Current Data
-
-Your dashboard is connected to the live database showing:
-- **19 total jobs** (all currently in "reported" status)
-- **5 execution logs** from previous application attempts
-- **0% success rate** (no applications completed yet)
-
-## Run Automation
-
-The dashboard monitors your automation in real-time. In another terminal, run:
-
+Run your automation in another terminal:
 ```bash
-# Search for jobs
 npm run search "Software Engineer"
-
-# Apply to queued jobs
 npm run apply -- --easy
-
-# Generate reports
-npm run report
 ```
 
-Watch the dashboard update automatically as jobs are added and processed.
+Dashboard updates automatically every 5 seconds.
 
-## API Endpoints
+## Stop
 
-If you want to access data programmatically:
+Press `Ctrl+C` in the dashboard terminal.
 
+---
+
+## Technical Details
+
+### Features
+- Real-time monitoring with auto-refresh
+- Job filtering and status tracking  
+- Activity logs with screenshots
+- Success rate calculations
+- API endpoints for programmatic access
+
+### Architecture
+- Backend: Express API server (port 3001)
+- Frontend: React app (port 3000)
+- Database: SQLite integration
+- Auto-refresh: 5-second intervals
+
+### API Endpoints
+- `GET /api/stats` - Statistics
+- `GET /api/jobs` - Job listings with filters
+- `GET /api/runs` - Activity logs
+- `GET /api/health` - Health check
+
+### Troubleshooting
+If ports are busy, kill processes and restart:
 ```bash
-# Get statistics
-curl http://localhost:3001/api/stats
-
-# Get jobs (with pagination)
-curl http://localhost:3001/api/jobs?limit=10&status=queued
-
-# Get activity logs
-curl http://localhost:3001/api/runs?limit=20
-
-# Health check
-curl http://localhost:3001/api/health
+netstat -ano | findstr ":3000"
+netstat -ano | findstr ":3001"
 ```
-
-## Stop the Dashboard
-
-Press `Ctrl+C` in the terminal where the dashboard is running.
-
-## Troubleshooting
-
-If the dashboard doesn't start:
-
-1. Check if ports are available:
-   ```bash
-   netstat -ano | findstr ":3000"
-   netstat -ano | findstr ":3001"
-   ```
-
-2. Kill processes if needed and restart
-   
-3. Run servers separately for debugging:
-   ```bash
-   # Terminal 1: Backend only
-   npx tsx src/dashboard/server.ts
-   
-   # Terminal 2: Frontend only
-   npx vite
-   ```
-
-## Files Created
-
-- `src/dashboard/` - Complete dashboard implementation
-- `tailwind.config.cjs` - Tailwind CSS configuration
-- `postcss.config.cjs` - PostCSS configuration  
-- `vite.config.ts` - Vite build configuration
-- `.gitignore` - Updated with dashboard entries
-
-## Documentation
-
-- `src/dashboard/README.md` - Dashboard technical documentation
-- `DASHBOARD_STATUS.md` - Implementation status and features
-- `PHASE_A_TEST_REPORT.md` - Detailed test results
-
-## Next Phases
-
-**Phase B** - Comprehensive monitoring with analytics and charts  
-**Phase C** - UI polish with dark mode and animations
-
-Phase A provides all essential monitoring features. Phases B and C add advanced analytics and visual refinements.
 

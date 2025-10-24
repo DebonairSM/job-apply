@@ -320,7 +320,12 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
         'time',
         '.job-card-container__listed-time',
         '.job-card-container__metadata-item time',
-        '[data-test-job-search-card-listing-date]'
+        '[data-test-job-search-card-listing-date]',
+        '.job-card-container__metadata-item',
+        '.jobs-search-results__list-item time',
+        '.job-card-container time',
+        '[data-test-id="job-search-card-listing-date"]',
+        '.job-card-container__metadata-item--bullet'
       ];
       
       for (const selector of dateSelectors) {
@@ -330,9 +335,14 @@ async function processPage(page: Page, minScore: number, config: any): Promise<{
           const text = await dateElem.textContent({ timeout: 2000 }).catch(() => null);
           if (text && text.trim()) {
             postedDate = text.trim();
+            console.log(`   📅 Found posted date: "${postedDate}" using selector: ${selector}`);
             break;
           }
         }
+      }
+      
+      if (!postedDate) {
+        console.log(`   ⚠️  No posted date found for job ${i + 1}`);
       }
 
       // Try normal click first, then force click if blocked
