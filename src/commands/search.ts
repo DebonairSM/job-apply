@@ -547,6 +547,7 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
       console.log(`        Score: ${ranking.fitScore}/100`);
       console.log(`        Azure: ${ranking.categoryScores.coreAzure} | Security: ${ranking.categoryScores.security} | Events: ${ranking.categoryScores.eventDriven}`);
       console.log(`        Perf: ${ranking.categoryScores.performance} | DevOps: ${ranking.categoryScores.devops} | Senior: ${ranking.categoryScores.seniority}`);
+      console.log(`        .NET: ${ranking.categoryScores.coreNet} | Legacy: ${ranking.categoryScores.legacyModernization}`);
       
       if (ranking.blockers.length > 0) {
         console.log(`        ⚠️  Blockers: ${ranking.blockers.join(', ')}`);

@@ -184,6 +184,7 @@ yargs(hideBin(process.argv))
             const scores = JSON.parse(job.category_scores);
             console.log(`   Azure: ${scores.coreAzure} | Security: ${scores.security} | Events: ${scores.eventDriven}`);
             console.log(`   Perf: ${scores.performance} | DevOps: ${scores.devops} | Senior: ${scores.seniority}`);
+            console.log(`   .NET: ${scores.coreNet} | Legacy: ${scores.legacyModernization}`);
           } catch (error) {
             // Ignore parse errors
           }
