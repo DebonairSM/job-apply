@@ -114,7 +114,9 @@ export function convertPatternsToAdjustments(patterns: RejectionPattern[]): Sugg
         break;
         
       case 'location':
-        if (pattern.value.includes('not remote') || pattern.value.includes('office required')) {
+        if (pattern.value.includes('not remote') || pattern.value.includes('office required') || 
+            pattern.value.includes('onsite') || pattern.value.includes('hybrid') || 
+            pattern.value.includes('office work') || pattern.value.includes('in office')) {
           // Not remote = need MORE remote jobs
           adjustment = {
             category: 'performance', // Could be a separate remote category

@@ -67,6 +67,10 @@ export async function askOllama<T>(
         cleanedText = jsonMatch[0];
       }
       
+      // Fix common JSON issues
+      cleanedText = cleanedText.replace(/:\s*\+(\d+)/g, ': $1'); // Fix +0 -> 0
+      cleanedText = cleanedText.replace(/:\s*\+(\d+\.\d+)/g, ': $1'); // Fix +0.5 -> 0.5
+      
       cleanedText = cleanedText.trim();
 
       // Parse JSON

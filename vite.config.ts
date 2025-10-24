@@ -22,7 +22,23 @@ export default defineConfig({
       '/api': {
         target: 'https://localhost:3001',
         changeOrigin: true,
-        secure: false
+        secure: false,
+        configure: (proxy, options) => {
+          proxy.on('error', (err, req, res) => {
+            console.log('Proxy error:', err.message);
+            // Return a 503 Service Unavailable response
+            if (!res.headersSent) {
+              res.writeHead(503, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ 
+                error: 'Dashboard server is not ready', 
+                message: 'Please wait a moment and refresh the page' 
+              }));
+            }
+          });
+          proxy.on('proxyReq', (proxyReq, req, res) => {
+            console.log('Proxying request:', req.method, req.url);
+          });
+        }
       }
     }
   }
