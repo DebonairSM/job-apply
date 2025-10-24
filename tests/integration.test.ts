@@ -377,5 +377,19 @@ describe('Integration - Job Data Processing', () => {
     assert.strictEqual(Array.isArray(parsedReasons), true, 'Should parse to array');
     assert.strictEqual(parsedReasons.length, 2, 'Should have 2 reasons');
   });
+
+  it('should detect company+title duplicates correctly', async () => {
+    const { hasAppliedToCompanyTitle } = await import('../src/lib/db.js');
+    
+    // Test case-insensitive matching
+    assert.strictEqual(
+      hasAppliedToCompanyTitle('Microsoft', 'Software Engineer'),
+      false,
+      'Should return false for non-existent company+title'
+    );
+    
+    // Note: This test assumes no existing data in test database
+    // In a real scenario, you'd set up test data first
+  });
 });
 

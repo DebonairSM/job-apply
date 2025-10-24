@@ -2,7 +2,8 @@ import { PROFILES, TechnicalProfile } from './profiles.js';
 import { 
   getCurrentWeightAdjustments, 
   saveWeightAdjustment,
-  WeightAdjustment 
+  WeightAdjustment,
+  getDb
 } from '../lib/db.js';
 
 export interface WeightAdjustments {
@@ -59,11 +60,14 @@ export function applyWeightAdjustment(
   // Get current weights
   const currentWeights = getActiveWeights();
   const oldWeight = currentWeights[category];
-  const newWeight = oldWeight + adjustment;
   
   // Clamp adjustment to reasonable bounds (-10 to +10 percentage points)
   const clampedAdjustment = Math.max(-10, Math.min(10, adjustment));
-  const finalNewWeight = oldWeight + clampedAdjustment;
+  const newWeight = oldWeight + clampedAdjustment;
+  
+  // Ensure final weight is not negative (minimum 0.1%)
+  const finalNewWeight = Math.max(0.1, newWeight);
+  const finalAdjustment = finalNewWeight - oldWeight;
   
   // Save adjustment to database
   saveWeightAdjustment({
@@ -77,7 +81,7 @@ export function applyWeightAdjustment(
   // Invalidate cache to force reload
   weightCache = null;
   
-  console.log(`📊 Weight adjustment: ${category} ${oldWeight}% → ${finalNewWeight}% (${clampedAdjustment > 0 ? '+' : ''}${clampedAdjustment}%) - ${reason}`);
+  console.log(`📊 Weight adjustment: ${category} ${oldWeight}% → ${finalNewWeight}% (${finalAdjustment > 0 ? '+' : ''}${finalAdjustment}%) - ${reason}`);
 }
 
 // Normalize weights to ensure they sum to 100%
@@ -140,7 +144,7 @@ export function getWeightAdjustmentSummary(): {
 
 // Reset all weight adjustments to base weights
 export function resetWeightAdjustments(): void {
-  const database = require('../lib/db.js').getDb();
+  const database = getDb();
   
   // Clear all weight adjustments
   database.prepare('DELETE FROM weight_adjustments').run();
@@ -153,7 +157,7 @@ export function resetWeightAdjustments(): void {
 
 // Get weight adjustment history
 export function getWeightAdjustmentHistory(limit: number = 20): WeightAdjustment[] {
-  const database = require('../lib/db.js').getDb();
+  const database = getDb();
   return database.prepare(`
     SELECT * FROM weight_adjustments 
     ORDER BY created_at DESC 
@@ -197,7 +201,7 @@ export function getLearningStats(): {
   averageAdjustment: number;
   lastAdjustment?: string;
 } {
-  const database = require('../lib/db.js').getDb();
+  const database = getDb();
   
   const totalAdjustments = database.prepare(`
     SELECT COUNT(*) as count FROM weight_adjustments

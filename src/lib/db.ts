@@ -387,6 +387,19 @@ export function getJobById(id: string): Job | null {
   };
 }
 
+export function hasAppliedToCompanyTitle(company: string, title: string): boolean {
+  const database = getDb();
+  const stmt = database.prepare(`
+    SELECT 1 FROM jobs 
+    WHERE LOWER(company) = LOWER(?) 
+    AND LOWER(title) = LOWER(?) 
+    AND status IN ('applied', 'interview', 'rejected')
+    LIMIT 1
+  `);
+  const result = stmt.get(company, title);
+  return !!result;
+}
+
 export function updateJobStatus(jobId: string, status: Job['status'], appliedMethod?: 'automatic' | 'manual', rejectionReason?: string): void {
   const database = getDb();
   const stmt = database.prepare('UPDATE jobs SET status = ?, applied_method = ?, rejection_reason = ?, status_updated_at = ? WHERE id = ?');

@@ -520,6 +520,14 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
         continue;
       }
 
+      // Check if we've already applied to this company+title combination
+      const { hasAppliedToCompanyTitle } = await import('../lib/db.js');
+      if (hasAppliedToCompanyTitle(company, title)) {
+        console.log(`   ${analyzed}/${count} ${title} at ${company}`);
+        console.log(`        ⏭️  Skipping: Already applied to this company+title`);
+        continue;
+      }
+
       // Generate job ID for context
       const jobId = crypto.createHash('md5').update(link).digest('hex');
       
