@@ -58,6 +58,8 @@ table {
     margin-bottom: 1rem;
     padding: 0.75rem;
     background: white;
+    display: flex;
+    flex-direction: column;
   }
   
   /* Style table cells as card content */
@@ -83,22 +85,44 @@ table {
     letter-spacing: 0.05em;
   }
   
-  /* Special handling for detail/action cells */
-  td:first-child,
-  td:nth-child(2) {
+  /* Special handling for detail cell */
+  td:first-child {
     flex-direction: row;
     gap: 0.5rem;
     align-items: center;
   }
   
-  td:first-child:before,
+  td:first-child:before {
+    display: none;
+  }
+  
+  /* Action buttons cell - side by side at the bottom */
+  td:nth-child(2) {
+    flex-direction: row;
+    gap: 0.5rem;
+    align-items: center;
+    margin-top: auto;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e7eb;
+    order: 999;
+  }
+  
   td:nth-child(2):before {
     display: none;
   }
   
-  /* Move actions buttons to the bottom by using order */
-  td:nth-child(2) {
-    order: 999;
+  /* Make action buttons wrap if needed */
+  td:nth-child(2) > div {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  
+  /* Ensure all other cells come before the actions cell */
+  td:not(:nth-child(2)) {
+    order: 0;
   }
   
   /* Handle expanded details row */

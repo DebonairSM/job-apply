@@ -158,24 +158,8 @@ export function buildFiltersFromPatterns(): JobFilter[] {
 export function applyFilters(job: JobInput): FilterResult {
   const filters = buildFiltersFromPatterns();
   
-  // Also check for manual filters stored in database
-  const manualFilters = getRejectionPatternsByType('company')
-    .concat(getRejectionPatternsByType('keyword'))
-    .concat(getRejectionPatternsByType('seniority'))
-    .concat(getRejectionPatternsByType('tech_stack'));
-  
-  // Add manual filters to the filter list
-  for (const pattern of manualFilters) {
-    if (pattern.pattern_type === 'company') {
-      filters.push(new CompanyBlocklistFilter([pattern.pattern_value]));
-    } else if (pattern.pattern_type === 'keyword') {
-      filters.push(new KeywordAvoidanceFilter([pattern.pattern_value]));
-    } else if (pattern.pattern_type === 'seniority') {
-      filters.push(new SeniorityMinimumFilter(pattern.pattern_value));
-    } else if (pattern.pattern_type === 'tech_stack') {
-      filters.push(new TechStackFilter([pattern.pattern_value]));
-    }
-  }
+  // buildFiltersFromPatterns() already includes all patterns with count >= 2
+  // No need to add manual filters again (they're already included)
   
   for (const filter of filters) {
     if (filter.shouldFilter(job)) {
@@ -197,28 +181,9 @@ export function getFilterStats(): {
 } {
   const filters = buildFiltersFromPatterns();
   
-  // Also count manual filters
-  const manualFilters = getRejectionPatternsByType('company')
-    .concat(getRejectionPatternsByType('keyword'))
-    .concat(getRejectionPatternsByType('seniority'))
-    .concat(getRejectionPatternsByType('tech_stack'));
+  // buildFiltersFromPatterns() already includes all patterns with count >= 2
   
-  const allFilters = [...filters];
-  
-  // Add manual filters to the count
-  for (const pattern of manualFilters) {
-    if (pattern.pattern_type === 'company') {
-      allFilters.push(new CompanyBlocklistFilter([pattern.pattern_value]));
-    } else if (pattern.pattern_type === 'keyword') {
-      allFilters.push(new KeywordAvoidanceFilter([pattern.pattern_value]));
-    } else if (pattern.pattern_type === 'seniority') {
-      allFilters.push(new SeniorityMinimumFilter(pattern.pattern_value));
-    } else if (pattern.pattern_type === 'tech_stack') {
-      allFilters.push(new TechStackFilter([pattern.pattern_value]));
-    }
-  }
-  
-  const filterTypes = allFilters.reduce((acc, filter) => {
+  const filterTypes = filters.reduce((acc, filter) => {
     const type = filter.constructor.name.replace('Filter', '');
     const existing = acc.find(f => f.type === type);
     if (existing) {
@@ -230,7 +195,7 @@ export function getFilterStats(): {
   }, [] as Array<{ type: string; count: number }>);
   
   return {
-    totalFilters: allFilters.length,
+    totalFilters: filters.length,
     filterTypes,
     blockedJobs: 0 // This would need to be tracked separately
   };

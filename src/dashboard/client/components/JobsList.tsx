@@ -3,6 +3,7 @@ import { useJobs } from '../hooks/useJobs';
 import { api } from '../lib/api';
 import { Job } from '../lib/types';
 import { JobDetailsPanel } from './JobDetailsPanel';
+import { useJobNavigation } from '../contexts/JobNavigationContext';
 
 const statusColors = {
   queued: 'bg-yellow-100 text-yellow-800',
@@ -30,6 +31,8 @@ export function JobsList() {
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   
+  const { targetJobId, clearNavigation } = useJobNavigation();
+  
   const { data, isLoading, refetch } = useJobs({
     status: statusFilter || undefined,
     easyApply: easyApplyFilter === 'true' ? true : easyApplyFilter === 'false' ? false : undefined,
@@ -44,6 +47,16 @@ export function JobsList() {
     }
   }, []);
 
+  // Handle navigation from ActivityLog
+  useEffect(() => {
+    if (targetJobId) {
+      setClickedJobId(targetJobId);
+      setExpandedJobIds(prev => new Set(prev).add(targetJobId));
+      // Clear the navigation target after handling it
+      clearNavigation();
+    }
+  }, [targetJobId, clearNavigation]);
+
   // Save clicked job ID to localStorage when it changes
   useEffect(() => {
     if (clickedJobId) {
@@ -53,8 +66,26 @@ export function JobsList() {
     }
   }, [clickedJobId]);
 
+  // Determine if any filter/search is active
+  const hasActiveFilters = !!(
+    statusFilter || 
+    easyApplyFilter || 
+    appliedMethodFilter || 
+    searchQuery || 
+    minRank > 0
+  );
+
   // Client-side filtering and sorting
   const filteredAndSortedJobs = data?.jobs.filter(job => {
+    // Hide rejected jobs older than 1 day ONLY if no filters are active
+    if (!hasActiveFilters && job.status === 'rejected' && job.status_updated_at) {
+      const statusUpdateTime = new Date(job.status_updated_at).getTime();
+      const oneDayAgo = Date.now() - (24 * 60 * 60 * 1000);
+      if (statusUpdateTime < oneDayAgo) {
+        return false;
+      }
+    }
+
     // Applied method filter
     if (appliedMethodFilter) {
       if (appliedMethodFilter === 'manual' && job.applied_method !== 'manual') return false;

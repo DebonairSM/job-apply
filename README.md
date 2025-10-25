@@ -116,6 +116,32 @@ npm run clear-cache answers
 npm run clear-cache mapping
 ```
 
+### Debug with MCP Servers
+
+This project has powerful MCP servers for debugging and development:
+
+**Playwright MCP Server** - Interactive browser debugging:
+```bash
+# Use browser_snapshot to see current page state
+# Use browser_click to test selectors interactively  
+# Use browser_network_requests to debug form submissions
+# Use browser_console_messages to see JavaScript errors
+```
+
+**Context7 MCP Server** - Up-to-date documentation:
+```bash
+# Get Playwright docs for browser automation
+# Get TypeScript docs for type safety
+# Get React docs for dashboard development
+```
+
+**Azure MCP Server** - Cloud management:
+```bash
+# Deploy dashboard to Azure App Service
+# Set up Azure Monitor for production
+# Migrate to Azure Cosmos DB for scaling
+```
+
 ### Test Commands
 
 ```bash
@@ -247,6 +273,42 @@ flowchart TB
     style Rejected fill:#ffebee
 ```
 
+## MCP Servers Integration
+
+```mermaid
+graph LR
+    Dev[Developer] --> MCP[MCP Servers]
+    
+    MCP --> PW[Playwright MCP]
+    MCP --> C7[Context7 MCP]
+    MCP --> AZ[Azure MCP]
+    
+    PW --> Debug[Interactive Debugging]
+    PW --> Test[Selector Testing]
+    PW --> Monitor[Network Monitoring]
+    
+    C7 --> Docs[Live Documentation]
+    C7 --> API[API References]
+    C7 --> Updates[Library Updates]
+    
+    AZ --> Deploy[Cloud Deployment]
+    AZ --> Monitor2[Production Monitoring]
+    AZ --> Scale[Database Scaling]
+    
+    Debug --> System[Job Application System]
+    Test --> System
+    Monitor --> System
+    Docs --> System
+    Deploy --> System
+    Monitor2 --> System
+    Scale --> System
+    
+    style PW fill:#e1f5fe
+    style C7 fill:#f3e5f5
+    style AZ fill:#e8f5e8
+    style System fill:#fff3e0
+```
+
 ## Advanced Features
 
 This application demonstrates sophisticated capabilities that can be applied to any AI-powered scraping and automation system:
@@ -285,7 +347,7 @@ This application demonstrates sophisticated capabilities that can be applied to 
 - **Intelligent Filtering**: Filters jobs before ranking to save processing time and avoid similar rejections
 
 **Example Learning Scenarios:**
-- Multiple "too junior" rejections → decreases seniority weight and filters junior-level jobs
+- Multiple "too junior" rejections → increases seniority weight and filters junior-level jobs
 - "Wrong tech stack - no Python" rejections → blocks Python jobs and adjusts tech stack weights
 - Repeated rejections from same company → adds company to blocklist
 - "Not remote" rejections → increases remote work weight and filters on-site jobs

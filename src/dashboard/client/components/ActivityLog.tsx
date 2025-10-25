@@ -2,6 +2,7 @@ import { useState, useMemo, useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useActivity } from '../hooks/useActivity';
 import { ActivityEntry } from '../lib/types';
+import { useJobNavigation } from '../contexts/JobNavigationContext';
 
 export function ActivityLog() {
   const [limit, setLimit] = useState(100);
@@ -11,6 +12,7 @@ export function ActivityLog() {
 
   const { data: activities, isLoading, error } = useActivity(limit);
   const parentRef = useRef<HTMLDivElement>(null);
+  const { navigateToJob } = useJobNavigation();
 
   // Filter activities based on selected filters
   const filteredActivities = useMemo(() => {
@@ -119,6 +121,10 @@ export function ActivityLog() {
       return relativePath.replace(/\\/g, '/');
     }
     return fullPath;
+  };
+
+  const handleJobClick = (jobId: string) => {
+    navigateToJob(jobId);
   };
 
   if (error) {
@@ -232,12 +238,24 @@ export function ActivityLog() {
                   {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-1">
-                      <span className="font-medium text-gray-900 text-sm sm:text-base truncate">
-                        {activity.job_title && activity.job_company 
-                          ? `${activity.job_title} at ${activity.job_company}`
-                          : activity.job_id
-                        }
-                      </span>
+                      {activity.job_id ? (
+                        <button
+                          onClick={() => handleJobClick(activity.job_id!)}
+                          className="font-medium text-gray-900 text-sm sm:text-base truncate text-left hover:text-blue-600 hover:underline transition-colors"
+                        >
+                          {activity.job_title && activity.job_company 
+                            ? `${activity.job_title} at ${activity.job_company}`
+                            : activity.job_id
+                          }
+                        </button>
+                      ) : (
+                        <span className="font-medium text-gray-900 text-sm sm:text-base truncate">
+                          {activity.job_title && activity.job_company 
+                            ? `${activity.job_title} at ${activity.job_company}`
+                            : activity.job_id || 'Unknown Job'
+                          }
+                        </span>
+                      )}
                       <div className="flex flex-wrap gap-1 sm:gap-2">
                         {getStatusBadge(activity.job_status)}
                         {activity.job_rank && (
@@ -289,7 +307,7 @@ export function ActivityLog() {
                           src={`/artifacts/${extractRelativePath(activity.screenshot_path)}`}
                           alt="Screenshot"
                           className="max-w-xs max-h-32 rounded border shadow-sm cursor-pointer hover:shadow-md transition-shadow"
-                          onClick={() => window.open(`/artifacts/${extractRelativePath(activity.screenshot_path)}`, '_blank')}
+                          onClick={() => window.open(`/artifacts/${extractRelativePath(activity.screenshot_path!)}`, '_blank')}
                           onError={(e) => {
                             const target = e.target as HTMLImageElement;
                             target.style.display = 'none';

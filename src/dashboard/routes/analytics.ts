@@ -197,9 +197,9 @@ router.get('/learning', (req, res) => {
       delta: adj.total_adjustment
     }));
     
-    // Get filter statistics
+    // Get filter statistics (sum of count column, not COUNT of rows)
     const filterStats = database.prepare(`
-      SELECT pattern_type, COUNT(*) as count
+      SELECT pattern_type, SUM(count) as count
       FROM rejection_patterns
       WHERE count >= 2
       GROUP BY pattern_type

@@ -9,6 +9,7 @@ import jobsRouter from './routes/jobs.js';
 import runsRouter from './routes/runs.js';
 import analyticsRouter from './routes/analytics.js';
 import coverLetterRouter from './routes/cover-letter-router.js';
+import { generateHeadline } from './routes/headline.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -30,6 +31,7 @@ app.use('/api/jobs', jobsRouter);
 app.use('/api/runs', runsRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/cover-letter', coverLetterRouter);
+app.post('/api/headline/generate', generateHeadline);
 
 // Health check
 app.get('/api/health', (req, res) => {

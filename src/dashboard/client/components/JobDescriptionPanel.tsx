@@ -1,6 +1,8 @@
 import * as React from 'react';
+import { Job } from '../lib/types';
+import { highlightKeywords } from '../lib/highlightKeywords';
 
-const { useEffect } = React;
+const { useEffect, useMemo } = React;
 
 interface JobDescriptionPanelProps {
   isOpen: boolean;
@@ -8,6 +10,7 @@ interface JobDescriptionPanelProps {
   title: string;
   company: string;
   description: string;
+  job?: Job; // Optional full job object for highlighting
 }
 
 export function JobDescriptionPanel({ 
@@ -15,8 +18,36 @@ export function JobDescriptionPanel({
   onClose, 
   title, 
   company, 
-  description 
+  description,
+  job
 }: JobDescriptionPanelProps) {
+  // Parse keywords from job data
+  const { mustHaves, blockers } = useMemo(() => {
+    if (!job) return { mustHaves: [], blockers: [] };
+    
+    const parseJsonField = (value: string | undefined): string[] => {
+      if (!value) return [];
+      try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    };
+    
+    return {
+      mustHaves: parseJsonField(job.must_haves),
+      blockers: parseJsonField(job.blockers)
+    };
+  }, [job]);
+  
+  // Generate highlighted HTML
+  const highlightedDescription = useMemo(() => {
+    if (!description) return '';
+    
+    // Always apply highlighting (uses static keywords + AI data)
+    return highlightKeywords(description, { mustHaves, blockers });
+  }, [description, mustHaves, blockers]);
   // Handle escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -79,11 +110,29 @@ export function JobDescriptionPanel({
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
           {description ? (
-            <div className="prose prose-sm max-w-none">
-              <div className="whitespace-pre-wrap text-gray-800 leading-relaxed">
-                {description}
+            <>
+              {/* Legend for highlighting */}
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="text-sm font-medium text-gray-700 mb-2">Keyword Highlighting:</div>
+                <div className="flex flex-wrap gap-3 text-xs">
+                  <div className="flex items-center gap-1">
+                    <span className="inline-block w-4 h-4 bg-green-200 border border-green-300 rounded"></span>
+                    <span className="text-gray-600">Microsoft Ecosystem Match</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <span className="inline-block w-4 h-4 bg-red-200 border border-red-300 rounded"></span>
+                    <span className="text-gray-600">Non-Microsoft / Prohibitive</span>
+                  </div>
+                </div>
               </div>
-            </div>
+              
+              <div className="prose prose-sm max-w-none">
+                <div 
+                  className="whitespace-pre-wrap text-gray-800 leading-relaxed"
+                  dangerouslySetInnerHTML={{ __html: highlightedDescription }}
+                />
+              </div>
+            </>
           ) : (
             <div className="flex items-center justify-center py-12">
               <div className="text-center">

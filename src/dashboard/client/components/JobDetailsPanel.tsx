@@ -7,6 +7,7 @@ import { CategoryScores } from './CategoryScoreBar';
 import { DataQualityBadge } from './DataQualityBadge';
 import { formatDate } from '../lib/dateUtils';
 import { CoverLetterModal } from './CoverLetterModal';
+import { HeadlineSummaryModal } from './HeadlineSummaryModal';
 
 interface JobDetailsPanelProps {
   job: Job;
@@ -23,6 +24,7 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
   const [showCompleteData, setShowCompleteData] = useState(false);
   const [showDescriptionPanel, setShowDescriptionPanel] = useState(false);
   const [showCoverLetterModal, setShowCoverLetterModal] = useState(false);
+  const [showHeadlineSummary, setShowHeadlineSummary] = useState(false);
 
   // Data quality assessment
   const assessDataQuality = (): DataQualityField[] => {
@@ -150,6 +152,13 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
           >
             <span>📝</span>
             <span>Generate Cover Letter</span>
+          </button>
+          <button
+            onClick={() => setShowHeadlineSummary(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+          >
+            <span>📋</span>
+            <span>Headline Summary</span>
           </button>
           <button
             onClick={() => setShowCompleteData(true)}
@@ -318,6 +327,7 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
         title={job.title}
         company={job.company}
         description={job.description || ''}
+        job={job}
       />
 
       {/* Complete Data Modal */}
@@ -333,6 +343,13 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
         job={job}
         isOpen={showCoverLetterModal}
         onClose={() => setShowCoverLetterModal(false)}
+      />
+
+      {/* Headline Summary Modal */}
+      <HeadlineSummaryModal
+        job={job}
+        isOpen={showHeadlineSummary}
+        onClose={() => setShowHeadlineSummary(false)}
       />
     </div>
   );
