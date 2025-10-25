@@ -14,13 +14,14 @@ export default defineConfig({
   server: {
     host: true,
     port: 3000,
+    strictPort: true,
     https: {
       key: fs.readFileSync(resolve(__dirname, 'localhost+2-key.pem')),
       cert: fs.readFileSync(resolve(__dirname, 'localhost+2.pem'))
     },
     proxy: {
       '/api': {
-        target: 'https://localhost:3001',
+        target: 'https://localhost:3002',
         changeOrigin: true,
         secure: false,
         configure: (proxy, options) => {

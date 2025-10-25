@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
-import { initDb, clearLabelMappings, saveLabelMapping } from '../src/lib/db.js';
+import { initDb, clearLabelMappings, saveLabelMapping } from '../../src/lib/db.js';
 
 // Mock Playwright Page and Locator for testing
 class MockLocator {

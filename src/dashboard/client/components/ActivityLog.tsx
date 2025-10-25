@@ -86,7 +86,13 @@ export function ActivityLog() {
   };
 
   const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
+    // Handle SQLite timestamp format (YYYY-MM-DD HH:MM:SS)
+    // Add 'Z' to treat as UTC if no timezone info is present
+    const normalizedTimestamp = timestamp.includes('T') || timestamp.includes('Z') 
+      ? timestamp 
+      : `${timestamp}Z`;
+    
+    const date = new Date(normalizedTimestamp);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);

@@ -6,6 +6,7 @@ import { ChipList } from './ChipList';
 import { CategoryScores } from './CategoryScoreBar';
 import { DataQualityBadge } from './DataQualityBadge';
 import { formatDate } from '../lib/dateUtils';
+import { CoverLetterModal } from './CoverLetterModal';
 
 interface JobDetailsPanelProps {
   job: Job;
@@ -21,6 +22,7 @@ interface DataQualityField {
 export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
   const [showCompleteData, setShowCompleteData] = useState(false);
   const [showDescriptionPanel, setShowDescriptionPanel] = useState(false);
+  const [showCoverLetterModal, setShowCoverLetterModal] = useState(false);
 
   // Data quality assessment
   const assessDataQuality = (): DataQualityField[] => {
@@ -131,62 +133,74 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
   const blockers = formatJsonField(job.blockers);
 
   return (
-    <div className="bg-gray-50 border-t border-gray-200 p-6">
+    <div className="bg-gray-50 border-t border-gray-200 p-3 sm:p-6">
       {/* Header with Title and Data Quality Badge */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h3 className="text-lg font-semibold text-gray-900">Job Analysis</h3>
+      <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex items-center gap-2 sm:gap-4">
+          <h3 className="text-base sm:text-lg font-semibold text-gray-900">Job Analysis</h3>
           <DataQualityBadge 
             fields={dataQualityFields}
             onClick={() => setShowCompleteData(true)}
           />
         </div>
-        <button
-          onClick={() => setShowCompleteData(true)}
-          className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
-        >
-          <span>🔍</span>
-          View All Data
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            onClick={() => setShowCoverLetterModal(true)}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+          >
+            <span>📝</span>
+            <span>Generate Cover Letter</span>
+          </button>
+          <button
+            onClick={() => setShowCompleteData(true)}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+          >
+            <span>🔍</span>
+            <span className="hidden sm:inline">View All Data</span>
+            <span className="sm:hidden">All Data</span>
+          </button>
+        </div>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6">
         {/* Key Info Section */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <h4 className="text-md font-semibold text-gray-800 mb-3">Job Information</h4>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+          <h4 className="text-sm sm:text-md font-semibold text-gray-800 mb-3">Job Information</h4>
+          <div className="grid grid-cols-1 gap-3 sm:gap-4">
             <div>
-              <label className="text-sm font-medium text-gray-600">Job URL</label>
+              <label className="text-xs sm:text-sm font-medium text-gray-600">Job URL</label>
               <div className="mt-1">
                 <a 
                   href={job.url} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 text-sm break-all"
+                  className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm break-all"
                 >
                   {job.url}
                 </a>
               </div>
             </div>
             
-            <div>
-              <label className="text-sm font-medium text-gray-600">Posted Date</label>
-              <div className="mt-1 text-sm text-gray-900">
-                {formatDateLocal(job.posted_date)}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs sm:text-sm font-medium text-gray-600">Posted Date</label>
+                <div className="mt-1 text-xs sm:text-sm text-gray-900">
+                  {formatDateLocal(job.posted_date)}
+                </div>
               </div>
-            </div>
-            
-            <div>
-              <label className="text-sm font-medium text-gray-600">Created</label>
-              <div className="mt-1 text-sm text-gray-900">
-                {formatDateLocal(job.created_at)}
+              
+              <div>
+                <label className="text-xs sm:text-sm font-medium text-gray-600">Created</label>
+                <div className="mt-1 text-xs sm:text-sm text-gray-900">
+                  {formatDateLocal(job.created_at)}
+                </div>
               </div>
             </div>
             
             {job.status_updated_at && job.status_updated_at !== job.created_at && (
               <div>
-                <label className="text-sm font-medium text-gray-600">Status Updated</label>
-                <div className="mt-1 text-sm text-gray-900">
+                <label className="text-xs sm:text-sm font-medium text-gray-600">Status Updated</label>
+                <div className="mt-1 text-xs sm:text-sm text-gray-900">
                   {formatDateLocal(job.status_updated_at)}
                 </div>
               </div>
@@ -197,22 +211,23 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
             <div className="mt-4">
               <button
                 onClick={() => setShowDescriptionPanel(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm sm:text-base w-full sm:w-auto"
               >
                 <span>📄</span>
-                View Full Description
+                <span className="hidden sm:inline">View Full Description</span>
+                <span className="sm:hidden">View Description</span>
               </button>
             </div>
           )}
         </div>
 
         {/* AI Analysis Section */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <h4 className="text-md font-semibold text-gray-800 mb-4">AI Analysis</h4>
-          <div className="space-y-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+          <h4 className="text-sm sm:text-md font-semibold text-gray-800 mb-3 sm:mb-4">AI Analysis</h4>
+          <div className="space-y-3 sm:space-y-4">
             {/* Fit Reasons */}
             <div>
-              <label className="text-sm font-medium text-gray-600 mb-2 block">Fit Reasons</label>
+              <label className="text-xs sm:text-sm font-medium text-gray-600 mb-2 block">Fit Reasons</label>
               <ChipList 
                 items={Array.isArray(fitReasons) ? fitReasons : (fitReasons ? [fitReasons] : [])}
                 variant="fit"
@@ -221,7 +236,7 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
 
             {/* Must Haves */}
             <div>
-              <label className="text-sm font-medium text-gray-600 mb-2 block">Must Haves</label>
+              <label className="text-xs sm:text-sm font-medium text-gray-600 mb-2 block">Must Haves</label>
               <ChipList 
                 items={Array.isArray(mustHaves) ? mustHaves : (mustHaves ? [mustHaves] : [])}
                 variant="must-have"
@@ -230,7 +245,7 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
 
             {/* Blockers */}
             <div>
-              <label className="text-sm font-medium text-gray-600 mb-2 block">Blockers</label>
+              <label className="text-xs sm:text-sm font-medium text-gray-600 mb-2 block">Blockers</label>
               <ChipList 
                 items={Array.isArray(blockers) ? blockers : (blockers ? [blockers] : [])}
                 variant="blocker"
@@ -240,9 +255,9 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
         </div>
 
         {/* Performance Metrics */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4">
-          <h4 className="text-md font-semibold text-gray-800 mb-4">Performance Metrics</h4>
-          <div className="space-y-4">
+        <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+          <h4 className="text-sm sm:text-md font-semibold text-gray-800 mb-3 sm:mb-4">Performance Metrics</h4>
+          <div className="space-y-3 sm:space-y-4">
             {/* Category Scores */}
             {categoryScores && (
               <div>
@@ -253,7 +268,7 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
             {/* Missing Keywords */}
             {missingKeywords && (
               <div>
-                <label className="text-sm font-medium text-gray-600 mb-2 block">Missing Keywords</label>
+                <label className="text-xs sm:text-sm font-medium text-gray-600 mb-2 block">Missing Keywords</label>
                 <ChipList 
                   items={Array.isArray(missingKeywords) ? missingKeywords : [missingKeywords]}
                   variant="missing"
@@ -265,14 +280,14 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
 
         {/* Application Details */}
         {(job.applied_method || job.rejection_reason) && (
-          <div className="bg-white rounded-lg border border-gray-200 p-4">
-            <h4 className="text-md font-semibold text-gray-800 mb-4">Application Details</h4>
+          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
+            <h4 className="text-sm sm:text-md font-semibold text-gray-800 mb-3 sm:mb-4">Application Details</h4>
             <div className="space-y-3">
               {job.applied_method && (
                 <div>
-                  <label className="text-sm font-medium text-gray-600">Applied Method</label>
+                  <label className="text-xs sm:text-sm font-medium text-gray-600">Applied Method</label>
                   <div className="mt-1">
-                    <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                    <span className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
                       job.applied_method === 'manual' 
                         ? 'bg-blue-100 text-blue-800' 
                         : 'bg-green-100 text-green-800'
@@ -285,8 +300,8 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
               
               {job.rejection_reason && (
                 <div>
-                  <label className="text-sm font-medium text-gray-600">Rejection Reason</label>
-                  <div className="mt-1 text-sm text-gray-900 bg-red-50 p-3 rounded-lg border border-red-200">
+                  <label className="text-xs sm:text-sm font-medium text-gray-600">Rejection Reason</label>
+                  <div className="mt-1 text-xs sm:text-sm text-gray-900 bg-red-50 p-2 sm:p-3 rounded-lg border border-red-200">
                     {job.rejection_reason}
                   </div>
                 </div>
@@ -311,6 +326,13 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
         jobTitle={job.title}
         isOpen={showCompleteData}
         onClose={() => setShowCompleteData(false)}
+      />
+
+      {/* Cover Letter Modal */}
+      <CoverLetterModal
+        job={job}
+        isOpen={showCoverLetterModal}
+        onClose={() => setShowCoverLetterModal(false)}
       />
     </div>
   );

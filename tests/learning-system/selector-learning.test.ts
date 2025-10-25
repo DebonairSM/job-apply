@@ -11,7 +11,7 @@ import {
   calculateDynamicConfidence,
   clearLabelMappings,
   LabelMapping
-} from '../src/lib/db.js';
+} from '../../src/lib/db.js';
 
 describe('Selector Learning System', () => {
   beforeEach(() => {

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const https = require('https');
+import https from 'https';
 
 function waitForServer(url, maxAttempts = 30, delay = 1000) {
   return new Promise((resolve, reject) => {
@@ -31,7 +31,7 @@ function waitForServer(url, maxAttempts = 30, delay = 1000) {
   });
 }
 
-const serverUrl = process.argv[2] || 'https://localhost:3001/api/health';
+const serverUrl = process.argv[2] || 'https://localhost:3002/api/health';
 
 waitForServer(serverUrl)
   .then(() => {

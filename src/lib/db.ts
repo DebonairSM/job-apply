@@ -1056,6 +1056,16 @@ export function getRejectionStats(): {
   };
 }
 
+export function resetWeightAdjustments(): void {
+  const database = getDb();
+  database.prepare(`DELETE FROM weight_adjustments`).run();
+}
+
+export function clearAllFilters(): void {
+  const database = getDb();
+  database.prepare(`DELETE FROM rejection_patterns`).run();
+}
+
 // Initialize on import
 initDb();
 

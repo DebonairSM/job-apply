@@ -50,7 +50,7 @@ export function JobDescriptionPanel({
       
       {/* Panel */}
       <div 
-        className={`fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 right-0 h-full w-full max-w-2xl bg-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out flex flex-col ${
           isOpen ? 'translate-x-0' : 'translate-x-full'
         } sm:w-full sm:max-w-2xl`}
         role="dialog"
@@ -58,7 +58,7 @@ export function JobDescriptionPanel({
         aria-labelledby="panel-title"
       >
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <div className="flex-1 min-w-0">
             <h2 id="panel-title" className="text-lg font-semibold text-gray-900 truncate">
               {title}
@@ -77,7 +77,7 @@ export function JobDescriptionPanel({
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
           {description ? (
             <div className="prose prose-sm max-w-none">
               <div className="whitespace-pre-wrap text-gray-800 leading-relaxed">
@@ -98,7 +98,7 @@ export function JobDescriptionPanel({
         </div>
 
         {/* Footer */}
-        <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4">
+        <div className="flex-shrink-0 bg-white border-t border-gray-200 px-6 py-4">
           <div className="flex justify-end">
             <button
               onClick={onClose}

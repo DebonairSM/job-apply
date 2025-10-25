@@ -383,14 +383,17 @@ export function JobsList() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[800px]">
-            <thead className="bg-gray-50 border-b-2 border-gray-200">
+            <table className="w-full min-w-full">
+            <thead className="bg-gray-50 border-b-2 border-gray-200 hidden sm:table-header-group">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Details
                 </th>
+                <th className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('title')}
                 >
                   <div className="flex items-center gap-1">
@@ -399,7 +402,7 @@ export function JobsList() {
                   </div>
                 </th>
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('company')}
                 >
                   <div className="flex items-center gap-1">
@@ -408,7 +411,7 @@ export function JobsList() {
                   </div>
                 </th>
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('rank')}
                 >
                   <div className="flex items-center gap-1">
@@ -417,7 +420,7 @@ export function JobsList() {
                   </div>
                 </th>
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('status')}
                 >
                   <div className="flex items-center gap-1">
@@ -426,7 +429,7 @@ export function JobsList() {
                   </div>
                 </th>
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('type')}
                 >
                   <div className="flex items-center gap-1">
@@ -435,16 +438,13 @@ export function JobsList() {
                   </div>
                 </th>
                 <th 
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
+                  className="px-4 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('date')}
                 >
                   <div className="flex items-center gap-1">
                     Date
                     {getSortIcon('date')}
                   </div>
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
                 </th>
               </tr>
             </thead>
@@ -460,7 +460,7 @@ export function JobsList() {
                           : ''
                       }`}
                     >
-                      <td className="px-6 py-4 whitespace-nowrap">
+                                             <td className="px-4 sm:px-6 py-4 whitespace-nowrap">
                         <button
                           onClick={() => toggleJobExpansion(job.id)}
                           className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-200 transition-colors"
@@ -478,34 +478,56 @@ export function JobsList() {
                           </svg>
                         </button>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 sm:px-6 py-4">
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          {(job.status === 'queued' || job.status === 'reported') && (
+                            <button
+                              onClick={() => handleMarkAsApplied(job.id)}
+                              disabled={updatingJobIds.has(job.id)}
+                              className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-2 sm:px-3 py-1 rounded text-xs sm:text-sm font-medium transition-colors whitespace-nowrap"
+                            >
+                              {updatingJobIds.has(job.id) ? 'Updating...' : 'Mark Applied'}
+                            </button>
+                          )}
+                          {(job.status === 'queued' || job.status === 'reported') && (
+                            <button
+                              onClick={() => handleRejectClick(job.id)}
+                              disabled={updatingJobIds.has(job.id)}
+                              className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-2 sm:px-3 py-1 rounded text-xs sm:text-sm font-medium transition-colors whitespace-nowrap"
+                            >
+                              {updatingJobIds.has(job.id) ? 'Updating...' : 'Reject'}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 sm:px-6 py-4" data-label="Title">
                         <a 
                           href={job.url} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 font-medium"
+                          className="text-blue-600 hover:text-blue-800 font-medium text-sm sm:text-base break-words"
                           onClick={() => handleJobClick(job.id)}
                         >
                           {job.title}
                         </a>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 sm:px-6 py-4 text-sm sm:text-base break-words" data-label="Company">
                         {job.company}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="font-bold text-lg">
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap" data-label="Rank">
+                        <span className="font-bold text-base sm:text-lg">
                           {job.rank || 'N/A'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap" data-label="Status">
                         <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusColors[job.status]}`}>
                           {getStatusDisplay(job)}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm" data-label="Type">
                         {job.easy_apply ? '⚡ Easy Apply' : '🔗 External'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <td className="px-4 sm:px-6 py-4 whitespace-nowrap text-xs sm:text-sm text-gray-500" data-label="Date">
                         {job.created_at ? (() => {
                           // SQLite stores as 'YYYY-MM-DD HH:MM:SS' in UTC, need to append 'Z' for proper parsing
                           const timestamp = job.created_at.includes('Z') ? job.created_at : `${job.created_at}Z`;
@@ -519,32 +541,10 @@ export function JobsList() {
                           });
                         })() : 'N/A'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex gap-2">
-                          {(job.status === 'queued' || job.status === 'reported') && (
-                            <button
-                              onClick={() => handleMarkAsApplied(job.id)}
-                              disabled={updatingJobIds.has(job.id)}
-                              className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
-                            >
-                              {updatingJobIds.has(job.id) ? 'Updating...' : 'Mark Applied'}
-                            </button>
-                          )}
-                          {(job.status === 'queued' || job.status === 'reported') && (
-                            <button
-                              onClick={() => handleRejectClick(job.id)}
-                              disabled={updatingJobIds.has(job.id)}
-                              className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
-                            >
-                              {updatingJobIds.has(job.id) ? 'Updating...' : 'Reject'}
-                            </button>
-                          )}
-                        </div>
-                      </td>
                     </tr>
                     {isExpanded && (
-                      <tr key={`${job.id}-details`}>
-                        <td colSpan={8} className="p-0">
+                      <tr key={`${job.id}-details`} className="sm:table-row">
+                        <td colSpan={8} className="p-0 sm:px-6 sm:py-4">
                           <JobDetailsPanel job={job} />
                         </td>
                       </tr>

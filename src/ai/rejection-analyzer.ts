@@ -128,7 +128,8 @@ export function convertPatternsToAdjustments(patterns: RejectionPattern[]): Sugg
         break;
         
       case 'compensation':
-        if (pattern.value.includes('too expensive') || pattern.value.includes('over budget')) {
+        if (pattern.value.includes('too expensive') || pattern.value.includes('over budget') || 
+            pattern.value.includes('salary expectations') || pattern.value.includes('budget constraints')) {
           // Too expensive = need LESS expensive jobs
           adjustment = {
             category: 'seniority', // Senior jobs tend to be more expensive

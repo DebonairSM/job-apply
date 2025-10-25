@@ -55,7 +55,13 @@ export function LearningPanel() {
   if (!learningStats) return null;
 
   const formatTimestamp = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString();
+    // Handle SQLite timestamp format (YYYY-MM-DD HH:MM:SS)
+    // Add 'Z' to treat as UTC if no timezone info is present
+    const normalizedTimestamp = timestamp.includes('T') || timestamp.includes('Z') 
+      ? timestamp 
+      : `${timestamp}Z`;
+    
+    return new Date(normalizedTimestamp).toLocaleString();
   };
 
   const formatAdjustment = (delta: number) => {

@@ -151,7 +151,9 @@ export const RankOutputSchema = z.object({
     eventDriven: z.number().min(0).max(100),
     performance: z.number().min(0).max(100),
     devops: z.number().min(0).max(100),
-    seniority: z.number().min(0).max(100)
+    seniority: z.number().min(0).max(100),
+    coreNet: z.number().min(0).max(100),
+    legacyModernization: z.number().min(0).max(100)
   }),
   reasons: z.array(z.string()),
   mustHaves: z.array(z.string()),

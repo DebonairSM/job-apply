@@ -8,12 +8,13 @@ import statsRouter from './routes/stats.js';
 import jobsRouter from './routes/jobs.js';
 import runsRouter from './routes/runs.js';
 import analyticsRouter from './routes/analytics.js';
+import coverLetterRouter from './routes/cover-letter-router.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3002;
 
 // Middleware
 app.use(cors());
@@ -28,6 +29,7 @@ app.use('/api/stats', statsRouter);
 app.use('/api/jobs', jobsRouter);
 app.use('/api/runs', runsRouter);
 app.use('/api/analytics', analyticsRouter);
+app.use('/api/cover-letter', coverLetterRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

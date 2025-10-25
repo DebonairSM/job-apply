@@ -64,35 +64,38 @@ export function CompleteDataModal({ jobId, jobTitle, isOpen, onClose }: Complete
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
-        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Complete Job Data</h2>
-            <p className="text-sm text-gray-600">{jobTitle}</p>
+        <div className="bg-gray-50 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-4 sm:px-6 sm:py-4">
+          <div className="min-w-0 flex-shrink">
+            <h2 className="text-xl font-bold text-gray-900 truncate">Complete Job Data</h2>
+            <p className="text-sm text-gray-600 truncate">{jobTitle}</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0 overflow-x-auto pb-1 sm:pb-0">
             {data && (
               <>
                 <button
                   onClick={copyAllData}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-1 sm:gap-2 whitespace-nowrap text-sm sm:text-base"
                 >
                   <span>📋</span>
-                  Copy All
+                  <span className="hidden sm:inline">Copy All</span>
+                  <span className="sm:hidden">Copy</span>
                 </button>
                 <button
                   onClick={downloadAllData}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                  className="bg-green-600 hover:bg-green-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-1 sm:gap-2 whitespace-nowrap text-sm sm:text-base"
                 >
                   <span>💾</span>
-                  Download All
+                  <span className="hidden sm:inline">Download All</span>
+                  <span className="sm:hidden">Download</span>
                 </button>
               </>
             )}
             <button
               onClick={onClose}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              className="bg-gray-500 hover:bg-gray-600 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap text-sm sm:text-base"
             >
-              ✕ Close
+              <span className="hidden sm:inline">✕ Close</span>
+              <span className="sm:hidden">Close</span>
             </button>
           </div>
         </div>
