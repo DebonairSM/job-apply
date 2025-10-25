@@ -5,6 +5,7 @@ import { Job } from '../lib/types';
 import { JobDetailsPanel } from './JobDetailsPanel';
 import { useJobNavigation } from '../contexts/JobNavigationContext';
 import { formatRelativeTime } from '../lib/dateUtils';
+import { formatRank } from '../lib/formatUtils';
 
 const statusColors = {
   queued: 'bg-yellow-100 text-yellow-800',
@@ -576,7 +577,7 @@ export function JobsList() {
                             (job.rank || 0) >= 50 ? 'bg-yellow-100 text-yellow-800' :
                             'bg-gray-100 text-gray-800'
                           }`}>
-                            {job.rank || 'N/A'}
+                            {formatRank(job.rank)}
                           </span>
                         </div>
                       </td>

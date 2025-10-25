@@ -2,7 +2,10 @@
 
 ## What Was Implemented
 
-A hybrid keyword highlighting system for job descriptions that combines static keyword lists, pattern detection, and AI-generated data for comprehensive coverage.
+A three-tier hybrid keyword highlighting system for job descriptions that combines static keyword lists, pattern detection, and AI-generated data for comprehensive coverage:
+- **Green**: Microsoft ecosystem + Terraform
+- **Yellow**: Acceptable cloud (AWS)
+- **Red**: Prohibitive/non-Microsoft technologies
 
 ## Changes Made
 
@@ -10,8 +13,9 @@ A hybrid keyword highlighting system for job descriptions that combines static k
 
 1. **src/dashboard/client/lib/highlightKeywords.ts**
    - Main highlighting engine
-   - 65+ Microsoft ecosystem keywords (green)
-   - 40+ non-Microsoft technology keywords (red)
+   - 45+ Microsoft ecosystem keywords + Terraform (green)
+   - 10+ AWS and acceptable cloud keywords (yellow)
+   - 30+ prohibitive non-Microsoft technology keywords (red)
    - 5 regex patterns for detecting prohibitive requirements
    - HTML escaping for security
 
@@ -48,11 +52,12 @@ Job Description Text
 1. Parse AI keywords (must_haves, blockers) from job object
     ↓
 2. Build keyword map:
-   - Add 65+ static Microsoft keywords → GREEN
+   - Add 45+ static Microsoft keywords + Terraform → GREEN (highest priority)
+   - Add 10+ AWS keywords → YELLOW (medium priority, if not green)
+   - Add 30+ static prohibitive keywords → RED (lowest priority, if not green/yellow)
    - Add AI must_haves → GREEN
-   - Add 40+ static prohibitive keywords → RED (if not green)
-   - Add AI blockers → RED (if not green)
-   - Detect patterns ("5+ years AWS") → RED
+   - Add AI blockers → RED (if not green/yellow)
+   - Detect patterns ("5+ years Java") → RED
     ↓
 3. Sort keywords by length (longest first)
     ↓

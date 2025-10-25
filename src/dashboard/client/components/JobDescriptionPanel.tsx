@@ -120,6 +120,10 @@ export function JobDescriptionPanel({
                     <span className="text-gray-600">Microsoft Ecosystem Match</span>
                   </div>
                   <div className="flex items-center gap-1">
+                    <span className="inline-block w-4 h-4 bg-yellow-200 border border-yellow-300 rounded"></span>
+                    <span className="text-gray-600">Acceptable Cloud (AWS)</span>
+                  </div>
+                  <div className="flex items-center gap-1">
                     <span className="inline-block w-4 h-4 bg-red-200 border border-red-300 rounded"></span>
                     <span className="text-gray-600">Non-Microsoft / Prohibitive</span>
                   </div>

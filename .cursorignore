@@ -26,8 +26,8 @@ trace.zip
 *.log
 logs/
 
-# Environment and secrets
-.env
+# Environment and secrets (but allow .env.example to be tracked)
+/.env
 .env.local
 .env.production
 storageState.json

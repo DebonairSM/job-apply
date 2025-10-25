@@ -2,17 +2,21 @@
 
 ## Overview
 
-The job description panel now highlights keywords to help quickly identify matches and potential issues:
-- **Green highlighting**: Microsoft ecosystem technologies (C#, .NET, Azure, etc.)
-- **Red highlighting**: Non-Microsoft technologies and prohibitive requirements (AWS, Python, Java, etc.)
+The job description panel highlights keywords using a three-tier color system:
+- **Green highlighting**: Microsoft ecosystem + Terraform (C#, .NET, Azure, etc.)
+- **Yellow highlighting**: Acceptable cloud providers (AWS, AWS services)
+- **Red highlighting**: Prohibitive/non-Microsoft requirements (Python, Java, GCP, etc.)
 
 ## Implementation Approach
 
 Uses a **hybrid strategy** for comprehensive coverage:
 
-1. **Static keyword lists**: All Microsoft ecosystem keywords from PROFILES
+1. **Static keyword lists**: Three categories of keywords
+   - Microsoft ecosystem + Terraform (green)
+   - AWS and acceptable cloud providers (yellow)
+   - Prohibitive non-Microsoft technologies (red)
 2. **AI-identified keywords**: Must-haves and blockers from job ranking
-3. **Pattern detection**: Identifies prohibitive requirements like "5+ years AWS" or "Python required"
+3. **Pattern detection**: Identifies prohibitive requirements like "5+ years Java" or "Python required"
 
 This approach provides immediate, consistent highlighting without requiring AI calls.
 
@@ -21,8 +25,9 @@ This approach provides immediate, consistent highlighting without requiring AI c
 1. **src/dashboard/client/lib/highlightKeywords.ts** (new)
    - Core highlighting utility function
    - Contains comprehensive static keyword lists:
-     - 65+ Microsoft ecosystem keywords (green)
-     - 40+ non-Microsoft technologies (red)
+     - 45+ Microsoft ecosystem keywords + Terraform (green)
+     - 10+ AWS and acceptable cloud keywords (yellow)
+     - 30+ prohibitive non-Microsoft technologies (red)
    - Pattern detection for prohibitive requirements
    - Handles special characters, case-insensitive matching
    - Escapes HTML for security
@@ -41,18 +46,25 @@ This approach provides immediate, consistent highlighting without requiring AI c
 
 ### Static Keywords (Primary Source)
 
-**Green highlights** (Microsoft Ecosystem):
+**Green highlights** (Microsoft Ecosystem + Terraform):
 - .NET technologies: C#, VB.NET, ASP.NET, MVC, Entity Framework, etc.
-- Azure services: Azure Functions, APIM, Service Bus, Event Grid, etc.
+- Azure services: Azure Functions, APIM, Service Bus, Event Grid, AKS, etc.
 - Security: OAuth, JWT, Azure AD, Entra ID
-- DevOps: Azure DevOps, GitHub Actions, CI/CD
-- Seniority: Senior, Lead, Principal, Remote
+- Microsoft data stack: SQL Server, Serilog
+- Microsoft DevOps: GitHub Actions, Azure Pipelines, Azure DevOps
+- Infrastructure as Code: Terraform (exception per requirements)
 
-**Red highlights** (Non-Microsoft):
-- Languages: Python, Java, Ruby, Go, PHP
-- Cloud: AWS, GCP, Lambda, EC2
-- Frameworks: Django, Flask, Spring, Rails
-- Databases: MongoDB, PostgreSQL, MySQL
+**Yellow highlights** (Acceptable Cloud):
+- AWS: AWS, Amazon Web Services, EC2, S3, Lambda, CloudFormation
+- AWS services: ECS, EKS, RDS, DynamoDB, CloudWatch, SNS, SQS
+
+**Red highlights** (Prohibitive/Non-Microsoft):
+- Languages: Python, Java, Ruby, Go, PHP, Scala, Kotlin
+- Cloud: GCP, Google Cloud Platform
+- Frameworks: Django, Flask, Spring, Rails, Laravel
+- Databases: MongoDB, PostgreSQL, MySQL, Cassandra
+- DevOps tools: Jenkins, CircleCI, Ansible
+- Generic Kubernetes (not AKS)
 
 ### Pattern Detection
 
@@ -73,17 +85,19 @@ Adds context-aware keywords from job ranking:
 
 1. **Color Legend**: Always visible at the top of the description
    - Green: Microsoft Ecosystem Match
+   - Yellow: Acceptable Cloud (AWS)
    - Red: Non-Microsoft / Prohibitive
 
 2. **Inline Highlighting**: Keywords are marked directly in the job description text
-   - Green background with dark green text for must-haves
-   - Red background with dark red text for blockers
+   - Green background with dark green text for Microsoft ecosystem
+   - Yellow background with dark yellow text for acceptable cloud
+   - Red background with dark red text for prohibitive technologies
 
 3. **Smart Matching**:
    - Case-insensitive
    - Word boundary aware
    - Handles special characters (.NET, C#, etc.)
-   - Must-haves take precedence over blockers for same keyword
+   - Priority order: Green > Yellow > Red (higher priority cannot be overridden)
 
 ## Usage
 

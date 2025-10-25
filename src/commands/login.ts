@@ -18,7 +18,12 @@ export async function loginCommand(): Promise<void> {
 
   const browser = await chromium.launch({
     headless: false,
-    slowMo: config.slowMo
+    slowMo: config.slowMo,
+    args: [
+      '--disable-extensions',  // Prevent browser extensions from interfering
+      '--no-sandbox',
+      '--disable-setuid-sandbox'
+    ]
   });
 
   const context = await browser.newContext();

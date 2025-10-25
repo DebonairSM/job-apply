@@ -1,7 +1,8 @@
 /**
  * Utility function to highlight keywords in job descriptions
- * - Green: Must-have keywords (perfect matches from profile)
- * - Red: Blocker keywords (prohibitive requirements)
+ * - Green: Microsoft ecosystem + Terraform
+ * - Yellow: AWS and other acceptable cloud providers
+ * - Red: Prohibitive/non-Microsoft requirements
  * 
  * Uses a hybrid approach:
  * 1. Static keyword lists from PROFILES (comprehensive coverage)
@@ -14,7 +15,7 @@ export interface HighlightOptions {
   blockers?: string[]; // AI-identified blockers
 }
 
-// Microsoft ecosystem keywords (GREEN) - extracted from PROFILES
+// Microsoft ecosystem keywords (GREEN) + Terraform
 const MICROSOFT_KEYWORDS = [
   // Core .NET
   'C#', 'VB.NET', '.NET', '.NET Core', '.NET 6', '.NET 8', '.NET Framework',
@@ -23,7 +24,7 @@ const MICROSOFT_KEYWORDS = [
   'Blazor', 'Razor Pages', 'SignalR', 'WebSockets',
   'Minimal APIs', 'gRPC', 'Web API', 'REST API',
   
-  // Azure
+  // Azure (Microsoft-specific)
   'Azure', 'Microsoft Azure',
   'API Management', 'APIM', 'Azure Functions', 'App Services',
   'Service Bus', 'Event Grid', 'Azure Storage',
@@ -32,47 +33,34 @@ const MICROSOFT_KEYWORDS = [
   'Azure Container Instances', 'Azure Kubernetes Service', 'AKS',
   'Azure Load Testing', 'Azure DevOps',
   
-  // Security & Identity
+  // Microsoft Security & Identity
   'OAuth 2.0', 'OAuth', 'JWT', 'Entra ID', 'Azure AD', 'Azure Active Directory',
   'APIM Policies', 'API Governance', 'API Security',
-  'Authentication', 'Authorization', 'Identity Management',
   
-  // Data & Performance
-  'SQL Server', 'Redis', 'Serilog', 'Splunk', 'KQL',
+  // Microsoft Data Stack
+  'SQL Server', 'Serilog',
   
-  // Architecture & Patterns
-  'Event-Driven', 'Event Driven', 'Message Queue', 'Messaging',
-  'Microservices', 'Event Sourcing', 'CQRS', 'Pub/Sub',
-  'Integration', 'Integration Platform',
+  // Microsoft DevOps
+  'GitHub Actions', 'Azure Pipelines',
   
-  // DevOps
-  'GitHub Actions', 'CI/CD', 'CI CD', 'Docker', 'Containerization',
-  'Deployment', 'Automated Testing', 'Build Pipeline', 'Release Pipeline',
-  'DevOps Practices', 'Agile Development',
-  
-  // Monitoring & Quality
-  'Load Testing', 'Performance Testing', 'Locust',
-  'Observability', 'Monitoring', 'OpenAPI', 'Swagger',
-  'Dependency Injection',
-  
-  // Modernization
-  'Legacy', 'Modernization', 'Migration', 'Cloud Migration',
-  'Modernization Project', 'Legacy System', 'System Migration',
-  
-  // Seniority & Remote
-  'Senior', 'Lead', 'Principal', 'Staff',
-  'Remote', 'Remote-first', 'Remote First', 'Fully Remote',
-  'Work from Home', 'WFH', 'Distributed'
+  // Infrastructure as Code (exception per user request)
+  'Terraform'
 ];
 
-// Prohibitive technologies (RED) - non-Microsoft ecosystem heavy usage
+// AWS and other acceptable cloud (YELLOW)
+const ACCEPTABLE_CLOUD_KEYWORDS = [
+  // AWS
+  'AWS', 'Amazon Web Services', 'EC2', 'S3', 'Lambda', 'CloudFormation',
+  'ECS', 'EKS', 'RDS', 'DynamoDB', 'CloudWatch', 'SNS', 'SQS'
+];
+
+// Prohibitive technologies (RED) - non-Microsoft ecosystem when required
 const PROHIBITIVE_KEYWORDS = [
   // Non-Microsoft languages (when primary)
   'Python', 'Java', 'Ruby', 'Go', 'Golang', 'PHP', 'Scala', 'Kotlin',
   'Rust', 'Swift', 'Objective-C', 'Perl', 'Elixir', 'Clojure',
   
-  // Non-Microsoft cloud platforms
-  'AWS', 'Amazon Web Services', 'EC2', 'S3', 'Lambda', 'CloudFormation',
+  // Non-Microsoft cloud platforms (heavy focus)
   'GCP', 'Google Cloud', 'Google Cloud Platform',
   
   // Non-Microsoft frameworks
@@ -81,11 +69,13 @@ const PROHIBITIVE_KEYWORDS = [
   'React Native', 'Flutter', 'Electron',
   
   // Non-Microsoft databases (when exclusive)
-  'MongoDB', 'PostgreSQL', 'MySQL', 'Cassandra', 'DynamoDB',
+  'MongoDB', 'PostgreSQL', 'MySQL', 'Cassandra',
   'Elasticsearch', 'Neo4j', 'CouchDB',
   
-  // Non-Microsoft tools
-  'Jenkins', 'CircleCI', 'Travis CI', 'Terraform', 'Ansible',
+  // Non-Microsoft DevOps tools
+  'Jenkins', 'CircleCI', 'Travis CI', 'Ansible',
+  
+  // Generic Kubernetes (not AKS)
   'Kubernetes' // standalone (not AKS)
 ];
 
@@ -131,23 +121,26 @@ export function highlightKeywords(text: string, options: HighlightOptions): stri
   const { mustHaves = [], blockers = [] } = options;
   
   // Create a map to track which keywords have been found and their type
-  const keywordMap = new Map<string, 'green' | 'red'>();
+  const keywordMap = new Map<string, 'green' | 'yellow' | 'red'>();
   
-  // 1. Add static Microsoft ecosystem keywords (GREEN)
+  // 1. Add static Microsoft ecosystem keywords (GREEN) - highest priority
   MICROSOFT_KEYWORDS.forEach(keyword => {
     if (keyword && keyword.trim()) {
       keywordMap.set(keyword.toLowerCase().trim(), 'green');
     }
   });
   
-  // 2. Add AI-identified must-haves (GREEN) - these reinforce/add to static list
-  mustHaves.forEach(keyword => {
+  // 2. Add acceptable cloud keywords (YELLOW) - but don't override green
+  ACCEPTABLE_CLOUD_KEYWORDS.forEach(keyword => {
     if (keyword && keyword.trim()) {
-      keywordMap.set(keyword.toLowerCase().trim(), 'green');
+      const key = keyword.toLowerCase().trim();
+      if (!keywordMap.has(key)) {
+        keywordMap.set(key, 'yellow');
+      }
     }
   });
   
-  // 3. Add static prohibitive keywords (RED) - but don't override green
+  // 3. Add static prohibitive keywords (RED) - but don't override green or yellow
   PROHIBITIVE_KEYWORDS.forEach(keyword => {
     if (keyword && keyword.trim()) {
       const key = keyword.toLowerCase().trim();
@@ -157,7 +150,14 @@ export function highlightKeywords(text: string, options: HighlightOptions): stri
     }
   });
   
-  // 4. Add AI-identified blockers (RED) - but don't override green
+  // 4. Add AI-identified must-haves (GREEN) - reinforce Microsoft ecosystem
+  mustHaves.forEach(keyword => {
+    if (keyword && keyword.trim()) {
+      keywordMap.set(keyword.toLowerCase().trim(), 'green');
+    }
+  });
+  
+  // 5. Add AI-identified blockers (RED) - but don't override green or yellow
   blockers.forEach(keyword => {
     if (keyword && keyword.trim()) {
       const key = keyword.toLowerCase().trim();
@@ -167,7 +167,7 @@ export function highlightKeywords(text: string, options: HighlightOptions): stri
     }
   });
   
-  // 5. Detect prohibitive patterns and add them
+  // 6. Detect prohibitive patterns and add them
   const prohibitiveMatches = detectProhibitivePatterns(text);
   prohibitiveMatches.forEach(match => {
     const key = match.toLowerCase().trim();
@@ -195,7 +195,7 @@ export function highlightKeywords(text: string, options: HighlightOptions): stri
   const regex = new RegExp(`(${patterns.join('|')})`, 'gi');
   
   // Split text into parts and track what's been highlighted
-  const parts: Array<{ text: string; type: 'plain' | 'green' | 'red' }> = [];
+  const parts: Array<{ text: string; type: 'plain' | 'green' | 'yellow' | 'red' }> = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
   
@@ -213,7 +213,7 @@ export function highlightKeywords(text: string, options: HighlightOptions): stri
     const matchedKey = matchedText.toLowerCase().trim();
     
     // Find the best matching keyword
-    let color: 'green' | 'red' = 'green';
+    let color: 'green' | 'yellow' | 'red' = 'green';
     for (const [keyword, keywordColor] of keywordMap.entries()) {
       if (matchedKey === keyword || matchedKey.includes(keyword) || keyword.includes(matchedKey)) {
         color = keywordColor;
@@ -243,6 +243,8 @@ export function highlightKeywords(text: string, options: HighlightOptions): stri
       return escapeHtml(part.text);
     } else if (part.type === 'green') {
       return `<mark class="bg-green-200 text-green-900 px-1 rounded">${escapeHtml(part.text)}</mark>`;
+    } else if (part.type === 'yellow') {
+      return `<mark class="bg-yellow-200 text-yellow-900 px-1 rounded">${escapeHtml(part.text)}</mark>`;
     } else {
       return `<mark class="bg-red-200 text-red-900 px-1 rounded">${escapeHtml(part.text)}</mark>`;
     }

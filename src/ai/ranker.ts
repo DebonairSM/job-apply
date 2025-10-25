@@ -108,10 +108,8 @@ DESCRIPTION: ${desc}
 Rate fit 0-100 for each area (parenthesis shows weight for final score):
 ${scoring.criteria}
 
-Calculate fitScore = (${scoring.formula})
-
-Return JSON with YOUR SCORES (not the weights):
-{"fitScore":75,"categoryScores":{"${scoring.categories.join('":85,"')}":85},"reasons":["Strong match","Good fit"],"mustHaves":["Required skill"],"blockers":[],"missingKeywords":["Missing skill"]}`;
+Return JSON with your scores for each category:
+{"categoryScores":{"${scoring.categories.join('":85,"')}":85},"reasons":["Strong match","Good fit"],"mustHaves":["Required skill"],"blockers":[],"missingKeywords":["Missing skill"]}`;
 
   const startTime = Date.now();
   const result = await askOllama<RankOutput>(prompt, 'RankOutput', {
@@ -124,6 +122,23 @@ Return JSON with YOUR SCORES (not the weights):
   if (process.env.DEBUG) {
     console.log(`   ⏱️  LLM response time: ${(duration / 1000).toFixed(1)}s`);
   }
+
+  // Recalculate fitScore from category scores using current weights
+  // LLMs are bad at arithmetic, so we calculate the weighted sum ourselves
+  const { getActiveWeights } = await import('./weight-manager.js');
+  const adjustedWeights = getActiveWeights();
+
+  let calculatedFitScore = 0;
+  Object.entries(PROFILES).forEach(([key, prof]) => {
+    const baseWeight = prof.weight;
+    const adjustment = adjustedWeights[key] || 0;
+    const finalWeight = (baseWeight + adjustment) / 100;
+    const categoryScore = result.categoryScores[key as keyof typeof result.categoryScores] || 0;
+    calculatedFitScore += categoryScore * finalWeight;
+  });
+
+  // Override LLM's fitScore with our accurate calculation
+  result.fitScore = calculatedFitScore;
 
   // Validate with Zod
   const validated = RankOutputSchema.parse(result);

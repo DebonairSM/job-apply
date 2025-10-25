@@ -123,21 +123,28 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
   await page.waitForTimeout(2000);
   
   // Hide LinkedIn messaging components with CSS to prevent them from appearing
-  await page.addStyleTag({
-    content: `
-      div[class*="msg-overlay"],
-      div[class*="messaging"],
-      .msg-overlay-bubble-header,
-      aside[class*="msg-overlay"],
-      [data-test-id*="msg-overlay"] {
-        display: none !important;
-        visibility: hidden !important;
-      }
-    `
-  });
+  try {
+    await page.addStyleTag({
+      content: `
+        div[class*="msg-overlay"],
+        div[class*="messaging"],
+        .msg-overlay-bubble-header,
+        aside[class*="msg-overlay"],
+        [data-test-id*="msg-overlay"] {
+          display: none !important;
+          visibility: hidden !important;
+        }
+      `
+    });
+  } catch (error) {
+    // CSP may block style injection - this is non-critical, continue anyway
+    console.log('Note: Could not inject styles to hide messaging overlay (CSP restriction)');
+  }
 
+  console.log('   Style injection complete, pressing Escape...');
   // Quick escape press to dismiss any non-messaging modals
   await page.keyboard.press('Escape').catch(() => {});
+  console.log('   Escape pressed, waiting...');
   await page.waitForTimeout(500);
 
   // Wait a bit more to ensure all cards on current page are rendered
@@ -146,26 +153,36 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
   // Dismiss any modals before processing jobs
   await dismissModals(page);
 
+  console.log('   Looking for job cards...');
+  // Take a debug screenshot to see what's on the page
+  await page.screenshot({ path: 'artifacts/debug-search-page.png', fullPage: true }).catch(() => {});
+  
   // Extract job cards - LinkedIn uses scaffold-layout__list-item for job cards
   // Try multiple selectors for job cards (LinkedIn changes these frequently)
   let jobCards = page.locator('li.semantic-search-results-list__list-item');
   let count = await jobCards.count();
+  console.log(`   Trying selector 1: found ${count} cards`);
   
   // If no results, try alternative selectors one at a time
   if (count === 0) {
+    console.log('   Trying selector 2...');
     jobCards = page.locator('li.scaffold-layout__list-item');
     count = await jobCards.count();
+    console.log(`   Trying selector 2: found ${count} cards`);
   }
   
   if (count === 0) {
     console.log('   ⚠️  Primary selectors found 0 cards, trying older alternatives...');
     jobCards = page.locator('ul.jobs-search__results-list > li');
     count = await jobCards.count();
+    console.log(`   Trying selector 3: found ${count} cards`);
   }
   
   if (count === 0) {
+    console.log('   Trying selector 4...');
     jobCards = page.locator('div.jobs-search-results__list-item');
     count = await jobCards.count();
+    console.log(`   Trying selector 4: found ${count} cards`);
   }
   
   console.log(`📊 Found ${count} job cards to analyze\n`);
@@ -187,9 +204,11 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
 
   for (let i = 0; i < count; i++) {
     try {
+      console.log(`   Processing card ${i + 1}/${count}...`);
       // Re-locate job cards each iteration (DOM may have changed) - use same selector
       const card = page.locator(cardSelector).nth(i);
       
+      console.log(`   Checking visibility...`);
       // Ensure card is visible
       const isVisible = await card.isVisible({ timeout: 2000 }).catch(() => false);
       if (!isVisible) {
@@ -197,10 +216,12 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
         continue;
       }
       
+      console.log(`   Scrolling into view...`);
       // Scroll card into view FIRST to trigger lazy loading of content
       await card.scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {});
       await page.waitForTimeout(500); // Give time for content to load
       
+      console.log(`   Extracting title...`);
       // Extract job title - LinkedIn's new structure uses artdeco-entity-lockup__title
       // Note: LinkedIn duplicates text for accessibility (aria-hidden + visually-hidden)
       let title = '';
@@ -682,7 +703,11 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
     
     const browser = await chromium.launch({
       headless: false,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: [
+        '--disable-extensions',  // Prevent browser extensions from interfering
+        '--no-sandbox',
+        '--disable-setuid-sandbox'
+      ]
     });
     
     try {
@@ -725,7 +750,12 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
 
   const browser = await chromium.launch({
     headless: config.headless,
-    slowMo: config.slowMo
+    slowMo: config.slowMo,
+    args: [
+      '--disable-extensions',  // Prevent browser extensions from interfering
+      '--no-sandbox',
+      '--disable-setuid-sandbox'
+    ]
   });
 
   const context = await browser.newContext({ storageState: STORAGE_STATE_PATH });

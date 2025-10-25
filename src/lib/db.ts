@@ -28,7 +28,7 @@ export function initDb(): void {
       company TEXT NOT NULL,
       url TEXT UNIQUE NOT NULL,
       easy_apply INTEGER NOT NULL,
-      rank INTEGER,
+      rank REAL,
       status TEXT DEFAULT 'queued',
       applied_method TEXT,
       rejection_reason TEXT,
@@ -194,7 +194,7 @@ export interface Job {
   company: string;
   url: string;
   easy_apply: boolean;
-  rank?: number;
+  rank?: number; // Decimal value with full precision (e.g., 87.35)
   status: 'queued' | 'applied' | 'interview' | 'rejected' | 'skipped' | 'reported';
   applied_method?: 'automatic' | 'manual';
   rejection_reason?: string;

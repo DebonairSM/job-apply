@@ -31,6 +31,7 @@ export function CategoryScoreBar({ category, score, maxScore = 100 }: CategorySc
       performance: 'Performance & Reliability',
       devops: 'DevOps & CI/CD',
       seniority: 'Seniority & Role Type',
+      frontendFrameworks: 'Frontend Framework Preferences',
       legacyModernization: 'Legacy Modernization'
     };
     

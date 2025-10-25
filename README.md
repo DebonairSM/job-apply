@@ -251,6 +251,112 @@ This system uses local AI (Ollama) to provide sophisticated automation:
 
 All AI processing runs locally without external API calls, ensuring privacy and zero costs.
 
+## LLM Tasks Overview
+
+The system makes 5 types of LLM calls. Here's what each does, when it runs, and how long it takes:
+
+### 1. Job Ranking (Most Frequent)
+**File**: `src/ai/ranker.ts`
+**When**: During search command, once per job found
+**What it does**: 
+- Evaluates job description against all profile categories (Azure, Security, .NET, Event-Driven, Performance, Frontend, Legacy Modernization, DevOps)
+- Returns 0-100 score for each category plus reasons, blockers, missing keywords
+- System calculates final weighted score using current profile weights
+
+**Input size**: ~1000 chars (truncated job description)
+**Output**: JSON with category scores, fit reasons, must-haves, blockers, missing keywords
+**Settings**: Temperature 0.1, 3 retries
+**Performance**: ~2-5 seconds per job (depends on job description complexity)
+**Frequency**: 10-25 calls per search page (most expensive operation)
+
+### 2. Form Field Mapping (Conditional)
+**File**: `src/ai/mapper.ts`
+**When**: During apply command, only for unmapped fields
+**What it does**:
+- Three-tier system: heuristics (instant) → cache (instant) → LLM (slow)
+- LLM only called when field label doesn't match heuristics and isn't cached
+- Maps ambiguous form field labels to canonical keys (email, phone, work_authorization, etc.)
+
+**Input size**: List of field labels (usually 5-15 labels)
+**Output**: JSON mapping each label to canonical key
+**Settings**: Temperature 0.1, 2 retries
+**Performance**: ~1-2 seconds per batch
+**Frequency**: Rare (only for new/ambiguous fields, then cached)
+
+### 3. Rejection Analysis (Manual Only)
+**File**: `src/ai/rejection-analyzer.ts`
+**When**: When user manually updates job to "rejected" status with reason
+**What it does**:
+- Analyzes rejection reason text to identify patterns (seniority, tech stack, location, compensation, company fit)
+- Uses dual approach: keyword extraction (instant) + LLM semantic analysis
+- Suggests weight adjustments for profile categories
+- Recommends filters to avoid similar jobs
+
+**Input size**: Rejection reason text + job details (~500 chars)
+**Output**: JSON with patterns, suggested adjustments, filters
+**Settings**: Temperature 0.1, 3 retries
+**Performance**: ~2-4 seconds per rejection
+**Frequency**: Rare (only when user reports rejection, fallback to keywords if LLM fails)
+
+### 4. Answer Synthesis (Per Application)
+**File**: `src/ai/answers.ts`
+**When**: During apply command, once per job (then cached)
+**What it does**:
+- Generates complete set of application answers (name, email, phone, city, work authorization, sponsorship, years of experience, LinkedIn URL, why_fit statement)
+- Uses candidate profile + job description to customize responses
+- Selects best resume variant for the job
+
+**Input size**: Profile + job description + candidate info (~1500 chars)
+**Output**: JSON with all answer fields
+**Settings**: Temperature 0.2, 2 retries
+**Performance**: ~2-4 seconds per job
+**Frequency**: Once per application (then cached in database)
+
+### 5. Headline Generation (On-Demand)
+**File**: `src/dashboard/routes/headline.ts`
+**When**: When user clicks "Generate Headline" in dashboard
+**What it does**:
+- Creates one professional sentence (max 150 chars) introducing candidate for application form
+- Uses candidate profile, job details, fit reasons, and key requirements
+- Returns plain text (not JSON)
+
+**Input size**: Profile summary + job details + fit analysis (~800 chars)
+**Output**: Plain text headline sentence
+**Settings**: Temperature 0.7, no retries
+**Performance**: ~1-3 seconds
+**Frequency**: On-demand only (user-triggered from dashboard)
+
+### What About Cover Letters?
+**File**: `src/dashboard/routes/cover-letter.ts`
+**LLM Usage**: None - uses template-based generation, not LLM
+
+### Performance Summary
+**Typical search workflow** (25 jobs):
+- 25 ranking calls: ~50-125 seconds (bulk of time)
+- Total search time: ~1-2 minutes
+
+**Typical apply workflow** (1 job, first time):
+- 1 answer generation: ~3 seconds
+- 0-1 field mapping: ~0-2 seconds (only if new fields)
+- Total apply time: ~5-10 seconds (most time is browser automation)
+
+**Subsequent applications**:
+- Answers are cached, so only browser automation time
+
+### Optimization Strategies
+1. **Ranking**: Job descriptions truncated to 1000 chars (preserves sections)
+2. **Mapping**: Three-tier system avoids LLM calls for 95% of fields
+3. **Answers**: Results cached per job ID in database
+4. **Headlines**: Plain text output (faster than JSON parsing)
+5. **All calls**: Retry logic with exponential backoff, 180-second timeout
+
+### When LLM Calls Fail
+- **Ranking**: Job is skipped, error logged to database
+- **Mapping**: Falls back to heuristics or marks field as "unknown"
+- **Rejection Analysis**: Falls back to keyword-only analysis
+- **Answers**: Application fails, user notified
+- **Headlines**: User sees error message in dashboard
+
 ## How It Works
 
 ```mermaid

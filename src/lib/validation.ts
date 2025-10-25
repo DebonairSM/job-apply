@@ -144,7 +144,7 @@ export function redactPII(text: string): string {
 
 // Rank output schema with category scores
 export const RankOutputSchema = z.object({
-  fitScore: z.number().min(0).max(100),
+  fitScore: z.number().min(0).max(100).optional(), // LLM may return this but we recalculate it
   categoryScores: z.object({
     coreAzure: z.number().min(0).max(100),
     security: z.number().min(0).max(100),
@@ -153,6 +153,7 @@ export const RankOutputSchema = z.object({
     devops: z.number().min(0).max(100),
     seniority: z.number().min(0).max(100),
     coreNet: z.number().min(0).max(100),
+    frontendFrameworks: z.number().min(0).max(100),
     legacyModernization: z.number().min(0).max(100)
   }),
   reasons: z.array(z.string()),

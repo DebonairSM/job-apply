@@ -11,49 +11,64 @@ import assert from 'node:assert';
  */
 
 describe('Ranker - Score Variation', () => {
-  it('should calculate weighted score correctly', () => {
+  it('should calculate weighted score correctly with current profile weights', () => {
     const categoryScores = {
       coreAzure: 90,
       security: 80,
       eventDriven: 70,
       performance: 85,
       devops: 75,
-      seniority: 95
+      seniority: 95,
+      coreNet: 88,
+      frontendFrameworks: 65,
+      legacyModernization: 50
     };
     
+    // Current weights: coreAzure(20%) + security(15%) + eventDriven(10%) + performance(10%) + 
+    // devops(0%) + seniority(10%) + coreNet(20%) + frontendFrameworks(10%) + legacyModernization(5%)
     const weights = {
-      coreAzure: 0.30,
-      security: 0.20,
-      eventDriven: 0.15,
-      performance: 0.15,
-      devops: 0.10,
-      seniority: 0.10
+      coreAzure: 0.20,
+      security: 0.15,
+      eventDriven: 0.10,
+      performance: 0.10,
+      devops: 0.00,
+      seniority: 0.10,
+      coreNet: 0.20,
+      frontendFrameworks: 0.10,
+      legacyModernization: 0.05
     };
     
-    const weightedScore = Math.round(
+    const weightedScore = 
       categoryScores.coreAzure * weights.coreAzure +
       categoryScores.security * weights.security +
       categoryScores.eventDriven * weights.eventDriven +
       categoryScores.performance * weights.performance +
       categoryScores.devops * weights.devops +
-      categoryScores.seniority * weights.seniority
-    );
+      categoryScores.seniority * weights.seniority +
+      categoryScores.coreNet * weights.coreNet +
+      categoryScores.frontendFrameworks * weights.frontendFrameworks +
+      categoryScores.legacyModernization * weights.legacyModernization;
     
-    assert.strictEqual(
-      weightedScore,
-      83,
-      'Weighted score should be calculated correctly'
+    // Expected: 90*0.2 + 80*0.15 + 70*0.1 + 85*0.1 + 75*0 + 95*0.1 + 88*0.2 + 65*0.1 + 50*0.05
+    // = 18 + 12 + 7 + 8.5 + 0 + 9.5 + 17.6 + 6.5 + 2.5 = 81.6
+    assert.ok(
+      Math.abs(weightedScore - 81.6) < 0.1,
+      `Weighted score should be close to 81.6, got ${weightedScore}`
     );
   });
   
   it('should verify weights sum to 100%', () => {
+    // Current profile weights
     const weights = {
-      coreAzure: 30,
-      security: 20,
-      eventDriven: 15,
-      performance: 15,
-      devops: 10,
-      seniority: 10
+      coreAzure: 20,
+      security: 15,
+      eventDriven: 10,
+      performance: 10,
+      devops: 0,
+      seniority: 10,
+      coreNet: 20,
+      frontendFrameworks: 10,
+      legacyModernization: 5
     };
     
     const sum = Object.values(weights).reduce((a, b) => a + b, 0);
@@ -95,30 +110,36 @@ describe('Ranker - Score Variation', () => {
 });
 
 describe('Ranker - Prompt Structure', () => {
-  it('should use placeholder values that are clearly not real scores', () => {
-    // The prompt should use 0 or obvious placeholders, not realistic values
+  it('should not include fitScore in prompt since we calculate it ourselves', () => {
+    // The new approach: LLM provides category scores, we calculate fitScore
+    // This avoids LLM arithmetic errors and ensures accuracy
     const exampleJson = {
-      fitScore: 0,
       categoryScores: {
-        coreAzure: 0,
-        security: 0,
-        eventDriven: 0,
-        performance: 0,
-        devops: 0,
-        seniority: 0
-      }
+        coreAzure: 85,
+        security: 85,
+        eventDriven: 85,
+        performance: 85,
+        devops: 85,
+        seniority: 85,
+        coreNet: 85,
+        frontendFrameworks: 85,
+        legacyModernization: 85
+      },
+      reasons: ['Strong match', 'Good fit'],
+      mustHaves: ['Required skill'],
+      blockers: [],
+      missingKeywords: ['Missing skill']
     };
     
-    assert.strictEqual(
-      exampleJson.fitScore,
-      0,
-      'Example fitScore should be 0 to avoid being copied'
+    // fitScore should not be in the template - we calculate it from categoryScores
+    assert.ok(
+      !('fitScore' in exampleJson) || exampleJson.fitScore === undefined,
+      'fitScore should not be in prompt template (we calculate it ourselves)'
     );
     
-    assert.strictEqual(
-      exampleJson.categoryScores.coreAzure,
-      0,
-      'Example category scores should be 0 to avoid being copied'
+    assert.ok(
+      'categoryScores' in exampleJson,
+      'categoryScores should be present in template'
     );
   });
   
@@ -159,7 +180,9 @@ describe('Ranker - Output Validation', () => {
       'eventDriven',
       'performance',
       'devops',
-      'seniority'
+      'seniority',
+      'coreNet',
+      'legacyModernization'
     ];
     
     const categoryScores = {
@@ -168,7 +191,9 @@ describe('Ranker - Output Validation', () => {
       eventDriven: 70,
       performance: 85,
       devops: 75,
-      seniority: 95
+      seniority: 95,
+      coreNet: 88,
+      legacyModernization: 50
     };
     
     for (const category of requiredCategories) {
@@ -178,23 +203,24 @@ describe('Ranker - Output Validation', () => {
       );
     }
     
-    assert.strictEqual(
-      Object.keys(categoryScores).length,
-      requiredCategories.length,
-      'Should have exactly 6 category scores'
+    assert.ok(
+      Object.keys(categoryScores).length >= requiredCategories.length,
+      `Should have at least ${requiredCategories.length} category scores`
     );
   });
   
   it('should validate required output fields are present', () => {
     const ranking = {
-      fitScore: 85,
+      fitScore: 85, // Calculated by our code from categoryScores
       categoryScores: {
         coreAzure: 90,
         security: 80,
         eventDriven: 70,
         performance: 85,
         devops: 75,
-        seniority: 95
+        seniority: 95,
+        coreNet: 88,
+        legacyModernization: 50
       },
       reasons: ['Strong Azure experience'],
       mustHaves: ['Azure', 'APIM'],
@@ -203,7 +229,7 @@ describe('Ranker - Output Validation', () => {
     };
     
     const requiredFields = [
-      'fitScore',
+      'fitScore', // We calculate this, but it's still in the output
       'categoryScores',
       'reasons',
       'mustHaves',

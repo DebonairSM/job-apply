@@ -13,23 +13,27 @@ The initial implementation relied solely on AI-generated `must_haves` and `block
 Combines three strategies for comprehensive coverage:
 
 ### 1. Static Keyword Lists (Primary)
-65+ Microsoft ecosystem keywords and 40+ non-Microsoft technologies are highlighted by default.
+Three tiers of keyword highlighting for precise categorization:
 
-**Green (Microsoft Ecosystem):**
+**Green (Microsoft Ecosystem + Terraform):**
 - .NET: C#, VB.NET, ASP.NET, MVC, Entity Framework, LINQ
-- Azure: Functions, APIM, Service Bus, Event Grid, Key Vault
+- Azure: Functions, APIM, Service Bus, Event Grid, Key Vault, AKS
 - Security: OAuth, JWT, Azure AD, Entra ID
-- DevOps: Azure DevOps, GitHub Actions, CI/CD
-- Data: SQL Server, Redis, KQL
-- Patterns: Microservices, Event-Driven, CQRS
-- Role: Senior, Lead, Principal, Remote
+- Microsoft DevOps: Azure DevOps, Azure Pipelines, GitHub Actions
+- Microsoft Data: SQL Server, Serilog
+- Infrastructure as Code: Terraform (exception per requirements)
 
-**Red (Non-Microsoft):**
+**Yellow (Acceptable Cloud):**
+- AWS: AWS, Amazon Web Services, EC2, S3, Lambda, CloudFormation
+- AWS Services: ECS, EKS, RDS, DynamoDB, CloudWatch, SNS, SQS
+
+**Red (Prohibitive/Non-Microsoft):**
 - Languages: Python, Java, Ruby, Go, PHP, Scala, Kotlin
-- Cloud: AWS, GCP, Lambda, EC2, S3
+- Cloud: GCP, Google Cloud Platform
 - Frameworks: Django, Flask, Spring, Rails, Laravel
 - Databases: MongoDB, PostgreSQL, MySQL, Cassandra
-- Tools: Jenkins, Terraform, Ansible
+- DevOps Tools: Jenkins, CircleCI, Ansible
+- Generic Kubernetes (not AKS)
 
 ### 2. Pattern Detection (Context-Aware)
 Regex patterns detect prohibitive requirements in context:
@@ -47,9 +51,11 @@ AI-identified `must_haves` and `blockers` add context-specific keywords that sta
 
 ## Priority Rules
 
-1. Green keywords (Microsoft ecosystem) take precedence
-2. If a keyword appears in both lists, it stays green
-3. Pattern matches are always red (they indicate strong requirements)
+1. Green keywords (Microsoft ecosystem + Terraform) have highest priority
+2. Yellow keywords (AWS) have medium priority
+3. Red keywords (prohibitive) have lowest priority
+4. Higher priority colors cannot be overridden by lower priority ones
+5. Pattern matches are always red (they indicate strong requirements)
 
 ## Benefits
 
@@ -72,13 +78,19 @@ To add new keywords, edit `src/dashboard/client/lib/highlightKeywords.ts`:
 ```typescript
 // Add to MICROSOFT_KEYWORDS for green highlighting
 const MICROSOFT_KEYWORDS = [
-  'New Technology',
+  'New Microsoft Technology',
+  // ...
+];
+
+// Add to ACCEPTABLE_CLOUD_KEYWORDS for yellow highlighting
+const ACCEPTABLE_CLOUD_KEYWORDS = [
+  'AWS Service',
   // ...
 ];
 
 // Add to PROHIBITIVE_KEYWORDS for red highlighting
 const PROHIBITIVE_KEYWORDS = [
-  'Unwanted Technology',
+  'Prohibitive Technology',
   // ...
 ];
 
@@ -97,15 +109,14 @@ Senior Software Engineer
 
 We're looking for a C# developer with Azure experience.
 Must have 5+ years Python experience and strong AWS skills.
-Knowledge of .NET Core and Docker preferred.
+Knowledge of .NET Core and Terraform preferred.
 ```
 
 **Highlighted:**
-- `Senior` → GREEN (seniority match)
 - `C#` → GREEN (Microsoft tech)
 - `Azure` → GREEN (Microsoft cloud)
 - `5+ years Python experience` → RED (pattern match)
-- `AWS` → RED (non-Microsoft cloud)
+- `AWS` → YELLOW (acceptable cloud)
 - `.NET Core` → GREEN (Microsoft tech)
-- `Docker` → GREEN (DevOps tool)
+- `Terraform` → GREEN (infrastructure as code exception)
 

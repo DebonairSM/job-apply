@@ -803,7 +803,12 @@ export async function applyCommand(opts: ApplyOptions): Promise<void> {
 
   const browser = await chromium.launch({
     headless: config.headless,
-    slowMo: config.slowMo
+    slowMo: config.slowMo,
+    args: [
+      '--disable-extensions',  // Prevent browser extensions from interfering
+      '--no-sandbox',
+      '--disable-setuid-sandbox'
+    ]
   });
 
   const context = await browser.newContext({ storageState: STORAGE_STATE_PATH });
