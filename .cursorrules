@@ -1,0 +1,217 @@
+# Job Application Automation Project Rules
+
+## Project Context
+This is a TypeScript/Node.js application that automates job applications on LinkedIn and other job boards using local AI (Ollama + Llama 3.1 8B). Key features:
+
+- **AI-Powered Job Ranking**: Weighted multi-category scoring (Azure/API 20%, Security 15%, .NET 20%, Event-Driven 10%, Performance 10%, Frontend 10%, Legacy Modernization 5%)
+- **Rejection Learning System**: Automatically adjusts weights and filters based on rejection reasons using keyword patterns and LLM analysis
+- **Intelligent Form Automation**: Three-tier mapping system (heuristics → cache → AI) with ATS detection for Greenhouse, Lever, Workday
+- **Selector Learning System**: Captures and learns CSS selectors from successful form fills
+- **AI Content Generation**: Professional headlines and cover letters generated per application
+- **Real-Time Dashboard**: React + Express with TanStack Query, HTTPS, auto-refresh monitoring
+- **Profile-Based Search**: Pre-defined Boolean search queries for targeted job discovery
+- **MCP Servers**: Playwright, Context7, and Azure MCP integrations for debugging and deployment
+
+### Tech Stack
+- TypeScript 5.6
+- Playwright (browser automation)
+- SQLite (better-sqlite3)
+- Ollama + Llama 3.1 8B (local LLM)
+- React 18 + Vite (dashboard frontend)
+- Express (backend API with HTTPS on port 3001)
+- TanStack Query (data fetching and caching)
+- Tailwind CSS (styling)
+- Zod (validation)
+
+## Code Style & Patterns
+
+### TypeScript
+- Use strict TypeScript with explicit types
+- Prefer interfaces over types for object shapes
+- Use type guards for runtime type checking
+- Avoid `any` - use `unknown` if type is truly unknown
+- Use async/await over raw promises
+- Export types alongside implementations
+
+### Error Handling
+- Use custom error classes for domain-specific errors
+- Always handle Playwright errors with appropriate retry logic
+- Log errors with context (job ID, URL, step) for debugging
+- Don't swallow errors silently - at minimum log them
+
+### Database Operations
+- Always use parameterized queries to prevent SQL injection
+- Wrap multi-step operations in transactions
+- Handle SQLITE_BUSY errors with retry logic
+- Close database connections in finally blocks
+
+### AI/LLM Integration
+- Keep prompts in separate functions for maintainability
+- Include error handling for API rate limits
+- Cache expensive LLM calls when possible
+- Structure prompts with clear instructions and examples
+- Validate and sanitize LLM outputs before using
+
+### Playwright Automation
+- Use data-testid selectors when available
+- Fall back to accessible selectors (role, label, text)
+- Avoid brittle CSS selectors that may break with UI changes
+- Take screenshots on failures for debugging
+- Use waitForSelector with reasonable timeouts
+- Store page state for debugging in artifacts/
+
+### React/Dashboard
+- Use TypeScript with React hooks
+- Prefer composition over prop drilling (use contexts for shared state)
+- Keep components focused and single-purpose
+- Use Tailwind for styling (avoid custom CSS unless necessary)
+- Handle loading and error states explicitly
+
+## Testing Requirements
+- Write tests for new features, especially AI/ranking logic
+- Mock external dependencies (Playwright, LLM APIs)
+- Test edge cases (missing data, API failures, timeout scenarios)
+- Use descriptive test names that explain the scenario
+- Keep tests isolated and repeatable
+
+## Documentation
+- Update docs/ when making architectural changes
+- Document new adapters and their specific requirements
+- Keep README.md current with setup instructions
+- Add JSDoc comments for exported functions
+- Explain "why" in comments, not "what" (code shows what)
+
+## File Organization
+- Place new adapters in src/adapters/
+- AI/LLM logic goes in src/ai/
+- Dashboard UI components in src/dashboard/client/components/
+- Backend API routes in src/dashboard/routes/
+- Keep test files adjacent to what they test when possible
+
+## Security & Privacy
+- Never commit credentials or API keys
+- Use environment variables for sensitive config
+- Sanitize user inputs before database storage
+- Don't log sensitive information (passwords, tokens)
+- Handle PII (names, emails) carefully in logs
+
+## Performance
+- Batch database operations when processing many jobs
+- Implement rate limiting for external APIs
+- Use connection pooling for database
+- Cache static data (profiles, configuration)
+- Avoid loading entire job list - paginate when possible
+
+## Common Pitfalls to Avoid
+- Don't assume selectors will stay stable - job sites change often
+- Don't skip error handling in automation flows
+- Don't forget to update both frontend and backend when changing data models
+- Don't ignore TypeScript errors - fix them properly
+- Don't add dependencies without considering bundle size
+
+## When Making Changes
+- Check if similar functionality already exists
+- Consider backward compatibility with existing database data
+- Update related tests
+- Check if documentation needs updating
+- Test manually in dashboard if UI is affected
+
+## System-Specific Features
+
+### Job Status Lifecycle
+Six-state system: queued → applied → interview/rejected, plus skipped and reported
+- **queued**: High-scoring jobs ready for application
+- **applied**: Successfully submitted applications
+- **interview**: Moved to interview stage (manual update)
+- **rejected**: Application rejected (triggers learning system)
+- **skipped**: Low score or failed application
+- **reported**: Moved from queued for manual review, blocks auto-application
+
+### Rejection Learning System
+Located in `src/ai/rejection-analyzer.ts`, `rejection-filters.ts`, `weight-manager.ts`
+- Analyzes rejection reasons using keyword patterns and LLM
+- Adjusts profile category weights immediately (e.g., "too junior" → increase seniority weight)
+- Builds company blocklists for repeated rejections
+- Filters jobs before ranking using learned patterns
+- Dashboard displays active adjustments and learning history
+- When modifying: ensure backward compatibility with existing learning data
+
+### Job Ranking & Scoring
+Located in `src/ai/ranker.ts` and `profiles.ts`
+- Current weights: Core Azure/API 20%, Security 15%, .NET 20%, Event-Driven 10%, Performance 10%, Frontend 10%, Legacy Modernization 5%, DevOps 0%
+- MIN_FIT_SCORE default: 70 (configurable in .env)
+- Profiles contain Boolean search queries and keyword lists per category
+- Available profiles: core, security, event-driven, performance, devops, backend, core-net, legacy-modernization
+- When changing weights: consider impact on existing queued jobs, may need re-scoring
+
+### AI Content Generation
+- **Headlines** (`src/dashboard/routes/headline.ts`): One-sentence professional summaries for applications
+- **Cover Letters** (`src/dashboard/routes/cover-letter.ts`): Job-specific letters based on fit analysis
+- Both use RAG context from resumes in `resumes/` folder
+- Generated on-demand via dashboard, not pre-generated during search
+- Use structured prompts with clear instructions and examples
+
+### Intelligent Field Mapping
+Located in `src/ai/mapper.ts`
+- Three-tier system: heuristics (fast) → cache (medium) → AI (accurate)
+- Heuristics: Pattern matching for common fields (email, phone, name)
+- Cache: Stores successful mappings in database
+- AI: Semantic understanding for complex or ambiguous fields
+- When modifying: test with all three tiers, ensure cache invalidation works
+
+### Selector Learning System
+Located in `tests/learning-system/`
+- Captures successful CSS selectors from form fills
+- Stores in database for reuse
+- Improves reliability over time as more forms are filled
+- Run tests with: `npm run test:learning`
+- When adding new adapters: ensure they integrate with learning system
+
+### ATS Adapters
+Located in `src/adapters/`
+- Must extend BaseAdapter interface
+- Implement: detectJobBoard(), fillApplication()
+- Each adapter handles board-specific quirks
+- **Greenhouse**: Uses data-qa attributes, multi-step forms
+- **Lever**: Single-page, autosaves, custom fields possible
+- **Workday**: Uses iframes, slow loading, complex navigation
+- Generic fallback for unknown boards
+
+### Dashboard Features
+Frontend: `src/dashboard/client/`, Backend: `src/dashboard/`
+- Auto-refreshes every 5 seconds using TanStack Query
+- HTTPS on localhost (ports 3000/3001)
+- Routes: `/stats`, `/jobs`, `/runs`, `/analytics`, `/headline`, `/cover-letter`
+- Uses React contexts for navigation state
+- Custom hooks in `hooks/` for data fetching
+- When adding features: update both frontend and backend, ensure HTTPS works
+
+### MCP Servers Integration
+- **Playwright MCP**: Interactive browser debugging (snapshots, clicks, network monitoring)
+- **Context7 MCP**: Live documentation for Playwright, TypeScript, React
+- **Azure MCP**: Cloud deployment and production monitoring
+- Available for debugging complex automation issues
+- Use browser_snapshot instead of screenshots for interactive debugging
+
+### Testing Structure
+- `tests/`: Main test suites (login, search, mapper, ranker, integration)
+- `tests/learning-system/`: Selector learning tests
+- Run all: `npm run test:all`
+- Run learning only: `npm run test:learning`
+- Tests use in-memory SQLite and mock LLM responses
+- When adding tests: follow existing patterns, keep isolated
+
+### Data Storage
+- `data/app.db`: SQLite database (jobs, applications, learning data)
+- `resumes/`: PDF/DOCX files for RAG context
+- `storage/storageState.json`: LinkedIn session (gitignored)
+- `artifacts/`: Screenshots and Playwright traces for debugging
+- `dist/`: Built dashboard assets
+- When modifying schema: handle migration carefully (SQLite limitations)
+
+### Configuration Files
+- `.env`: Environment variables (MIN_FIT_SCORE, LLM_MODEL, HEADLESS, ENABLE_TRACING)
+- `answers-policy.yml`: Controls application form responses (field length, allowed values)
+- `docker-compose.llm.yml`: Ollama local LLM setup
+- When changing config: update docs and provide migration path
+

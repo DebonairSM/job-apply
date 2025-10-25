@@ -15,9 +15,9 @@
     "test": "tsx --test tests/**/*.test.ts",
     "test:all": "node tests/run-all-tests.cjs",
     "test:learning": "node tests/learning-system/run-learning-tests.cjs",
-    "dashboard:dev": "concurrently --kill-others \"tsx src/dashboard/server.ts\" \"node scripts/wait-for-server.js && vite\"",
+    "dashboard:dev": "concurrently --kill-others \"tsx scripts/start-dev-server.js\" \"node scripts/wait-for-server.js && vite\"",
     "dashboard:build": "vite build",
-    "dashboard:serve": "tsx src/dashboard/server.ts",
+    "dashboard:serve": "tsx scripts/start-prod-server.js",
     "dashboard:prod": "npm run dashboard:build && npm run dashboard:serve"
   },
   "dependencies": {

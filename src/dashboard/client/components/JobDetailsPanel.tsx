@@ -5,7 +5,7 @@ import { JobDescriptionPanel } from './JobDescriptionPanel';
 import { ChipList } from './ChipList';
 import { CategoryScores } from './CategoryScoreBar';
 import { DataQualityBadge } from './DataQualityBadge';
-import { formatDate } from '../lib/dateUtils';
+import { formatDate, formatRelativeTime } from '../lib/dateUtils';
 import { CoverLetterModal } from './CoverLetterModal';
 import { HeadlineSummaryModal } from './HeadlineSummaryModal';
 
@@ -124,7 +124,7 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
   };
 
   const formatDateLocal = (dateString: string | undefined): string => {
-    return formatDate(dateString, job.created_at);
+    return formatRelativeTime(dateString);
   };
 
   const dataQualityFields = assessDataQuality();
@@ -135,189 +135,215 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
   const blockers = formatJsonField(job.blockers);
 
   return (
-    <div className="bg-gray-50 border-t border-gray-200 p-3 sm:p-6">
+    <div className="bg-gradient-to-br from-gray-50 to-gray-100 border-t-2 border-gray-300 p-4 sm:p-6">
       {/* Header with Title and Data Quality Badge */}
-      <div className="mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-2 sm:gap-4">
-          <h3 className="text-base sm:text-lg font-semibold text-gray-900">Job Analysis</h3>
+      <div className="mb-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <h3 className="text-lg font-bold text-gray-900">Job Analysis</h3>
           <DataQualityBadge 
             fields={dataQualityFields}
             onClick={() => setShowCompleteData(true)}
           />
         </div>
-        <div className="flex flex-col sm:flex-row gap-2">
+        <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setShowCoverLetterModal(true)}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md font-medium transition-all hover:shadow-md flex items-center gap-2 text-sm"
           >
             <span>📝</span>
             <span>Generate Cover Letter</span>
           </button>
           <button
             onClick={() => setShowHeadlineSummary(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-all hover:shadow-md flex items-center gap-2 text-sm"
           >
             <span>📋</span>
             <span>Headline Summary</span>
           </button>
           <button
             onClick={() => setShowCompleteData(true)}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
+            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-md font-medium transition-all hover:shadow-md flex items-center gap-2 text-sm"
           >
             <span>🔍</span>
             <span className="hidden sm:inline">View All Data</span>
-            <span className="sm:hidden">All Data</span>
+            <span className="sm:hidden">Data</span>
           </button>
         </div>
       </div>
 
-      <div className="space-y-4 sm:space-y-6">
-        {/* Key Info Section */}
-        <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
-          <h4 className="text-sm sm:text-md font-semibold text-gray-800 mb-3">Job Information</h4>
-          <div className="grid grid-cols-1 gap-3 sm:gap-4">
-            <div>
-              <label className="text-xs sm:text-sm font-medium text-gray-600">Job URL</label>
-              <div className="mt-1">
-                <a 
-                  href={job.url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 text-xs sm:text-sm break-all"
-                >
-                  {job.url}
-                </a>
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Left Column - Job Information */}
+        <div className="lg:col-span-1 space-y-4">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <span className="text-blue-600">ℹ️</span>
+              Job Information
+            </h4>
+            <div className="space-y-3">
               <div>
-                <label className="text-xs sm:text-sm font-medium text-gray-600">Posted Date</label>
-                <div className="mt-1 text-xs sm:text-sm text-gray-900">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Job URL</label>
+                <div className="mt-1">
+                  <a 
+                    href={job.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 text-xs break-all underline"
+                  >
+                    {job.url}
+                  </a>
+                </div>
+              </div>
+              
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Posted Date</label>
+                <div className="mt-1 text-sm text-gray-900">
                   {formatDateLocal(job.posted_date)}
                 </div>
               </div>
               
               <div>
-                <label className="text-xs sm:text-sm font-medium text-gray-600">Created</label>
-                <div className="mt-1 text-xs sm:text-sm text-gray-900">
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Created</label>
+                <div className="mt-1 text-sm text-gray-900">
                   {formatDateLocal(job.created_at)}
                 </div>
               </div>
+              
+              {job.status_updated_at && job.status_updated_at !== job.created_at && (
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Status Updated</label>
+                  <div className="mt-1 text-sm text-gray-900">
+                    {formatDateLocal(job.status_updated_at)}
+                  </div>
+                </div>
+              )}
             </div>
             
-            {job.status_updated_at && job.status_updated_at !== job.created_at && (
-              <div>
-                <label className="text-xs sm:text-sm font-medium text-gray-600">Status Updated</label>
-                <div className="mt-1 text-xs sm:text-sm text-gray-900">
-                  {formatDateLocal(job.status_updated_at)}
-                </div>
+            {job.description && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <button
+                  onClick={() => setShowDescriptionPanel(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-all hover:shadow-md flex items-center justify-center gap-2 text-sm w-full"
+                >
+                  <span>📄</span>
+                  <span>View Full Description</span>
+                </button>
               </div>
             )}
           </div>
-          
-          {job.description && (
-            <div className="mt-4">
-              <button
-                onClick={() => setShowDescriptionPanel(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 text-sm sm:text-base w-full sm:w-auto"
-              >
-                <span>📄</span>
-                <span className="hidden sm:inline">View Full Description</span>
-                <span className="sm:hidden">View Description</span>
-              </button>
+
+          {/* Application Details in Left Column */}
+          {(job.applied_method || job.rejection_reason) && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <span className="text-purple-600">📋</span>
+                Application Details
+              </h4>
+              <div className="space-y-3">
+                {job.applied_method && (
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Applied Method</label>
+                    <div className="mt-1">
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${
+                        job.applied_method === 'manual' 
+                          ? 'bg-blue-100 text-blue-800' 
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        {job.applied_method === 'manual' ? '✅ Manual' : '🤖 Automatic'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+                
+                {job.rejection_reason && (
+                  <div>
+                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Rejection Reason</label>
+                    <div className="mt-1 text-sm text-gray-900 bg-red-50 p-3 rounded-md border border-red-200">
+                      {job.rejection_reason}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
 
-        {/* AI Analysis Section */}
-        <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
-          <h4 className="text-sm sm:text-md font-semibold text-gray-800 mb-3 sm:mb-4">AI Analysis</h4>
-          <div className="space-y-3 sm:space-y-4">
-            {/* Fit Reasons */}
-            <div>
-              <label className="text-xs sm:text-sm font-medium text-gray-600 mb-2 block">Fit Reasons</label>
-              <ChipList 
-                items={Array.isArray(fitReasons) ? fitReasons : (fitReasons ? [fitReasons] : [])}
-                variant="fit"
-              />
-            </div>
-
-            {/* Must Haves */}
-            <div>
-              <label className="text-xs sm:text-sm font-medium text-gray-600 mb-2 block">Must Haves</label>
-              <ChipList 
-                items={Array.isArray(mustHaves) ? mustHaves : (mustHaves ? [mustHaves] : [])}
-                variant="must-have"
-              />
-            </div>
-
-            {/* Blockers */}
-            <div>
-              <label className="text-xs sm:text-sm font-medium text-gray-600 mb-2 block">Blockers</label>
-              <ChipList 
-                items={Array.isArray(blockers) ? blockers : (blockers ? [blockers] : [])}
-                variant="blocker"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Performance Metrics */}
-        <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
-          <h4 className="text-sm sm:text-md font-semibold text-gray-800 mb-3 sm:mb-4">Performance Metrics</h4>
-          <div className="space-y-3 sm:space-y-4">
-            {/* Category Scores */}
-            {categoryScores && (
+        {/* Middle Column - AI Analysis */}
+        <div className="lg:col-span-1">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 h-full">
+            <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <span className="text-green-600">🤖</span>
+              AI Analysis
+            </h4>
+            <div className="space-y-4">
+              {/* Fit Reasons */}
               <div>
-                <CategoryScores scores={categoryScores} />
-              </div>
-            )}
-
-            {/* Missing Keywords */}
-            {missingKeywords && (
-              <div>
-                <label className="text-xs sm:text-sm font-medium text-gray-600 mb-2 block">Missing Keywords</label>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">
+                  Fit Reasons
+                </label>
                 <ChipList 
-                  items={Array.isArray(missingKeywords) ? missingKeywords : [missingKeywords]}
-                  variant="missing"
+                  items={Array.isArray(fitReasons) ? fitReasons : (fitReasons ? [fitReasons] : [])}
+                  variant="fit"
                 />
               </div>
-            )}
+
+              {/* Must Haves */}
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">
+                  Must Haves
+                </label>
+                <ChipList 
+                  items={Array.isArray(mustHaves) ? mustHaves : (mustHaves ? [mustHaves] : [])}
+                  variant="must-have"
+                />
+              </div>
+
+              {/* Blockers */}
+              <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">
+                  Blockers
+                </label>
+                <ChipList 
+                  items={Array.isArray(blockers) ? blockers : (blockers ? [blockers] : [])}
+                  variant="blocker"
+                />
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Application Details */}
-        {(job.applied_method || job.rejection_reason) && (
-          <div className="bg-white rounded-lg border border-gray-200 p-3 sm:p-4">
-            <h4 className="text-sm sm:text-md font-semibold text-gray-800 mb-3 sm:mb-4">Application Details</h4>
-            <div className="space-y-3">
-              {job.applied_method && (
+        {/* Right Column - Performance Metrics */}
+        <div className="lg:col-span-1">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 h-full">
+            <h4 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <span className="text-orange-600">📊</span>
+              Performance Metrics
+            </h4>
+            <div className="space-y-4">
+              {/* Category Scores */}
+              {categoryScores && (
                 <div>
-                  <label className="text-xs sm:text-sm font-medium text-gray-600">Applied Method</label>
-                  <div className="mt-1">
-                    <span className={`px-2 sm:px-3 py-1 rounded-full text-xs sm:text-sm font-medium ${
-                      job.applied_method === 'manual' 
-                        ? 'bg-blue-100 text-blue-800' 
-                        : 'bg-green-100 text-green-800'
-                    }`}>
-                      {job.applied_method === 'manual' ? '🤖 Manual' : '⚡ Automatic'}
-                    </span>
-                  </div>
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 block">
+                    Category Scores
+                  </label>
+                  <CategoryScores scores={categoryScores} />
                 </div>
               )}
-              
-              {job.rejection_reason && (
-                <div>
-                  <label className="text-xs sm:text-sm font-medium text-gray-600">Rejection Reason</label>
-                  <div className="mt-1 text-xs sm:text-sm text-gray-900 bg-red-50 p-2 sm:p-3 rounded-lg border border-red-200">
-                    {job.rejection_reason}
-                  </div>
+
+              {/* Missing Keywords */}
+              {missingKeywords && (
+                <div className="mt-4">
+                  <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">
+                    Missing Keywords
+                  </label>
+                  <ChipList 
+                    items={Array.isArray(missingKeywords) ? missingKeywords : [missingKeywords]}
+                    variant="missing"
+                  />
                 </div>
               )}
             </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Job Description Panel */}

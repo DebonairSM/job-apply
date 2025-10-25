@@ -2,6 +2,7 @@ import { useStats } from '../hooks/useStats';
 import { useRecentActivity } from '../hooks/useRecentActivity';
 import { StatCard } from './StatCard';
 import { LearningPanel } from './LearningPanel';
+import { formatRelativeTime } from '../lib/dateUtils';
 
 export function Dashboard() {
   const { data: stats, isLoading: statsLoading } = useStats();
@@ -195,11 +196,8 @@ export function Dashboard() {
                       const label = job.status_updated_at ? 'Action' : 'Found';
                       
                       if (timestamp) {
-                        const formattedTime = timestamp.includes('Z') ? timestamp : `${timestamp}Z`;
-                        const date = new Date(formattedTime).toLocaleString(undefined, {
-                          month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true
-                        });
-                        return `${label}: ${date}`;
+                        const relativeTime = formatRelativeTime(timestamp);
+                        return `${label}: ${relativeTime}`;
                       }
                       return 'N/A';
                     })()}

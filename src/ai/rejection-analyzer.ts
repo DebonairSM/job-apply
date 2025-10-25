@@ -75,6 +75,54 @@ export function analyzeRejectionKeywords(reason: string): RejectionPattern[] {
   return patterns;
 }
 
+// Tech stack to profile category mapping for accurate weight adjustments
+const TECH_CATEGORY_MAP: Record<string, string> = {
+  'python': 'coreAzure',
+  'java': 'coreAzure',
+  'javascript': 'coreAzure',
+  'typescript': 'coreAzure',
+  'react': 'coreAzure',
+  'angular': 'coreAzure',
+  'vue': 'coreAzure',
+  'node.js': 'coreAzure',
+  'node': 'coreAzure',
+  'kubernetes': 'devops',
+  'docker': 'devops',
+  'terraform': 'devops',
+  'ansible': 'devops',
+  'jenkins': 'devops',
+  'github actions': 'devops',
+  'azure devops': 'devops',
+  'redis': 'performance',
+  'elasticsearch': 'performance',
+  'memcached': 'performance',
+  'kafka': 'eventDriven',
+  'rabbitmq': 'eventDriven',
+  'service bus': 'eventDriven',
+  'event grid': 'eventDriven',
+  'oauth': 'security',
+  'jwt': 'security',
+  'saml': 'security',
+  'entra': 'security',
+  'active directory': 'security',
+  '.net': 'coreNet',
+  'c#': 'coreNet',
+  'asp.net': 'coreNet',
+  'entity framework': 'coreNet',
+  'vb.net': 'legacyModernization',
+  'webforms': 'legacyModernization',
+};
+
+function getTechCategory(techValue: string): string {
+  const lowerTech = techValue.toLowerCase();
+  for (const [tech, category] of Object.entries(TECH_CATEGORY_MAP)) {
+    if (lowerTech.includes(tech)) {
+      return category;
+    }
+  }
+  return 'coreAzure'; // Default fallback
+}
+
 // Convert rejection patterns to weight adjustments with correct logic
 export function convertPatternsToAdjustments(patterns: RejectionPattern[]): SuggestedAdjustment[] {
   const adjustments: SuggestedAdjustment[] = [];
@@ -86,30 +134,34 @@ export function convertPatternsToAdjustments(patterns: RejectionPattern[]): Sugg
       case 'seniority':
         if (pattern.value.includes('junior') || pattern.value.includes('not senior') || pattern.value.includes('not enough experience')) {
           // Too junior = need MORE seniority
+          const magnitude = Math.ceil(pattern.confidence * 3); // 0.8 conf = +2.4%, 0.9 = +2.7%
           adjustment = {
             category: 'seniority',
             currentWeight: 5, // Will be updated with actual current weight
-            adjustment: +2,
-            reason: `Too junior - prioritizing more senior jobs`
+            adjustment: magnitude,
+            reason: `Too junior - prioritizing more senior jobs (confidence: ${pattern.confidence.toFixed(2)})`
           };
         } else if (pattern.value.includes('senior') || pattern.value.includes('overqualified')) {
           // Too senior = need LESS seniority
+          const magnitude = Math.ceil(pattern.confidence * 3);
           adjustment = {
             category: 'seniority',
             currentWeight: 5,
-            adjustment: -2,
-            reason: `Too senior - considering mid-level jobs`
+            adjustment: -magnitude,
+            reason: `Too senior - considering mid-level jobs (confidence: ${pattern.confidence.toFixed(2)})`
           };
         }
         break;
         
       case 'techStack':
-        // Wrong tech stack = need LESS of that tech
+        // Wrong tech stack = need LESS of that tech (map to correct category)
+        const targetCategory = getTechCategory(pattern.value);
+        const magnitude = Math.ceil(pattern.confidence * 3);
         adjustment = {
-          category: 'coreAzure', // Default to coreAzure, could be more specific
-          currentWeight: 20,
-          adjustment: -2,
-          reason: `Wrong tech stack - avoiding ${pattern.value}`
+          category: targetCategory,
+          currentWeight: 20, // Will be updated with actual current weight
+          adjustment: -magnitude,
+          reason: `Wrong tech stack - avoiding ${pattern.value} (confidence: ${pattern.confidence.toFixed(2)})`
         };
         break;
         
@@ -118,11 +170,12 @@ export function convertPatternsToAdjustments(patterns: RejectionPattern[]): Sugg
             pattern.value.includes('onsite') || pattern.value.includes('hybrid') || 
             pattern.value.includes('office work') || pattern.value.includes('in office')) {
           // Not remote = need MORE remote jobs
+          const magnitude = Math.ceil(pattern.confidence * 2);
           adjustment = {
             category: 'performance', // Could be a separate remote category
             currentWeight: 10,
-            adjustment: +1,
-            reason: `Location issue - prioritizing remote jobs`
+            adjustment: magnitude,
+            reason: `Location issue - prioritizing remote jobs (confidence: ${pattern.confidence.toFixed(2)})`
           };
         }
         break;
@@ -131,11 +184,12 @@ export function convertPatternsToAdjustments(patterns: RejectionPattern[]): Sugg
         if (pattern.value.includes('too expensive') || pattern.value.includes('over budget') || 
             pattern.value.includes('salary expectations') || pattern.value.includes('budget constraints')) {
           // Too expensive = need LESS expensive jobs
+          const magnitude = Math.ceil(pattern.confidence * 2);
           adjustment = {
             category: 'seniority', // Senior jobs tend to be more expensive
             currentWeight: 5,
-            adjustment: -1,
-            reason: `Compensation issue - considering mid-level roles`
+            adjustment: -magnitude,
+            reason: `Compensation issue - considering mid-level roles (confidence: ${pattern.confidence.toFixed(2)})`
           };
         }
         break;

@@ -2,6 +2,8 @@
 
 Automatically search, rank, and apply to LinkedIn jobs using local AI.
 
+> **Note for AI Assistants**: This project uses `.cursorrules` to guide development. When updating the codebase, ensure `.cursorrules` stays synchronized with this README and the actual implementation details. If architectural changes are made, update `.cursorrules` accordingly to maintain accurate context for AI-assisted development.
+
 ## Requirements
 
 - **Node.js 20+**: https://nodejs.org/
@@ -185,9 +187,13 @@ Open https://localhost:3000 to access:
 - Activity log with run history
 - Auto-refreshing every 5 seconds
 
-**Dashboard Features (Phase A - Complete):**
-- Real-time job statistics with success rate calculation
+**Dashboard Features:**
+- Real-time job statistics with success rate calculation and trend tracking
+- AI-generated professional headline summaries for job applications
+- AI-powered cover letter generation based on job fit analysis
 - Filterable jobs table with status and Easy Apply filtering
+- Comprehensive analytics: application timeline, company statistics, rank distribution
+- Rejection learning system monitoring with weight adjustments and pattern tracking
 - Activity log with run history and success/failure indicators
 - Screenshot availability indicators for debugging
 - Responsive layout with tab-based navigation
@@ -212,7 +218,13 @@ Place resumes (PDF or DOCX) in `resumes/` folder.
 
 ## Job Scoring
 
-AI evaluates jobs across weighted categories (Core Azure/API Skills 20%, Security 15%, Event-Driven 10%, Performance 10%, DevOps 5%, Seniority 5%, Core .NET Development 20%, Legacy Modernization 10%). Scores above 70 are queued for application.
+AI evaluates jobs across weighted categories (Core Azure/API Skills 20%, Security 15%, Event-Driven 10%, Performance 10%, Seniority & Remote Work 10%, Core .NET Development 20%, Frontend Frameworks 10%, Legacy Modernization 5%). DevOps has 0% weight as it overlaps with other categories. Scores above 70 are queued for application.
+
+Current preferences:
+- **Frontend Frameworks**: Prioritizes Blazor and React over Angular
+- **Remote Work**: Strong emphasis on fully remote positions over hybrid or on-site
+
+See [Ranking Customization Guide](docs/RANKING_CUSTOMIZATION_GUIDE.md) for details on adjusting technology preferences and category weights.
 
 ## Common Issues
 
@@ -226,6 +238,18 @@ npm run login
 # Check debug info
 ls artifacts/  # Screenshots and traces from failed applications
 ```
+
+## Key AI Features
+
+This system uses local AI (Ollama) to provide sophisticated automation:
+
+- **Job Ranking**: Analyzes job descriptions against your profile with weighted category scoring (Azure/API 20%, Security 15%, .NET 20%, etc.)
+- **Professional Headlines**: Generates customized one-sentence summaries for each job application that highlight your relevant expertise
+- **Cover Letters**: Creates job-specific cover letters based on fit analysis, required skills, and your profile
+- **Form Field Mapping**: Intelligently maps application questions to your answers using semantic understanding
+- **Rejection Learning**: Analyzes rejection reasons to automatically adjust scoring weights and filter out similar jobs
+
+All AI processing runs locally without external API calls, ensuring privacy and zero costs.
 
 ## How It Works
 
@@ -321,9 +345,11 @@ This application demonstrates sophisticated capabilities that can be applied to 
 
 ### 🧠 **Advanced AI Integration**
 - **Local LLM Processing**: Runs entirely offline using Ollama with configurable models and temperature settings
+- **AI-Generated Professional Headlines**: Automatically generates one-sentence summaries for job application forms, customized to each position
+- **AI-Powered Cover Letter Generation**: Creates job-specific cover letters based on fit analysis, category scores, and candidate profile
 - **Structured AI Output**: Enforces JSON schema validation with retry logic for consistent AI responses
 - **Context-Aware Generation**: Uses RAG (Retrieval-Augmented Generation) with resume context for personalized responses
-- **Multi-step AI Workflows**: Chained AI operations (ranking → answer generation → field mapping) with error handling
+- **Multi-step AI Workflows**: Chained AI operations (ranking → answer generation → field mapping → headline/cover letter generation) with error handling
 
 ### 🔄 **Smart Form Automation**
 - **ATS Detection & Adaptation**: Automatically detects and adapts to different Applicant Tracking Systems (Greenhouse, Lever, Workday)
@@ -334,9 +360,12 @@ This application demonstrates sophisticated capabilities that can be applied to 
 
 ### 📊 **Real-time Monitoring Dashboard**
 - **Live Statistics**: Real-time metrics with auto-refresh and success rate calculations
+- **Application Timeline Analytics**: Track application trends over time with manual vs automatic method breakdown
+- **Company Performance Tracking**: Per-company statistics including success rates, average rankings, and interview conversion
+- **Rank Distribution Analysis**: Visualize job score distribution to optimize filtering thresholds
+- **Rejection Learning Monitor**: View active weight adjustments, rejection patterns, and learning history in real-time
 - **Comprehensive Activity Logging**: Detailed execution logs with timestamps, screenshots, and error tracking
-- **Visual Analytics**: Interactive charts and graphs for performance trends and insights
-- **Multi-view Interface**: Dashboard overview, detailed job lists, and activity monitoring in separate views
+- **Multi-view Interface**: Dashboard overview, detailed job lists, activity monitoring, and learning insights in separate views
 
 ### 🧠 **Rejection Reason Learning System**
 - **Immediate Weight Adjustment**: Each rejection triggers analysis using keyword patterns and LLM to adjust profile category weights automatically
@@ -411,12 +440,15 @@ This application demonstrates sophisticated capabilities that can be applied to 
 - `login.ts` - Authenticate with LinkedIn
 
 **AI** (`src/ai/`)
-- `ranker.ts` - Score jobs against your profile
-- `answers.ts` - Generate application responses
+- `ranker.ts` - Score jobs against your profile with weighted categories
+- `answers.ts` - Generate application responses using RAG context
 - `mapper.ts` - Map canonical fields to ATS-specific fields
 - `profiles.ts` - Boolean search queries for job profiles
 - `client.ts` - Ollama LLM integration with retry logic
-- `rag.ts` - Resume context retrieval
+- `rag.ts` - Resume context retrieval for personalization
+- `rejection-analyzer.ts` - Analyze rejection reasons and adjust weights
+- `rejection-filters.ts` - Pattern-based job filtering from learned rejections
+- `weight-manager.ts` - Dynamic weight adjustment system
 
 **Adapters** (`src/adapters/`)
 - `base.ts` - ATS adapter interface
@@ -425,11 +457,17 @@ This application demonstrates sophisticated capabilities that can be applied to 
 - `workday.ts` - Workday ATS support
 
 **Dashboard** (`src/dashboard/`)
-- `server.ts` - Express API server (port 3001)
-- `routes/` - REST API endpoints (stats, jobs, runs, analytics)
-- `client/` - React frontend application (port 3000)
-  - `components/` - UI components (Dashboard, JobsList, ActivityLog)
-  - `hooks/` - Custom React hooks for data fetching
+- `server.ts` - Express API server with HTTPS support (port 3001)
+- `routes/` - REST API endpoints
+  - `stats.ts` - Real-time statistics and success rates
+  - `jobs.ts` - Job listings with filtering and search
+  - `runs.ts` - Execution history and run tracking
+  - `analytics.ts` - Timeline, company stats, rank distribution, learning metrics
+  - `headline.ts` - AI-generated professional headline summaries
+  - `cover-letter.ts` - AI-powered cover letter generation
+- `client/` - React frontend application with Vite (port 3000)
+  - `components/` - UI components (Dashboard, JobsList, ActivityLog, LearningPanel)
+  - `hooks/` - Custom React hooks for data fetching with TanStack Query
   - `lib/` - Frontend utilities and API client
 
 **Library** (`src/lib/`)
@@ -455,12 +493,13 @@ This application demonstrates sophisticated capabilities that can be applied to 
 - Zod (validation)
 - Yargs (CLI)
 
-**Dashboard**
-- React (frontend framework)
-- Express (backend API server)
-- TanStack Query (data fetching & caching)
-- Tailwind CSS (styling)
-- Vite (build tool & dev server)
+**Dashboard & Analytics**
+- React 18 (frontend framework)
+- Express (backend API server with HTTPS)
+- TanStack Query (data fetching, caching, auto-refresh)
+- Tailwind CSS (styling and responsive design)
+- Vite (build tool, dev server, hot reload)
+- Chart components for analytics visualization
 
 ### Tests
 
@@ -484,6 +523,7 @@ npx tsx --test tests/integration.test.ts
 
 Additional documentation is available in the `docs/` folder:
 
+- [Ranking Customization Guide](docs/RANKING_CUSTOMIZATION_GUIDE.md) - How to customize job ranking and adjust technology preferences
 - [Profile Creation Guide](docs/PROFILE_CREATION_GUIDE.md) - How to create new search profiles
 - [Testing Guide](docs/TESTING_GUIDE.md) - Comprehensive testing system documentation
 - [Dashboard Monitoring System](docs/dashboard-monitoring-system.plan.md) - Complete dashboard architecture and development plan
@@ -491,7 +531,19 @@ Additional documentation is available in the `docs/` folder:
 - [Dashboard Status](docs/DASHBOARD_STATUS.md) - Current dashboard implementation status
 - [HTTPS Setup](docs/HTTPS_SETUP_COMPLETE.md) - HTTPS configuration guide
 - [Phase A Test Report](docs/PHASE_A_TEST_REPORT.md) - Testing results and validation
+- [Cursor Customization Guide](docs/CURSOR_CUSTOMIZATION_GUIDE.md) - How to customize Cursor AI for this project
+- [Additional Cursor Rules Examples](docs/CURSORRULES_EXAMPLES.md) - Optional rules for `.cursorrules`
 - [Documentation Index](docs/README.md) - Complete documentation overview
+
+### For AI Assistants
+
+When working on this project, please keep the following in mind:
+
+1. **Keep `.cursorrules` Synchronized**: After making significant architectural changes, update `.cursorrules` to reflect new features, file locations, or behavioral changes
+2. **Reference the README**: The README contains the current state of features, weights, profiles, and system architecture
+3. **Follow System Patterns**: Use the existing patterns for adapters, AI modules, dashboard components, and tests
+4. **Test Integration**: When adding features, ensure they integrate properly with existing systems (rejection learning, selector learning, dashboard, etc.)
+5. **Update Documentation**: Update relevant docs when making architectural changes
 
 ## Disclaimer
 

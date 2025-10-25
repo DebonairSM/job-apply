@@ -41,7 +41,8 @@ describe('Rejection Logic Fix Tests', () => {
       
       const seniorityAdjustment = adjustments.find(adj => adj.category === 'seniority');
       assert.ok(seniorityAdjustment, 'Should have seniority adjustment');
-      assert.strictEqual(seniorityAdjustment.adjustment, +2, 'Should increase seniority weight');
+      // With 0.8 confidence: 0.8 * 3 = 2.4 → ceil = 3
+      assert.strictEqual(seniorityAdjustment.adjustment, +3, 'Should increase seniority weight');
       assert.ok(seniorityAdjustment.reason.includes('Too junior'), 'Should explain the reason');
     });
 
@@ -53,7 +54,8 @@ describe('Rejection Logic Fix Tests', () => {
       
       const seniorityAdjustment = adjustments.find(adj => adj.category === 'seniority');
       assert.ok(seniorityAdjustment, 'Should have seniority adjustment');
-      assert.strictEqual(seniorityAdjustment.adjustment, -2, 'Should decrease seniority weight');
+      // With 0.8 confidence: 0.8 * 3 = 2.4 → ceil = 3
+      assert.strictEqual(seniorityAdjustment.adjustment, -3, 'Should decrease seniority weight');
       assert.ok(seniorityAdjustment.reason.includes('Too senior'), 'Should explain the reason');
     });
 
@@ -65,7 +67,8 @@ describe('Rejection Logic Fix Tests', () => {
       
       const techAdjustment = adjustments.find(adj => adj.category === 'coreAzure');
       assert.ok(techAdjustment, 'Should have tech adjustment');
-      assert.strictEqual(techAdjustment.adjustment, -2, 'Should decrease tech weight');
+      // With 0.8 confidence: 0.8 * 3 = 2.4 → ceil = 3
+      assert.strictEqual(techAdjustment.adjustment, -3, 'Should decrease tech weight');
       assert.ok(techAdjustment.reason.includes('Wrong tech stack'), 'Should explain the reason');
     });
 
@@ -77,7 +80,8 @@ describe('Rejection Logic Fix Tests', () => {
       
       const locationAdjustment = adjustments.find(adj => adj.category === 'performance');
       assert.ok(locationAdjustment, 'Should have location adjustment');
-      assert.strictEqual(locationAdjustment.adjustment, +1, 'Should increase remote job priority');
+      // With 0.8 confidence: 0.8 * 2 = 1.6 → ceil = 2
+      assert.strictEqual(locationAdjustment.adjustment, +2, 'Should increase remote job priority');
       assert.ok(locationAdjustment.reason.includes('Location issue'), 'Should explain the reason');
     });
 
@@ -89,7 +93,8 @@ describe('Rejection Logic Fix Tests', () => {
       
       const compAdjustment = adjustments.find(adj => adj.category === 'seniority');
       assert.ok(compAdjustment, 'Should have compensation adjustment');
-      assert.strictEqual(compAdjustment.adjustment, -1, 'Should decrease seniority weight');
+      // With 0.8 confidence: 0.7 * 2 = 1.4 → ceil = 2
+      assert.strictEqual(compAdjustment.adjustment, -2, 'Should decrease seniority weight');
       assert.ok(compAdjustment.reason.includes('Compensation issue'), 'Should explain the reason');
     });
   });
@@ -107,8 +112,9 @@ describe('Rejection Logic Fix Tests', () => {
       assert.ok(seniorityAdjustment, 'Should have seniority adjustment');
       assert.ok(techAdjustment, 'Should have tech adjustment');
       
-      assert.strictEqual(seniorityAdjustment.adjustment, +2, 'Should increase seniority');
-      assert.strictEqual(techAdjustment.adjustment, -2, 'Should decrease tech weight');
+      // With 0.8 confidence: 0.8 * 3 = 2.4 → ceil = 3
+      assert.strictEqual(seniorityAdjustment.adjustment, +3, 'Should increase seniority');
+      assert.strictEqual(techAdjustment.adjustment, -3, 'Should decrease tech weight');
     });
   });
 
@@ -145,25 +151,25 @@ describe('Rejection Logic Fix Tests', () => {
         {
           reason: 'Too junior',
           expectedCategory: 'seniority',
-          expectedAdjustment: +2,
+          expectedAdjustment: +3,  // 0.8 confidence * 3 = 2.4 → ceil = 3
           explanation: 'Need MORE senior jobs'
         },
         {
           reason: 'Overqualified',
           expectedCategory: 'seniority', 
-          expectedAdjustment: -2,
+          expectedAdjustment: -3,  // 0.8 confidence * 3 = 2.4 → ceil = 3
           explanation: 'Need LESS senior jobs'
         },
         {
           reason: 'Wrong tech stack',
           expectedCategory: 'coreAzure',
-          expectedAdjustment: -2,
+          expectedAdjustment: -3,  // 0.8 confidence * 3 = 2.4 → ceil = 3
           explanation: 'Need LESS of that tech'
         },
         {
           reason: 'Not remote',
           expectedCategory: 'performance',
-          expectedAdjustment: +1,
+          expectedAdjustment: +2,  // 0.8 confidence * 2 = 1.6 → ceil = 2
           explanation: 'Need MORE remote jobs'
         }
       ];

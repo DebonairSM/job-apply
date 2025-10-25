@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Build outputs
+dist/
+build/
+*.js.map
+*.css.map
+
+# Database files (binary)
+*.db
+*.db-shm
+*.db-wal
+
+# Test artifacts and screenshots
+artifacts/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+trace.zip
+
+# Logs
+*.log
+logs/
+
+# Environment and secrets
+.env
+.env.local
+.env.production
+storageState.json
+
+# IDE specific
+.vscode/
+.idea/
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Resumes (binary docs)
+resumes/*.docx
+resumes/*.pdf
+
+# Large data files
+data/*.json
+data/*.csv
+
+# Build config outputs (generated)
+tsconfig.tsbuildinfo
+

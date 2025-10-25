@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import https from 'https';
+import http from 'http';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -15,7 +16,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3002;
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
@@ -43,21 +44,34 @@ if (process.env.NODE_ENV === 'production') {
   const clientBuildPath = join(__dirname, '../../dist/client');
   app.use(express.static(clientBuildPath));
   
-  app.get('*', (req, res) => {
+  // Catch-all route for SPA - must be after API routes
+  app.use((req, res) => {
     res.sendFile(join(clientBuildPath, 'index.html'));
   });
 }
 
-// HTTPS options
-const httpsOptions = {
-  key: fs.readFileSync(join(__dirname, '../../localhost+2-key.pem')),
-  cert: fs.readFileSync(join(__dirname, '../../localhost+2.pem'))
-};
+// Determine if we should use HTTPS or HTTP
+const useHttps = fs.existsSync(join(__dirname, '../../localhost+2-key.pem'));
 
-// Start HTTPS server
-https.createServer(httpsOptions, app).listen(Number(PORT), '0.0.0.0', () => {
-  console.log(`📊 Dashboard server running on https://localhost:${PORT}`);
-  console.log(`   API available at https://localhost:${PORT}/api`);
-  console.log(`   Network access: https://192.168.1.214:${PORT}`);
-});
+if (useHttps) {
+  // HTTPS options
+  const httpsOptions = {
+    key: fs.readFileSync(join(__dirname, '../../localhost+2-key.pem')),
+    cert: fs.readFileSync(join(__dirname, '../../localhost+2.pem'))
+  };
+
+  // Start HTTPS server
+  https.createServer(httpsOptions, app).listen(Number(PORT), '0.0.0.0', () => {
+    console.log(`📊 Dashboard server running on https://localhost:${PORT}`);
+    console.log(`   API available at https://localhost:${PORT}/api`);
+    console.log(`   Network: https://192.168.1.214:${PORT} (accept certificate warning)`);
+  });
+} else {
+  // Start HTTP server (fallback if no certificates)
+  http.createServer(app).listen(Number(PORT), '0.0.0.0', () => {
+    console.log(`📊 Dashboard server running on http://localhost:${PORT}`);
+    console.log(`   API available at http://localhost:${PORT}/api`);
+    console.log(`   Network: http://192.168.1.214:${PORT}`);
+  });
+}
 

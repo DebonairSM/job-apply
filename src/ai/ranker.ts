@@ -68,13 +68,34 @@ async function generateProfileScoringCriteria(profileKey: string): Promise<{
   };
 }
 
+// Smart truncation that preserves complete sections
+function smartTruncate(description: string, maxChars: number = 1000): string {
+  if (description.length <= maxChars) return description;
+  
+  // Try to preserve complete sections (paragraphs/bullet points)
+  const sections = description.split(/\n\n+/);
+  let result = '';
+  
+  for (const section of sections) {
+    if ((result + section).length > maxChars) break;
+    result += section + '\n\n';
+  }
+  
+  // If we got less than 80% of target, just do hard truncate
+  if (result.length < maxChars * 0.8) {
+    result = description.substring(0, maxChars);
+  }
+  
+  return result.trim();
+}
+
 // Rank a job against user profile using profile-specific evaluation
 export async function rankJob(job: JobInput, profileKey: string): Promise<RankOutput> {
   // Convert CLI profile name to actual profile key
   const actualProfileKey = getProfileKey(profileKey);
   
-  // Truncate description to 1000 chars for faster processing
-  const desc = job.description.substring(0, 1000);
+  // Truncate description to 1000 chars for faster processing (preserve sections)
+  const desc = smartTruncate(job.description, 1000);
   
   // Get profile-specific scoring criteria
   const scoring = await generateProfileScoringCriteria(actualProfileKey);

@@ -115,7 +115,7 @@ export const PROFILES: Record<string, TechnicalProfile> = {
   
   devops: {
     name: 'Development with DevOps Practices',
-    weight: 5,
+    weight: 0,
     mustHave: [
       'C#',
       'VB.NET'
@@ -134,12 +134,12 @@ export const PROFILES: Record<string, TechnicalProfile> = {
       'DevOps Practices',
       'Agile Development'
     ],
-    description: 'Software development with DevOps practices and CI/CD'
+    description: 'Software development with DevOps practices and CI/CD (overlaps with other categories, weight redistributed)'
   },
   
   seniority: {
-    name: 'Seniority & Role Type',
-    weight: 5,
+    name: 'Seniority & Remote Work',
+    weight: 10,
     mustHave: [
       'C#',
       'VB.NET',
@@ -153,16 +153,21 @@ export const PROFILES: Record<string, TechnicalProfile> = {
       'Remote-first',
       'Remote First',
       'Fully Remote',
+      '100% Remote',
+      'Completely Remote',
+      'Permanent Remote',
       'Work from Home',
+      'Work from Anywhere',
       'WFH',
-      'Distributed'
+      'Distributed',
+      'Remote Work'
     ],
-    description: 'Required seniority level and remote work options'
+    description: 'Required seniority level with strong emphasis on fully remote positions. Fully remote jobs score highest, hybrid positions score lower, on-site positions score lowest.'
   },
   
   coreNet: {
     name: '.NET Development',
-    weight: 25,
+    weight: 20,
     mustHave: [
       'C#',
       '.NET Core',
@@ -180,7 +185,6 @@ export const PROFILES: Record<string, TechnicalProfile> = {
       'SQL Server',
       'REST API',
       'Web API',
-      'Blazor',
       'Razor Pages',
       'Dependency Injection',
       'LINQ',
@@ -194,9 +198,27 @@ export const PROFILES: Record<string, TechnicalProfile> = {
     description: 'Traditional .NET development skills including ASP.NET, MVC, Web Forms, and modern .NET Core technologies'
   },
   
+  frontendFrameworks: {
+    name: 'Frontend Framework Preferences',
+    weight: 10,
+    mustHave: [],
+    preferred: [
+      'Blazor',
+      'Blazor Server',
+      'Blazor WebAssembly',
+      'Blazor WASM',
+      'React',
+      'React.js',
+      'ReactJS',
+      'TypeScript React',
+      'React TypeScript'
+    ],
+    description: 'Preferred frontend frameworks with strong emphasis on Blazor and React over Angular'
+  },
+  
   legacyModernization: {
     name: 'Legacy Modernization',
-    weight: 10,
+    weight: 5,
     mustHave: [
       'VB.NET',
       'WebForms',

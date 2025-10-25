@@ -42,18 +42,18 @@ export function CategoryScoreBar({ category, score, maxScore = 100 }: CategorySc
   };
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-1.5">
       <div className="flex justify-between items-center">
-        <span className="text-sm font-medium text-gray-700">
+        <span className="text-xs font-medium text-gray-700">
           {formatCategoryName(category)}
         </span>
-        <span className={`text-sm font-semibold ${getTextColorClass(score)}`}>
+        <span className={`text-xs font-bold ${getTextColorClass(score)}`}>
           {score}/{maxScore}
         </span>
       </div>
-      <div className="w-full bg-gray-200 rounded-full h-2">
+      <div className="w-full bg-gray-200 rounded-full h-2.5">
         <div
-          className={`h-2 rounded-full transition-all duration-500 ${getColorClass(score)}`}
+          className={`h-2.5 rounded-full transition-all duration-500 ${getColorClass(score)}`}
           style={{ width: `${percentage}%` }}
         />
       </div>
@@ -69,25 +69,22 @@ interface CategoryScoresProps {
 export function CategoryScores({ scores, maxScore = 100 }: CategoryScoresProps) {
   if (!scores || Object.keys(scores).length === 0) {
     return (
-      <div className="p-4 rounded-lg border border-gray-200 bg-gray-50">
-        <span className="text-sm text-gray-500 italic">No category scores available</span>
+      <div className="p-3 rounded-md bg-gray-50 border border-gray-200">
+        <span className="text-xs text-gray-500 italic">No category scores available</span>
       </div>
     );
   }
 
   return (
-    <div className="p-4 rounded-lg border border-gray-200 bg-white">
-      <h4 className="text-sm font-semibold text-gray-800 mb-3">Category Scores</h4>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {Object.entries(scores).map(([category, score]) => (
-          <CategoryScoreBar
-            key={category}
-            category={category}
-            score={score}
-            maxScore={maxScore}
-          />
-        ))}
-      </div>
+    <div className="space-y-3">
+      {Object.entries(scores).map(([category, score]) => (
+        <CategoryScoreBar
+          key={category}
+          category={category}
+          score={score}
+          maxScore={maxScore}
+        />
+      ))}
     </div>
   );
 }

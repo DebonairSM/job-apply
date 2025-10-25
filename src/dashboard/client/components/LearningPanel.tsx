@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { formatRelativeTime } from '../lib/dateUtils';
 
 interface LearningStats {
   totalRejections: number;
@@ -55,13 +56,7 @@ export function LearningPanel() {
   if (!learningStats) return null;
 
   const formatTimestamp = (timestamp: string) => {
-    // Handle SQLite timestamp format (YYYY-MM-DD HH:MM:SS)
-    // Add 'Z' to treat as UTC if no timezone info is present
-    const normalizedTimestamp = timestamp.includes('T') || timestamp.includes('Z') 
-      ? timestamp 
-      : `${timestamp}Z`;
-    
-    return new Date(normalizedTimestamp).toLocaleString();
+    return formatRelativeTime(timestamp);
   };
 
   const formatAdjustment = (delta: number) => {

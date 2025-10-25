@@ -211,7 +211,7 @@ describe('Rejection Learning Integration', () => {
       assert.ok(Math.abs(totalWeight - 100) < 0.1);
 
       // Verify adjustments were applied
-      assert.ok(finalWeights.seniority < 5); // Should be reduced
+      assert.ok(finalWeights.seniority < 10); // Should be reduced from base 10%
     });
 
     it('should handle rejection analysis errors gracefully', async () => {

@@ -3,6 +3,44 @@
  */
 
 /**
+ * Converts an absolute timestamp to a relative time string
+ * @param dateString - The date string to convert
+ * @returns Relative time string (e.g., "just now", "5 minutes ago", "2 hours ago", "3 days ago")
+ */
+export function formatRelativeTime(dateString: string | undefined): string {
+  if (!dateString) return 'N/A';
+  
+  try {
+    const timestamp = dateString.includes('Z') ? dateString : `${dateString}Z`;
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    
+    if (diffMs < 0) {
+      return 'Just now'; // Future date
+    }
+    
+    const diffSeconds = Math.floor(diffMs / 1000);
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    const diffWeeks = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 7));
+    const diffMonths = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 30));
+    
+    if (diffSeconds < 60) return 'Just now';
+    if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} ago`;
+    if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+    if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+    if (diffWeeks < 4) return `${diffWeeks} week${diffWeeks !== 1 ? 's' : ''} ago`;
+    return `${diffMonths} month${diffMonths !== 1 ? 's' : ''} ago`;
+    
+  } catch (error) {
+    // If parsing fails, return the original string
+    return dateString;
+  }
+}
+
+/**
  * Calculates dynamic posted date based on scraped time and current viewing time
  * @param relativeTimeString - The original relative time string (e.g., "22 hours ago")
  * @param scrapedAt - When the job was scraped from LinkedIn
