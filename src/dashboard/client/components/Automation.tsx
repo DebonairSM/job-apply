@@ -44,8 +44,8 @@ export function Automation() {
   const [startPage, setStartPage] = useState<number>(1);
   const [updateDescriptions, setUpdateDescriptions] = useState(false);
 
-  // Apply options
-  const [easyOnly, setEasyOnly] = useState(false);
+  // Apply options - default to Easy Apply only since it's more common
+  const [easyOnly, setEasyOnly] = useState(true);
   const [externalOnly, setExternalOnly] = useState(false);
   const [jobId, setJobId] = useState('');
   const [dryRun, setDryRun] = useState(false);
@@ -88,12 +88,42 @@ export function Automation() {
         options: searchOptions,
       });
     } else {
+      // Log the raw state values first
+      console.log('[Automation] Raw state:', { easyOnly, externalOnly, jobId, dryRun });
+      
+      // Warn if no filters are selected (unless specific job ID is provided)
+      if (!easyOnly && !externalOnly && !jobId) {
+        const confirmed = window.confirm(
+          '⚠️ WARNING: No filters selected!\n\n' +
+          'This will process ALL queued jobs (both Easy Apply and External).\n\n' +
+          'Are you sure you want to continue?'
+        );
+        if (!confirmed) {
+          console.log('[Automation] User cancelled - no filters selected');
+          return;
+        }
+      }
+      
       const applyOptions: ApplyOptions = {};
       
-      if (easyOnly) applyOptions.easy = easyOnly;
-      if (externalOnly) applyOptions.external = externalOnly;
-      if (jobId) applyOptions.jobId = jobId;
-      if (dryRun) applyOptions.dryRun = dryRun;
+      if (easyOnly) {
+        applyOptions.easy = true;
+        console.log('[Automation] Setting easy = true');
+      }
+      if (externalOnly) {
+        applyOptions.external = true;
+        console.log('[Automation] Setting external = true');
+      }
+      if (jobId) {
+        applyOptions.jobId = jobId;
+        console.log('[Automation] Setting jobId =', jobId);
+      }
+      if (dryRun) {
+        applyOptions.dryRun = true;
+        console.log('[Automation] Setting dryRun = true');
+      }
+
+      console.log('[Automation] Final options being sent:', JSON.stringify(applyOptions));
 
       startMutation.mutate({
         command: 'apply',
@@ -396,6 +426,21 @@ export function Automation() {
                 <span className="text-sm text-gray-700">Dry run (don't submit)</span>
               </label>
             </div>
+
+            {/* Active Filters Summary */}
+            {command === 'apply' && !jobId && (
+              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="text-sm font-medium text-blue-900 mb-1">
+                  Active Filter: (easyOnly={String(easyOnly)}, externalOnly={String(externalOnly)})
+                </div>
+                <div className="text-sm text-blue-800">
+                  {easyOnly && !externalOnly && '✓ Easy Apply jobs only'}
+                  {!easyOnly && externalOnly && '✓ External ATS jobs only'}
+                  {easyOnly && externalOnly && '⚠️ Both filters selected (Easy Apply takes priority)'}
+                  {!easyOnly && !externalOnly && '⚠️ No filter - will process ALL queued jobs (both Easy Apply and External)'}
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>

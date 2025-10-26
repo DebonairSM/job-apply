@@ -128,11 +128,15 @@ router.post('/start', async (req: Request, res: Response) => {
     } else {
       const opts = parsed.options as z.infer<typeof ApplyOptionsSchema>;
       
+      console.log('[Automation API] Apply options received:', JSON.stringify(opts));
+      
       if (opts.easy) {
         args.push('--easy');
+        console.log('[Automation API] Adding --easy flag');
       }
       if (opts.external) {
         args.push('--ext');
+        console.log('[Automation API] Adding --ext flag');
       }
       if (opts.jobId) {
         args.push('--job', opts.jobId);
@@ -140,6 +144,8 @@ router.post('/start', async (req: Request, res: Response) => {
       if (opts.dryRun) {
         args.push('--dry-run');
       }
+      
+      console.log('[Automation API] Final args:', args);
     }
 
     // Spawn the CLI process

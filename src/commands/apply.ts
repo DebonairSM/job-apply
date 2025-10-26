@@ -780,17 +780,24 @@ export async function applyCommand(opts: ApplyOptions): Promise<void> {
 
   const config = loadConfig();
 
+  // Log options for debugging
+  console.log('[Apply Command] Options received:', JSON.stringify(opts));
+
   // Determine which jobs to process
   let jobs;
   if (opts.jobId) {
     const job = getJobById(opts.jobId);
     jobs = job ? [job] : [];
+    console.log('[Apply Command] Mode: Specific job ID');
   } else if (opts.easy) {
     jobs = getJobsByStatus('queued', true);
+    console.log('[Apply Command] Mode: Easy Apply only');
   } else if (opts.external) {
     jobs = getJobsByStatus('queued', false);
+    console.log('[Apply Command] Mode: External only');
   } else {
     jobs = getJobsByStatus('queued');
+    console.log('[Apply Command] Mode: All queued jobs (no filter specified)');
   }
 
   if (jobs.length === 0) {

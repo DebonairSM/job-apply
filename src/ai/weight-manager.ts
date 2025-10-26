@@ -78,6 +78,14 @@ export function applyWeightAdjustment(
   const currentWeights = getActiveWeights();
   const oldWeight = currentWeights[category];
   
+  // Guard: Skip if category doesn't exist in current weights
+  if (oldWeight === undefined) {
+    console.error(`⚠️  Cannot adjust unknown category: ${category} - skipping adjustment`);
+    console.error(`   Available categories: ${Object.keys(currentWeights).join(', ')}`);
+    console.error(`   This may indicate a mismatch between rejection analyzer categories and profile categories`);
+    return;
+  }
+  
   // Clamp adjustment to reasonable bounds (-5 to +5 percentage points) - reduced from 10
   const clampedAdjustment = Math.max(-5, Math.min(5, adjustment));
   const newWeight = oldWeight + clampedAdjustment;

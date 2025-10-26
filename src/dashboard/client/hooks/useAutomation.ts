@@ -53,11 +53,19 @@ async function fetchAutomationStatus(): Promise<AutomationStatus> {
 
 // Start automation command
 async function startAutomation(request: StartCommandRequest): Promise<void> {
+  console.log('[useAutomation] startAutomation called with request:', request);
+  console.log('[useAutomation] Request JSON:', JSON.stringify(request));
+  
+  const body = JSON.stringify(request);
+  console.log('[useAutomation] Body being sent:', body);
+  
   const res = await fetch(`${API_BASE}/start`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
+    body: body,
   });
+  
+  console.log('[useAutomation] Response status:', res.status);
   
   if (!res.ok) {
     const error = await res.json();
@@ -214,6 +222,7 @@ export function useAutomationLogs() {
     reconnect: connect,
   };
 }
+
 
 
 
