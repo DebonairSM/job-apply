@@ -44,8 +44,8 @@ export function Automation() {
   const [startPage, setStartPage] = useState<number>(1);
   const [updateDescriptions, setUpdateDescriptions] = useState(false);
 
-  // Apply options - default to Easy Apply only since it's more common
-  const [easyOnly, setEasyOnly] = useState(true);
+  // Apply options - require explicit selection (no default)
+  const [easyOnly, setEasyOnly] = useState(false);
   const [externalOnly, setExternalOnly] = useState(false);
   const [jobId, setJobId] = useState('');
   const [dryRun, setDryRun] = useState(false);
@@ -91,17 +91,17 @@ export function Automation() {
       // Log the raw state values first
       console.log('[Automation] Raw state:', { easyOnly, externalOnly, jobId, dryRun });
       
-      // Warn if no filters are selected (unless specific job ID is provided)
+      // Require explicit filter selection
       if (!easyOnly && !externalOnly && !jobId) {
-        const confirmed = window.confirm(
-          '⚠️ WARNING: No filters selected!\n\n' +
-          'This will process ALL queued jobs (both Easy Apply and External).\n\n' +
-          'Are you sure you want to continue?'
+        alert(
+          '❌ No filter selected\n\n' +
+          'Please select one of:\n' +
+          '• Easy Apply only\n' +
+          '• External ATS only\n' +
+          '• Specific Job ID'
         );
-        if (!confirmed) {
-          console.log('[Automation] User cancelled - no filters selected');
-          return;
-        }
+        console.log('[Automation] Blocked - no filter selected');
+        return;
       }
       
       const applyOptions: ApplyOptions = {};
@@ -429,15 +429,27 @@ export function Automation() {
 
             {/* Active Filters Summary */}
             {command === 'apply' && !jobId && (
-              <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="text-sm font-medium text-blue-900 mb-1">
+              <div className={`mt-3 p-3 border rounded-lg ${
+                !easyOnly && !externalOnly 
+                  ? 'bg-red-50 border-red-200' 
+                  : 'bg-blue-50 border-blue-200'
+              }`}>
+                <div className={`text-sm font-medium mb-1 ${
+                  !easyOnly && !externalOnly 
+                    ? 'text-red-900' 
+                    : 'text-blue-900'
+                }`}>
                   Active Filter: (easyOnly={String(easyOnly)}, externalOnly={String(externalOnly)})
                 </div>
-                <div className="text-sm text-blue-800">
-                  {easyOnly && !externalOnly && '✓ Easy Apply jobs only'}
-                  {!easyOnly && externalOnly && '✓ External ATS jobs only'}
-                  {easyOnly && externalOnly && '⚠️ Both filters selected (Easy Apply takes priority)'}
-                  {!easyOnly && !externalOnly && '⚠️ No filter - will process ALL queued jobs (both Easy Apply and External)'}
+                <div className="text-sm">
+                  {easyOnly && !externalOnly && <span className="text-blue-800">✓ Easy Apply jobs only</span>}
+                  {!easyOnly && externalOnly && <span className="text-blue-800">✓ External ATS jobs only</span>}
+                  {easyOnly && externalOnly && <span className="text-blue-800">✓ Both filters (Easy Apply priority)</span>}
+                  {!easyOnly && !externalOnly && (
+                    <span className="text-red-700 font-semibold">
+                      ❌ No filter selected - Click Start will show error
+                    </span>
+                  )}
                 </div>
               </div>
             )}

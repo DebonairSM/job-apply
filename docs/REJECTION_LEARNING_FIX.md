@@ -97,3 +97,4 @@ To verify the fix works correctly:
 3. Add unit tests for weight adjustment edge cases
 4. Consider making category validation more strict by checking against PROFILES keys
 
+

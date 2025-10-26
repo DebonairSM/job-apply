@@ -1,4 +1,6 @@
-# Apply Command Filter Debug
+# Apply Command Filter Debug - Superseded
+
+**Status**: SUPERSEDED - See APPLY_FILTER_BEFORE_AFTER.md for final implementation
 
 ## Issue Reported
 

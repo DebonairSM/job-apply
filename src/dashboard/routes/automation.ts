@@ -130,6 +130,13 @@ router.post('/start', async (req: Request, res: Response) => {
       
       console.log('[Automation API] Apply options received:', JSON.stringify(opts));
       
+      // Require explicit filter
+      if (!opts.jobId && !opts.easy && !opts.external) {
+        return res.status(400).json({
+          error: 'No filter specified. Please select Easy Apply only, External ATS only, or provide a specific Job ID.'
+        });
+      }
+      
       if (opts.easy) {
         args.push('--easy');
         console.log('[Automation API] Adding --easy flag');

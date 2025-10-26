@@ -773,6 +773,16 @@ async function nextOrSubmit(page: Page, dryRun: boolean): Promise<'next' | 'subm
 }
 
 export async function applyCommand(opts: ApplyOptions): Promise<void> {
+  // Require explicit filter selection
+  if (!opts.jobId && !opts.easy && !opts.external) {
+    console.error('❌ No filter specified.');
+    console.error('   Please specify one of:');
+    console.error('   --easy     (Easy Apply jobs only)');
+    console.error('   --ext      (External ATS jobs only)');
+    console.error('   --job ID   (Specific job)');
+    process.exit(1);
+  }
+
   if (!hasSession()) {
     console.error('❌ No saved session found. Please run "npm run login" first.');
     process.exit(1);

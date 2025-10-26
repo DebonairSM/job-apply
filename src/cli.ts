@@ -105,14 +105,12 @@ yargs(hideBin(process.argv))
         .option('easy', {
           alias: 'e',
           describe: 'Only Easy Apply jobs',
-          type: 'boolean',
-          default: false
+          type: 'boolean'
         })
         .option('ext', {
           alias: 'x',
           describe: 'Only external ATS jobs',
-          type: 'boolean',
-          default: false
+          type: 'boolean'
         })
         .option('job', {
           alias: 'j',
