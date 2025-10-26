@@ -3,12 +3,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Dashboard } from './components/Dashboard';
 import { JobsList } from './components/JobsList';
 import { ActivityLog } from './components/ActivityLog';
+import { Automation } from './components/Automation';
 import { Settings } from './components/Settings';
 import { JobNavigationProvider, useJobNavigation } from './contexts/JobNavigationContext';
 
 const queryClient = new QueryClient();
 
-type View = 'dashboard' | 'jobs' | 'activity' | 'settings';
+type View = 'dashboard' | 'jobs' | 'activity' | 'automation' | 'settings';
 
 function AppContent() {
   const [currentView, setCurrentView] = useState<View>('dashboard');
@@ -80,6 +81,16 @@ function AppContent() {
                 Activity
               </button>
               <button
+                onClick={() => setCurrentView('automation')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  currentView === 'automation'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Automation
+              </button>
+              <button
                 onClick={() => setCurrentView('settings')}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                   currentView === 'settings'
@@ -137,6 +148,19 @@ function AppContent() {
                 </button>
                 <button
                   onClick={() => {
+                    setCurrentView('automation');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`px-4 py-3 rounded-lg font-medium transition-colors text-left ${
+                    currentView === 'automation'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Automation
+                </button>
+                <button
+                  onClick={() => {
                     setCurrentView('settings');
                     setIsMobileMenuOpen(false);
                   }}
@@ -159,6 +183,7 @@ function AppContent() {
         {currentView === 'dashboard' && <Dashboard />}
         {currentView === 'jobs' && <JobsList />}
         {currentView === 'activity' && <ActivityLog />}
+        {currentView === 'automation' && <Automation />}
         {currentView === 'settings' && <Settings />}
       </main>
     </div>

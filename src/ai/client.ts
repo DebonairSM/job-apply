@@ -21,6 +21,7 @@ export async function askOllama<T>(
 
   let lastError: Error | null = null;
   let lastResponse = '';
+  let lastCleanedText = '';
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -65,9 +66,51 @@ export async function askOllama<T>(
       // Use a more sophisticated approach to handle nested braces/brackets
       let extractedJson = '';
       
-      // Try to find array first (for responses that should be arrays)
+      // Find both object and array starts to choose the one that appears first
+      const objectStart = cleanedText.indexOf('{');
       const arrayStart = cleanedText.indexOf('[');
-      if (arrayStart !== -1) {
+      
+      // Prefer objects over arrays (most schemas expect objects)
+      // But if array comes first, use that
+      const useObject = objectStart !== -1 && (arrayStart === -1 || objectStart < arrayStart);
+      
+      if (useObject && objectStart !== -1) {
+        // Extract object
+        let depth = 0;
+        let inString = false;
+        let escapeNext = false;
+        
+        for (let i = objectStart; i < cleanedText.length; i++) {
+          const char = cleanedText[i];
+          
+          if (escapeNext) {
+            escapeNext = false;
+            continue;
+          }
+          
+          if (char === '\\') {
+            escapeNext = true;
+            continue;
+          }
+          
+          if (char === '"') {
+            inString = !inString;
+            continue;
+          }
+          
+          if (!inString) {
+            if (char === '{') depth++;
+            if (char === '}') {
+              depth--;
+              if (depth === 0) {
+                extractedJson = cleanedText.substring(objectStart, i + 1);
+                break;
+              }
+            }
+          }
+        }
+      } else if (arrayStart !== -1) {
+        // Extract array
         let depth = 0;
         let inString = false;
         let escapeNext = false;
@@ -103,46 +146,6 @@ export async function askOllama<T>(
         }
       }
       
-      // If no valid array found, try to find object
-      if (!extractedJson) {
-        const objectStart = cleanedText.indexOf('{');
-        if (objectStart !== -1) {
-          let depth = 0;
-          let inString = false;
-          let escapeNext = false;
-          
-          for (let i = objectStart; i < cleanedText.length; i++) {
-            const char = cleanedText[i];
-            
-            if (escapeNext) {
-              escapeNext = false;
-              continue;
-            }
-            
-            if (char === '\\') {
-              escapeNext = true;
-              continue;
-            }
-            
-            if (char === '"') {
-              inString = !inString;
-              continue;
-            }
-            
-            if (!inString) {
-              if (char === '{') depth++;
-              if (char === '}') {
-                depth--;
-                if (depth === 0) {
-                  extractedJson = cleanedText.substring(objectStart, i + 1);
-                  break;
-                }
-              }
-            }
-          }
-        }
-      }
-      
       // Use extracted JSON if found, otherwise use the whole cleaned text
       cleanedText = extractedJson || cleanedText;
       
@@ -150,10 +153,66 @@ export async function askOllama<T>(
       cleanedText = cleanedText.replace(/:\s*\+(\d+)/g, ': $1'); // Fix +0 -> 0
       cleanedText = cleanedText.replace(/:\s*\+(\d+\.\d+)/g, ': $1'); // Fix +0.5 -> 0.5
       
+      // Fix unquoted or single-quoted property names
+      // We need to handle three cases separately for reliability
+      
+      // Case 1: Single-quoted property names: 'name': value
+      cleanedText = cleanedText.replace(/'([a-zA-Z_][a-zA-Z0-9_\s]*)'\s*:/g, (match, propName) => {
+        const cleanPropName = propName.trim().replace(/\s+/g, '_');
+        return `"${cleanPropName}":`;
+      });
+      
+      // Case 2: Unquoted property names after { or ,
+      // Matches: {name: or ,name: or { name: or , name:
+      cleanedText = cleanedText.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_\s]*)\s*:/g, (match, prefix, propName) => {
+        const cleanPropName = propName.trim().replace(/\s+/g, '_');
+        return `${prefix}"${cleanPropName}":`;
+      });
+      
+      // Fix single-quoted string values (convert to double quotes)
+      // This is tricky because we need to avoid breaking already-valid JSON
+      // Strategy: Replace single quotes with double quotes, but handle escaped quotes
+      cleanedText = cleanedText.replace(/'([^'\\]*(\\.[^'\\]*)*)'/g, (match, content) => {
+        // Unescape single quotes inside the string
+        const unescaped = content.replace(/\\'/g, "'");
+        // Escape double quotes inside the string
+        const escaped = unescaped.replace(/"/g, '\\"');
+        return `"${escaped}"`;
+      });
+      
+      // Remove comments (both // and /* */ style)
+      // Handle // comments (but be careful not to remove // inside strings)
+      // Strategy: Split by newlines, remove comment portions, rejoin
+      cleanedText = cleanedText.split('\n').map(line => {
+        // Check if line has // comment
+        const singleCommentIndex = line.indexOf('//');
+        if (singleCommentIndex !== -1) {
+          // Check if // is inside quotes
+          const beforeComment = line.substring(0, singleCommentIndex);
+          const quoteCount = (beforeComment.match(/"/g) || []).length;
+          // If even number of quotes before //, it's not inside a string
+          if (quoteCount % 2 === 0) {
+            return line.substring(0, singleCommentIndex).trim();
+          }
+        }
+        return line;
+      }).join('\n');
+      
+      // Remove /* */ style comments
+      cleanedText = cleanedText.replace(/\/\*[\s\S]*?\*\//g, '');
+      
       cleanedText = cleanedText.trim();
+      lastCleanedText = cleanedText;
 
       // Parse JSON
-      const parsed = JSON.parse(cleanedText);
+      let parsed = JSON.parse(cleanedText);
+      
+      // If we got an array with a single object, unwrap it
+      // (LLM sometimes wraps the response in an array)
+      if (Array.isArray(parsed) && parsed.length === 1 && typeof parsed[0] === 'object') {
+        parsed = parsed[0];
+      }
+      
       return parsed as T;
 
     } catch (error) {
@@ -164,9 +223,24 @@ export async function askOllama<T>(
         if (process.env.DEBUG) {
           console.warn(`JSON parsing failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying...`);
           console.error('Parse error:', lastError.message);
-          console.error('Raw response:', lastResponse.substring(0, 500));
+          console.error('Raw response (first 500 chars):', lastResponse.substring(0, 500));
+          console.error('Cleaned text (first 500 chars):', lastCleanedText.substring(0, 500) || 'N/A');
         }
         await new Promise(resolve => setTimeout(resolve, 500));
+      } else {
+        // On final attempt, log more details even without DEBUG
+        console.error(`❌ LLM returned invalid JSON after ${maxRetries + 1} attempts`);
+        console.error('Error:', lastError.message);
+        console.error('Raw response (first 500 chars):', lastResponse.substring(0, 500));
+        console.error('Cleaned text (first 500 chars):', lastCleanedText.substring(0, 500) || 'N/A');
+        
+        // If response is short enough, show the whole thing
+        if (lastResponse.length < 1000) {
+          console.error('\nFull raw response:');
+          console.error(lastResponse);
+          console.error('\nFull cleaned text:');
+          console.error(lastCleanedText);
+        }
       }
     }
   }

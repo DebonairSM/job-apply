@@ -37,19 +37,19 @@ async function generateProfileScoringCriteria(profileKey: string): Promise<{
     throw new Error(`Unknown profile: ${profileKey}`);
   }
 
-  // Get adjusted weights from learning system
+  // Get adjusted weights from learning system (profile-specific)
   const { getActiveWeights } = await import('./weight-manager.js');
-  const adjustedWeights = getActiveWeights();
+  const adjustedWeights = getActiveWeights(profileKey);
 
   const criteria: string[] = [];
   const weights: string[] = [];
   const categoryNames: string[] = [];
 
   // Build scoring criteria based on adjusted weights
-  Object.entries(PROFILES).forEach(([key, prof]) => {
-    const baseWeight = prof.weight;
-    const adjustment = adjustedWeights[key] || 0;
-    const finalWeight = baseWeight + adjustment;
+  Object.entries(adjustedWeights).forEach(([key, finalWeight]) => {
+    const prof = PROFILES[key];
+    if (!prof) return;  // Skip if profile doesn't exist
+    
     const weightDecimal = finalWeight / 100;
     
     criteria.push(`- ${key} (weight ${finalWeight.toFixed(1)}%): How well does job match ${prof.description.toLowerCase()}?`);
@@ -110,18 +110,24 @@ ${scoring.criteria}
 
 IMPORTANT: Score each category independently based on how well the job matches that specific area. Consider the actual job requirements, not generic assumptions.
 
-Return JSON with your scores for each category. Include ALL categories:
-{"categoryScores":{
-        "coreAzure": 0,
-        "security": 0,
-        "eventDriven": 0,
-        "performance": 0,
-        "devops": 0,
-        "seniority": 0,
-        "coreNet": 0,
-        "frontendFrameworks": 0,
-        "legacyModernization": 0
-      },"reasons":["Strong match","Good fit"],"mustHaves":["Required skill"],"blockers":[],"missingKeywords":["Missing skill"]}`;
+Return ONLY valid JSON in this exact format with ALL categories. Use double quotes for all property names and string values:
+{
+  "categoryScores": {
+    "coreAzure": 0,
+    "security": 0,
+    "eventDriven": 0,
+    "performance": 0,
+    "devops": 0,
+    "seniority": 0,
+    "coreNet": 0,
+    "frontendFrameworks": 0,
+    "legacyModernization": 0
+  },
+  "reasons": ["Strong match", "Good fit"],
+  "mustHaves": ["Required skill"],
+  "blockers": [],
+  "missingKeywords": ["Missing skill"]
+}`;
 
   const startTime = Date.now();
   const result = await askOllama<RankOutput>(prompt, 'RankOutput', {
@@ -135,6 +141,23 @@ Return JSON with your scores for each category. Include ALL categories:
     console.log(`   ⏱️  LLM response time: ${(duration / 1000).toFixed(1)}s`);
   }
 
+  // Ensure all required fields exist (LLM sometimes returns incomplete responses)
+  if (!result.categoryScores) {
+    result.categoryScores = {} as any;
+  }
+  if (!result.reasons) {
+    result.reasons = [];
+  }
+  if (!result.mustHaves) {
+    result.mustHaves = [];
+  }
+  if (!result.blockers) {
+    result.blockers = [];
+  }
+  if (!result.missingKeywords) {
+    result.missingKeywords = [];
+  }
+
   // Ensure all required category scores exist
   const requiredCategories = ['coreAzure', 'security', 'eventDriven', 'performance', 'devops', 'seniority', 'coreNet', 'frontendFrameworks', 'legacyModernization'];
   for (const category of requiredCategories) {
@@ -143,16 +166,14 @@ Return JSON with your scores for each category. Include ALL categories:
     }
   }
 
-  // Recalculate fitScore from category scores using current weights
+  // Recalculate fitScore from category scores using current weights (profile-specific)
   // LLMs are bad at arithmetic, so we calculate the weighted sum ourselves
   const { getActiveWeights } = await import('./weight-manager.js');
-  const adjustedWeights = getActiveWeights();
+  const adjustedWeights = getActiveWeights(actualProfileKey);
 
   let calculatedFitScore = 0;
-  Object.entries(PROFILES).forEach(([key, prof]) => {
-    const baseWeight = prof.weight;
-    const adjustment = adjustedWeights[key] || 0;
-    const finalWeight = (baseWeight + adjustment) / 100;
+  Object.entries(adjustedWeights).forEach(([key, weight]) => {
+    const finalWeight = weight / 100;  // adjustedWeights already contains final weights
     const categoryScore = result.categoryScores[key as keyof typeof result.categoryScores] || 0;
     calculatedFitScore += categoryScore * finalWeight;
   });

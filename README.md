@@ -91,7 +91,18 @@ The most important files to transfer are:
 
 Without these, you'll lose your job data, learning history, and need to reconfigure everything.
 
+## Quick Command Reference
+
+**Looking for something specific?**
+
+- **Daily Operations** → [Usage](#usage) - Search, apply, status, dashboard
+- **Testing & Debugging** → [Admin & Testing Commands](#admin--testing-commands) - Reset database, clear cache, run tests
+- **Issues & Errors** → [Troubleshooting](#troubleshooting) - Common problems and solutions
+- **Customization** → [Configuration](#configuration) - Adjust scoring, filters, settings
+
 ## Usage
+
+This section covers day-to-day commands for normal operation. For admin, testing, and debugging commands, see [Admin & Testing Commands](#admin--testing-commands).
 
 ### Search for Jobs
 
@@ -141,19 +152,16 @@ npm run search -- --profile legacy-modernization
 ### Check Status
 
 ```bash
+# View statistics summary
 npm run status
+
+# List jobs by status
 npm run list queued
 npm run list reported
 npm run list applied
+npm run list rejected
+npm run list skipped
 ```
-
-### Generate Report
-
-```bash
-npm run report
-```
-
-Creates HTML report in `reports/` folder. All queued jobs are moved to "reported" status, which pauses automatic application until you review and manually change them back to "queued" if desired.
 
 ### Apply to Jobs
 
@@ -168,58 +176,24 @@ npm run apply -- --easy
 npm run apply -- --ext
 ```
 
-### Clear Cache
+### Technology Filters
+
+Filter out jobs with unwanted technologies before ranking:
 
 ```bash
-npm run clear-cache
-npm run clear-cache answers
-npm run clear-cache mapping
+# Add filters for Go, Java, Python-focused, Ruby, PHP, etc.
+npm run filters:add
+
+# List active filters
+npm run filters:list
+
+# Remove all tech filters
+npm run filters:remove
 ```
 
-### Debug with MCP Servers
+The Technology Filter System blocks jobs containing unwanted tech stacks (Go, Java, etc.) before they're even ranked, saving processing time and focusing on Microsoft stack positions. Jobs with Node.js, TypeScript, React, Angular, and Terraform are NOT filtered.
 
-This project has powerful MCP servers for debugging and development:
-
-**Playwright MCP Server** - Interactive browser debugging:
-```bash
-# Use browser_snapshot to see current page state
-# Use browser_click to test selectors interactively  
-# Use browser_network_requests to debug form submissions
-# Use browser_console_messages to see JavaScript errors
-```
-
-**Context7 MCP Server** - Up-to-date documentation:
-```bash
-# Get Playwright docs for browser automation
-# Get TypeScript docs for type safety
-# Get React docs for dashboard development
-```
-
-**Azure MCP Server** - Cloud management:
-```bash
-# Deploy dashboard to Azure App Service
-# Set up Azure Monitor for production
-# Migrate to Azure Cosmos DB for scaling
-```
-
-### Test Commands
-
-```bash
-# Run mapper evaluation tests
-npm run test
-
-# Run all tests (recommended)
-npm run test:all
-
-# Run selector learning system tests only
-npm run test:learning
-```
-
-### Reset Skipped Jobs
-
-```bash
-node scripts/reset-jobs.js
-```
+See [Technology Filter Guide](docs/TECH_FILTER_GUIDE.md) for detailed configuration.
 
 ### Dashboard
 
@@ -255,11 +229,282 @@ Open https://localhost:3000 to access:
 - Activity log with run history and success/failure indicators
 - Screenshot availability indicators for debugging
 - Responsive layout with tab-based navigation
+- **Automation tab** with live command execution and terminal-style log streaming
+
+**Automation Tab:**
+
+The Automation tab provides a graphical interface to run search and apply commands with real-time log output:
+
+**Features:**
+- Run search and apply commands without using the terminal
+- Live log streaming in terminal-style display (black background, green text)
+- Full configuration controls matching all CLI options
+- Start/Stop buttons with graceful shutdown
+- Auto-scrolling terminal with manual scroll override
+- Status indicators (Idle/Running/Stopping/Error)
+- Only one automation job can run at a time (enforced)
+
+**Search Options:**
+- Profile selection (core, security, event-driven, etc.) or custom keywords
+- Location, remote filter, date posted filter
+- Min score threshold, max pages, start page
+- Update missing job descriptions option
+
+**Apply Options:**
+- Easy Apply only or External ATS only
+- Specific job ID targeting
+- Dry run mode (test without submitting)
+
+**Usage:**
+1. Navigate to the **Automation** tab in the dashboard
+2. Select **Search** or **Apply** command
+3. Configure options using the form controls
+4. Click **Start** to begin execution
+5. Monitor live output in the terminal display
+6. Click **Stop** to gracefully cancel (finishes current operation)
+
+The terminal display auto-scrolls as logs arrive. Manual scrolling pauses auto-scroll; click "Resume Auto-scroll" to re-enable. The "Clear" button is available when the job is idle.
 
 **Stop the Dashboard:**
 Press `Ctrl+C` in the terminal where the dashboard is running.
 
 See [Dashboard Quick Start](docs/DASHBOARD_QUICKSTART.md) for detailed setup guide and troubleshooting.
+
+## Admin & Testing Commands
+
+This section covers commands for database management, testing, debugging, and development. These are primarily for testing workflows, troubleshooting issues, and maintaining the system.
+
+### ⚠️ Database Safety System
+
+**IMPORTANT**: All database-modifying scripts now include automatic safety features:
+
+1. **Automatic Backups**: Every script that modifies the database creates an automatic timestamped backup in `data/backups/` before making ANY changes
+2. **Safety Confirmations**: Destructive operations require a 5-second confirmation wait (press Ctrl+C to cancel)
+3. **Test Isolation**: All automated tests use in-memory databases and never touch production data
+4. **Backup Rotation**: Old backups are automatically cleaned up (keeps last 10)
+
+**Before running ANY database-modifying command, the system will:**
+- Create a backup at `data/backups/app.db.auto-backup-YYYY-MM-DD...`
+- Show you what will be affected
+- Give you 5 seconds to cancel (Ctrl+C)
+
+**If something goes wrong:**
+```bash
+# List your backups
+ls data/backups/
+
+# Restore from a specific backup
+cp data/backups/app.db.auto-backup-2025-10-26... data/app.db
+
+# Or use the inspect and restore commands
+npm run backup:inspect
+npm run backup:restore
+```
+
+### Database Reset Operations
+
+Use these commands to reset the database state for testing or to recover from issues:
+
+```bash
+# Clear the queue (queued → skipped)
+# SAFE: Only changes status, doesn't delete data
+npm run reset:queue
+
+# Restore the queue (skipped → queued)  
+# SAFE: Only changes status, doesn't delete data
+npm run reset:restore
+
+# Reset applied/rejected/interview jobs back to queued
+# SAFE: Only changes status, doesn't delete data
+npm run reset:applied
+
+# Delete all jobs (keeps profile, skills, learning data)
+# ⚠️ DESTRUCTIVE: Auto-backup + 5-second confirmation
+npm run reset:jobs
+
+# Full reset - delete jobs and all caches (keeps profile/skills)
+# ⚠️ DESTRUCTIVE: Auto-backup + 5-second confirmation
+npm run reset:full
+
+# Nuclear reset - delete EVERYTHING including profile
+# ⚠️⚠️ EXTREMELY DESTRUCTIVE: Auto-backup + 5-second confirmation
+npm run reset:nuclear
+```
+
+**What happens when you run a destructive command:**
+```
+$ npm run reset:jobs
+
+💾 Auto-backup created: data/backups/app.db.auto-backup-2025-10-26T14-30-15
+
+⚠️  DESTRUCTIVE OPERATION
+============================================================
+Operation: Delete all jobs
+Jobs affected: 249
+⚠️  THIS WILL DELETE DATA PERMANENTLY
+============================================================
+
+A backup has been created automatically.
+Press Ctrl+C to cancel, or wait 5 seconds to continue...
+
+✅ Deleted 249 jobs
+```
+
+**Common Testing Workflows:**
+
+```bash
+# Testing application flow
+npm run reset:queue              # Clear queue for fresh start
+npm run search -- --profile core # Search for new jobs
+npm run apply -- --easy          # Apply to jobs
+npm run status                   # Check results
+
+# Re-test applications
+npm run reset:applied            # Move applied jobs back to queue
+npm run apply -- --dry-run       # Test without submitting
+
+# Start completely fresh
+npm run reset:full               # Clear everything except profile
+npm run search -- --profile core # Rebuild job queue
+```
+
+### Manual Backup & Restore
+
+Create manual backups before major operations:
+
+```bash
+# Create a timestamped manual backup
+npm run backup
+
+# Inspect what's in your databackup/ folder
+npm run backup:inspect
+
+# Restore from databackup/ folder
+npm run backup:restore
+```
+
+**Manual vs Automatic Backups:**
+- **Automatic**: Created automatically before ANY database-modifying script
+  - Location: `data/backups/app.db.auto-backup-*`
+  - Retention: Last 10 kept automatically
+- **Manual**: Created when you run `npm run backup`
+  - Location: `data/backups/app.db.backup-*`
+  - Retention: You manage these manually
+
+### Cache Management
+
+Clear cached data when testing AI responses or form mappings:
+
+```bash
+# Clear all caches
+# SAFE: Only clears cache tables, doesn't affect jobs or profile
+npm run clear-cache
+
+# Clear specific cache types
+npm run clear-cache answers    # Clear generated application answers
+npm run clear-cache mapping    # Clear form field mappings
+```
+
+### Safety System Verification
+
+Verify that all safety features are working correctly:
+
+```bash
+# Verify database safety system
+npm run verify:safety
+```
+
+This runs comprehensive tests to verify:
+- Database path selection (production vs test)
+- Automatic backup creation
+- Test database initialization
+- Read-only and backup options
+- Backup directory structure
+
+### Test Suites
+
+Run automated tests to verify system functionality:
+
+```bash
+# Run all test suites (recommended)
+npm run test:all
+
+# Run learning system tests only
+npm run test:learning
+
+# Run individual test suites
+npm test
+npx tsx --test tests/login.test.ts
+npx tsx --test tests/search.test.ts
+npx tsx --test tests/mapper.test.ts
+npx tsx --test tests/ranker.test.ts
+npx tsx --test tests/integration.test.ts
+```
+
+### Debug with MCP Servers
+
+This project integrates with MCP servers for interactive debugging and development:
+
+**Playwright MCP Server** - Interactive browser debugging:
+- `browser_snapshot` - See current page state with accessibility tree
+- `browser_click` - Test selectors interactively
+- `browser_network_requests` - Debug form submissions
+- `browser_console_messages` - See JavaScript errors
+- `browser_take_screenshot` - Capture visual state
+
+**Context7 MCP Server** - Up-to-date documentation:
+- Get live Playwright documentation for browser automation
+- Get TypeScript documentation for type safety
+- Get React documentation for dashboard development
+- Access latest API references and examples
+
+**Azure MCP Server** - Cloud management:
+- Deploy dashboard to Azure App Service
+- Set up Azure Monitor for production monitoring
+- Query Log Analytics for application insights
+- Migrate to Azure Cosmos DB for scaling
+
+### Verification Commands
+
+Verify system health and safety:
+
+```bash
+# Verify database safety system
+npm run verify:safety
+
+# Inspect backup data
+npm run backup:inspect
+```
+
+### Direct Script Access
+
+Advanced users can run scripts directly with custom options:
+
+```bash
+# Database reset with specific option
+# SAFETY: Auto-backup created automatically
+node scripts/reset-database.js [queue|restore|applied|jobs|full|nuclear]
+
+# Setup user profile
+# SAFETY: Auto-backup created automatically
+node scripts/setup-profile.js
+
+# Export database to JSON/SQL
+# SAFE: Read-only operation
+node scripts/export-database.js
+
+# Recalculate job rankings
+# SAFETY: Auto-backup created automatically
+node scripts/recalculate-ranks.js
+
+# Verify ranking scores
+# SAFE: Read-only operation
+node scripts/verify-ranks.js
+
+# Backfill rejection learning from historical data
+# SAFETY: Uses db.ts with safety checks
+node scripts/backfill-rejection-learning.js
+```
 
 ## Configuration
 
@@ -274,27 +519,104 @@ Edit `answers-policy.yml` to control application form responses (field length, a
 
 Place resumes (PDF or DOCX) in `resumes/` folder.
 
-## Job Scoring
+## Job Scoring System
 
-AI evaluates jobs across weighted categories (Core Azure/API Skills 20%, Security 15%, Event-Driven 10%, Performance 10%, Seniority & Remote Work 10%, Core .NET Development 20%, Frontend Frameworks 10%, Legacy Modernization 5%). DevOps has 0% weight as it overlaps with other categories. Scores above 70 are queued for application.
+### How Jobs Are Evaluated
 
-Current preferences:
+Jobs go through a two-stage process:
+
+**Stage 1: Technology Filters** (Pre-screening)
+- Blocks jobs with unwanted technologies (Go, Java, Python-focused, etc.) before ranking
+- Saves processing time by filtering out non-Microsoft stack positions immediately
+- Configurable via `npm run filters:add` command
+- See [Technology Filter Guide](docs/TECH_FILTER_GUIDE.md)
+
+**Stage 2: Profile-Specific AI Scoring** (Jobs that pass filters)
+- Each search profile uses different weight distributions across 9 categories
+- Same job scores differently depending on which profile found it
+- Examples:
+  - **Security profile**: Security 35%, Seniority 15%, Azure 15%, .NET 15%
+  - **Performance profile**: Performance 30%, .NET 20%, Azure 15%
+  - **Core-net profile**: .NET 40%, Performance 15%, Azure 10%
+- Weights stored with each job for accurate re-scoring
+- Global learning adjustments apply on top of profile-specific weights
+- Scores above 70 are queued for application (configurable via MIN_FIT_SCORE in .env)
+
+See [Profile-Specific Scoring](docs/PROFILE_SPECIFIC_SCORING.md) for technical details.
+
+### Current Preferences
+
+**Technology Stack:**
+- **Favored**: C#, .NET Core, Azure, APIM, SQL Server, Entity Framework
+- **Acceptable**: Node.js, TypeScript, React, Angular, Terraform (complementary technologies)
+- **Filtered Out**: Go, Java (except JavaScript), Python-focused roles, Ruby, PHP
+
+**Other Preferences:**
 - **Frontend Frameworks**: Prioritizes Blazor and React over Angular
 - **Remote Work**: Strong emphasis on fully remote positions over hybrid or on-site
 
-See [Ranking Customization Guide](docs/RANKING_CUSTOMIZATION_GUIDE.md) for details on adjusting technology preferences and category weights.
+### Customization
 
-## Common Issues
+- **Adjust Weights**: See [Ranking Customization Guide](docs/RANKING_CUSTOMIZATION_GUIDE.md)
+- **Add/Remove Technology Filters**: See [Technology Filter Guide](docs/TECH_FILTER_GUIDE.md)
+- **Create New Profiles**: See [Profile Creation Guide](docs/PROFILE_CREATION_GUIDE.md)
 
+## Troubleshooting
+
+### Common Issues
+
+**AI not responding or slow:**
 ```bash
-# AI not responding
+# Check if Ollama is running
+docker ps
+
+# Restart Ollama container
 docker compose -f docker-compose.llm.yml restart
 
-# Session expired
-npm run login
+# Check Ollama logs
+docker compose -f docker-compose.llm.yml logs
+```
 
-# Check debug info
+**LinkedIn session expired:**
+```bash
+# Re-authenticate with LinkedIn
+npm run login
+```
+
+**Application failures or unexpected behavior:**
+```bash
+# Check debug artifacts
 ls artifacts/  # Screenshots and traces from failed applications
+
+# Clear caches and retry
+npm run clear-cache
+npm run apply -- --job <job-id> --dry-run
+
+# View detailed logs in terminal output
+```
+
+**Database issues:**
+```bash
+# Check database status
+npm run status
+
+# Export database for inspection
+node scripts/export-database.js
+
+# Reset to clean state (careful - deletes data)
+npm run reset:full
+```
+
+**Form filling failures:**
+```bash
+# Clear cached field mappings
+npm run clear-cache mapping
+
+# Run with tracing enabled
+# Edit .env: ENABLE_TRACING=true
+npm run apply -- --easy
+
+# Check artifacts/traces/ for detailed execution logs
 ```
 
 ## Key AI Features
@@ -502,10 +824,12 @@ graph LR
 This application demonstrates sophisticated capabilities that can be applied to any AI-powered scraping and automation system:
 
 ### 🤖 **Intelligent Content Analysis & Ranking**
-- **Multi-criteria AI Scoring**: Uses weighted scoring across multiple categories (technical skills, seniority, location, etc.) with configurable weights
+- **Profile-Specific Weight Distributions**: Each search profile uses different weight emphasis across 9 categories (security profile emphasizes security 35%, performance profile emphasizes performance 30%, etc.)
+- **Multi-criteria AI Scoring**: Weighted scoring with global learning adjustments that adapt based on rejection patterns
 - **Profile-based Boolean Search**: Pre-defined search profiles with complex Boolean queries for targeted discovery
 - **Dynamic Content Extraction**: Robust selectors with fallback mechanisms for handling changing website structures
 - **Semantic Job Matching**: AI-powered analysis of job descriptions against user profiles with detailed reasoning
+- **Persistent Profile Storage**: Jobs store which profile found them for accurate re-scoring and analytics
 
 ### 🧠 **Advanced AI Integration**
 - **Local LLM Processing**: Runs entirely offline using Ollama with configurable models and temperature settings
@@ -534,6 +858,7 @@ This application demonstrates sophisticated capabilities that can be applied to 
 ### 🧠 **Rejection Reason Learning System**
 - **Immediate Weight Adjustment**: Each rejection triggers analysis using keyword patterns and LLM to adjust profile category weights automatically
 - **Pattern-Based Filtering**: Builds blocklists for companies with repeated rejections and avoids jobs with problematic keywords
+- **Manual Technology Filters**: Pre-emptively block unwanted tech stacks (Go, Java, etc.) before any ranking occurs
 - **Dual Analysis Methods**: Combines keyword extraction for common patterns with LLM-powered analysis for nuanced rejection reasons
 - **Real-time Learning**: System learns from rejections immediately, adjusting scoring weights and building filters without manual intervention
 - **Dashboard Monitoring**: View active weight adjustments, rejection patterns, and learning history in real-time
@@ -544,6 +869,7 @@ This application demonstrates sophisticated capabilities that can be applied to 
 - "Wrong tech stack - no Python" rejections → blocks Python jobs and adjusts tech stack weights
 - Repeated rejections from same company → adds company to blocklist
 - "Not remote" rejections → increases remote work weight and filters on-site jobs
+- Manual tech filters → blocks Go, Java, Python-focused roles before they're ranked
 
 ### 🛡️ **Enterprise-Grade Resilience**
 - **Exponential Backoff Retry**: Intelligent retry mechanisms with configurable delays and maximum attempts
@@ -665,39 +991,59 @@ This application demonstrates sophisticated capabilities that can be applied to 
 - Vite (build tool, dev server, hot reload)
 - Chart components for analytics visualization
 
-### Tests
+### Testing
 
-```bash
-# Run all tests (recommended)
-npm run test:all
-
-# Run selector learning system tests only
-npm run test:learning
-
-# Run individual test suites
-npm test
-npx tsx --test tests/login.test.ts
-npx tsx --test tests/search.test.ts
-npx tsx --test tests/mapper.test.ts
-npx tsx --test tests/ranker.test.ts
-npx tsx --test tests/integration.test.ts
-```
+See [Admin & Testing Commands](#admin--testing-commands) for test suite details. The project includes comprehensive tests for:
+- Login and session management
+- Job search and ranking logic
+- Form field mapping (heuristics, cache, AI)
+- Selector learning system
+- Rejection learning integration
+- End-to-end integration workflows
 
 ## Documentation
 
-Additional documentation is available in the `docs/` folder:
+All documentation is organized by topic below. Click any link to learn more.
 
-- [Ranking Customization Guide](docs/RANKING_CUSTOMIZATION_GUIDE.md) - How to customize job ranking and adjust technology preferences
-- [Profile Creation Guide](docs/PROFILE_CREATION_GUIDE.md) - How to create new search profiles
-- [Testing Guide](docs/TESTING_GUIDE.md) - Comprehensive testing system documentation
-- [Dashboard Monitoring System](docs/dashboard-monitoring-system.plan.md) - Complete dashboard architecture and development plan
-- [Dashboard Quick Start](docs/DASHBOARD_QUICKSTART.md) - Quick setup guide for the dashboard
-- [Dashboard Status](docs/DASHBOARD_STATUS.md) - Current dashboard implementation status
-- [HTTPS Setup](docs/HTTPS_SETUP_COMPLETE.md) - HTTPS configuration guide
-- [Phase A Test Report](docs/PHASE_A_TEST_REPORT.md) - Testing results and validation
-- [Cursor Customization Guide](docs/CURSOR_CUSTOMIZATION_GUIDE.md) - How to customize Cursor AI for this project
-- [Additional Cursor Rules Examples](docs/CURSORRULES_EXAMPLES.md) - Optional rules for `.cursorrules`
+### Getting Started
+- [Dashboard Quick Start](docs/DASHBOARD_QUICKSTART.md) - Quick setup guide for the web dashboard
 - [Documentation Index](docs/README.md) - Complete documentation overview
+
+### Customization & Configuration
+- [Ranking Customization Guide](docs/RANKING_CUSTOMIZATION_GUIDE.md) - Adjust job scoring weights and category preferences
+- [Technology Filter Guide](docs/TECH_FILTER_GUIDE.md) - Block unwanted technologies (Go, Java, etc.) before ranking
+- [Profile Creation Guide](docs/PROFILE_CREATION_GUIDE.md) - Create custom search profiles with Boolean queries
+- [Cursor Customization Guide](docs/CURSOR_CUSTOMIZATION_GUIDE.md) - Customize Cursor AI for this project
+- [Additional Cursor Rules Examples](docs/CURSORRULES_EXAMPLES.md) - Optional rules for `.cursorrules`
+
+### Dashboard & Monitoring
+- [Dashboard Status](docs/DASHBOARD_STATUS.md) - Current dashboard implementation status
+- [Dashboard Monitoring System](docs/dashboard-monitoring-system.plan.md) - Complete dashboard architecture and development plan
+- [Dashboard Layout Improvements](docs/DASHBOARD_LAYOUT_IMPROVEMENTS.md) - UI/UX enhancements
+- [HTTPS Setup](docs/HTTPS_SETUP_COMPLETE.md) - HTTPS configuration guide
+
+### AI & Learning Systems
+- [Rejection System Summary](docs/REJECTION_SYSTEM_SUMMARY.md) - How the rejection learning system works
+- [Rejection System Analysis](docs/REJECTION_SYSTEM_ANALYSIS.md) - Technical analysis of rejection patterns
+- [Rejection Learning Backfill](docs/REJECTION_LEARNING_BACKFILL.md) - Applying learning to historical rejections
+- [Resume Processing System](docs/RESUME_PROCESSING_SYSTEM.md) - How resumes are parsed for RAG context
+- [Keyword Highlighting](docs/KEYWORD_HIGHLIGHTING.md) - Dashboard keyword highlighting system
+- [Keyword Highlighting Update](docs/KEYWORD_HIGHLIGHTING_UPDATE.md) - Recent improvements
+- [Highlighting Hybrid Approach](docs/HIGHLIGHTING_HYBRID_APPROACH.md) - Implementation details
+- [Highlighting Implementation Summary](docs/HIGHLIGHTING_IMPLEMENTATION_SUMMARY.md) - Complete overview
+
+### Database & Data Management
+- [Database Safety System](docs/DATABASE_SAFETY_SYSTEM.md) - Automatic backups, test isolation, and safety features
+- [Database Implementation Summary](docs/DATABASE_IMPLEMENTATION_SUMMARY.md) - SQLite schema and operations
+- [Database Migration Guide](docs/DATABASE_MIGRATION_GUIDE.md) - Migrating from file-based to database storage
+
+### Testing & Development
+- [Testing Guide](docs/TESTING_GUIDE.md) - Comprehensive testing system documentation
+- [Phase A Test Report](docs/PHASE_A_TEST_REPORT.md) - Testing results and validation
+
+### Recent Changes
+- [Recent Changes](docs/RECENT_CHANGES.md) - Latest updates and modifications
+- [Ollama JSON Extraction Fix](docs/OLLAMA_JSON_EXTRACTION_FIX.md) - LLM response parsing improvements
 
 ### For AI Assistants
 

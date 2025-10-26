@@ -262,9 +262,125 @@ export const BOOLEAN_SEARCHES: Record<string, string> = {
   'legacy-modernization': '("Senior .NET Developer" OR "Legacy Developer" OR "Modernization Engineer" OR "Migration Specialist") AND ((VB.NET OR WebForms OR "ASP.NET MVC" OR Legacy) OR (Modernization OR Migration OR "Cloud Migration")) AND (C# OR ".NET Core" OR ".NET 6" OR ".NET 8") AND (Azure OR Cloud OR "System Migration") AND (Senior OR Lead OR Principal) AND Remote'
 };
 
-// Validate profile weights sum to 100
+// Profile-specific weight distributions
+// Each search profile emphasizes different categories based on its focus area
+export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>> = {
+  // Core Azure API profile - balanced emphasis on Azure platform and .NET
+  core: {
+    coreAzure: 25,           // Strong Azure platform focus
+    security: 10,
+    eventDriven: 15,         // Important for API integration
+    performance: 10,
+    devops: 0,
+    seniority: 10,
+    coreNet: 20,             // Core .NET skills
+    frontendFrameworks: 5,
+    legacyModernization: 5
+  },
+  
+  // Security-focused roles - heavy emphasis on auth/governance
+  security: {
+    coreAzure: 15,           // Azure platform for security services
+    security: 35,            // Primary focus on security
+    eventDriven: 10,
+    performance: 5,
+    devops: 0,
+    seniority: 15,           // Senior security roles important
+    coreNet: 15,
+    frontendFrameworks: 0,   // Less relevant for security roles
+    legacyModernization: 5
+  },
+  
+  // Event-driven architecture specialists
+  'event-driven': {
+    coreAzure: 15,
+    security: 10,
+    eventDriven: 30,         // Primary focus on messaging/events
+    performance: 15,         // Performance critical for high-throughput systems
+    devops: 0,
+    seniority: 10,
+    coreNet: 15,
+    frontendFrameworks: 0,
+    legacyModernization: 5
+  },
+  
+  // Performance optimization and reliability focus
+  performance: {
+    coreAzure: 15,
+    security: 5,
+    eventDriven: 10,
+    performance: 30,         // Primary focus on optimization
+    devops: 0,
+    seniority: 10,
+    coreNet: 20,             // Strong .NET skills for optimization
+    frontendFrameworks: 5,
+    legacyModernization: 5
+  },
+  
+  // DevOps-aware development roles
+  devops: {
+    coreAzure: 20,           // Azure DevOps/deployment services
+    security: 10,
+    eventDriven: 10,
+    performance: 10,
+    devops: 0,               // DevOps keywords distributed across categories
+    seniority: 10,
+    coreNet: 25,             // Strong dev skills needed
+    frontendFrameworks: 10,
+    legacyModernization: 5
+  },
+  
+  // Backend/API-focused roles (maps to core)
+  backend: {
+    coreAzure: 20,
+    security: 15,
+    eventDriven: 15,
+    performance: 10,
+    devops: 0,
+    seniority: 10,
+    coreNet: 25,             // Strong .NET backend focus
+    frontendFrameworks: 0,   // Backend only
+    legacyModernization: 5
+  },
+  
+  // Pure .NET development roles
+  'core-net': {
+    coreAzure: 10,           // Some Azure helpful but not primary
+    security: 10,
+    eventDriven: 5,
+    performance: 15,
+    devops: 0,
+    seniority: 10,
+    coreNet: 40,             // Primary focus on .NET skills
+    frontendFrameworks: 5,
+    legacyModernization: 5
+  },
+  
+  // Legacy modernization specialists
+  'legacy-modernization': {
+    coreAzure: 15,           // Cloud migration target
+    security: 5,
+    eventDriven: 10,
+    performance: 10,
+    devops: 0,
+    seniority: 15,           // Senior experience important
+    coreNet: 20,             // Both old and new .NET
+    frontendFrameworks: 5,
+    legacyModernization: 20  // Primary focus on modernization
+  }
+};
+
+// Validate that all profile weight distributions sum to 100%
+Object.entries(PROFILE_WEIGHT_DISTRIBUTIONS).forEach(([profileName, weights]) => {
+  const totalWeight = Object.values(weights).reduce((sum, w) => sum + w, 0);
+  if (Math.abs(totalWeight - 100) > 0.01) {
+    console.warn(`Warning: Profile "${profileName}" weights sum to ${totalWeight}%, expected 100%`);
+  }
+});
+
+// Validate profile weights sum to 100 (base default weights)
 const totalWeight = Object.values(PROFILES).reduce((sum, p) => sum + p.weight, 0);
 if (totalWeight !== 100) {
-  console.warn(`Warning: Profile weights sum to ${totalWeight}%, expected 100%`);
+  console.warn(`Warning: Base profile weights sum to ${totalWeight}%, expected 100%`);
 }
 

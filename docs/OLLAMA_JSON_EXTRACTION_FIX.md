@@ -4,6 +4,21 @@
 
 The job application process was failing with JSON parsing errors when Ollama returned responses in unexpected formats:
 
+### Issue 3: Unquoted or Single-Quoted Property Names (October 2025)
+```
+Failed to get valid JSON from Ollama after 4 attempts: 
+  Expected double-quoted property name in JSON at position 145 (line 8 column 22)
+```
+
+Root cause: Ollama returns JSON with unquoted or single-quoted property names:
+```json
+{
+  name: "value",           // Invalid - unquoted property name
+  'another': 'test',       // Invalid - single quotes
+  "valid": "property"      // Valid JSON
+}
+```
+
 ### Issue 1: Text Mixed with JSON
 ```
 Failed to parse resume sections with AI: Error: Failed to get valid JSON from Ollama after 3 attempts: 
@@ -36,6 +51,51 @@ Error: [
 6. **Schema mismatch**: Field mapper expected `{"mappings": [...]}` but Ollama sometimes returned just `[...]`
 
 ## Solution
+
+### 0. JSON Repair for Malformed Syntax (`src/ai/client.ts` - October 2025)
+
+Added repair logic to fix common JSON syntax errors before parsing:
+
+**Property Name Fixes:**
+```typescript
+// Fix unquoted or single-quoted property names
+// We need to handle three cases separately for reliability
+
+// Case 1: Single-quoted property names: 'name': value
+cleanedText = cleanedText.replace(/'([a-zA-Z_][a-zA-Z0-9_\s]*)'\s*:/g, (match, propName) => {
+  const cleanPropName = propName.trim().replace(/\s+/g, '_');
+  return `"${cleanPropName}":`;
+});
+
+// Case 2: Unquoted property names after { or ,
+// Matches: {name: or ,name: or { name: or , name:
+cleanedText = cleanedText.replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_\s]*)\s*:/g, (match, prefix, propName) => {
+  const cleanPropName = propName.trim().replace(/\s+/g, '_');
+  return `${prefix}"${cleanPropName}":`;
+});
+```
+
+**String Value Fixes:**
+```typescript
+// Fix single-quoted string values (convert to double quotes)
+cleanedText = cleanedText.replace(/'([^'\\]*(\\.[^'\\]*)*)'/g, (match, content) => {
+  const unescaped = content.replace(/\\'/g, "'");
+  const escaped = unescaped.replace(/"/g, '\\"');
+  return `"${escaped}"`;
+});
+```
+
+Example transformations:
+```
+Input:  {name: "John", 'age': '25'}
+Output: {"name": "John", "age": "25"}
+
+Input:  {location: 'New York', status: 'active'}
+Output: {"location": "New York", "status": "active"}
+
+Input:  {title: "Senior Engineer", company: 'Acme Inc'}
+Output: {"title": "Senior Engineer", "company": "Acme Inc"}
+```
 
 ### 1. Improved JSON Extraction Logic (`src/ai/client.ts`)
 
@@ -136,6 +196,10 @@ All JSON extraction scenarios tested and passing:
 4. ✅ Nested structures (arrays within objects)
 5. ✅ Braces/brackets in string values
 6. ✅ Mapper handling array vs object responses
+7. ✅ Unquoted property names (October 2025)
+8. ✅ Single-quoted property names (October 2025)
+9. ✅ Single-quoted string values (October 2025)
+10. ✅ Mixed quote styles in same object (October 2025)
 
 ## Impact
 
@@ -209,5 +273,22 @@ This fix addresses JSON parsing errors that occurred during:
 - Relevant bullets extraction (array responses with text)  
 - Cover letter enhancement (plain text instead of JSON)
 - Field label mapping (array instead of object)
+- Job ranking (unquoted/single-quoted property names - October 2025)
 
 All these features now have improved resilience against LLM response variations.
+
+### Common Error Messages
+
+**Before Fix (October 2025):**
+```
+Failed to get valid JSON from Ollama after 4 attempts: 
+  Expected double-quoted property name in JSON at position 128 (line 7 column 18)
+```
+
+**After Fix (October 2025):**
+- Improved regex patterns that properly handle unquoted and single-quoted property names
+- Separated handling into two distinct cases for reliability
+- Added better error logging to show both raw and cleaned responses
+- Improved ranker prompt to provide a clearer JSON example with proper formatting
+
+The automatic repair now correctly converts all malformed JSON syntax to valid JSON before parsing.

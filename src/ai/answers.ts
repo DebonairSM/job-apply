@@ -1,7 +1,15 @@
 import { askOllama } from './client.js';
 import { AnswersOutput, sanitizeAnswers } from '../lib/validation.js';
 import { loadConfig } from '../lib/session.js';
-import { getAnswers, cacheAnswers } from '../lib/db.js';
+import { 
+  getAnswers, 
+  cacheAnswers, 
+  getCommonAnswer,
+  getUserSkills,
+  getUserExperience,
+  getUserEducation,
+  getResumeDataSummary
+} from '../lib/db.js';
 import { enhanceWhyFit, parseResume } from './rag.js';
 
 // Synthesize answers for a job application
@@ -24,38 +32,93 @@ export async function synthesizeAnswers(
   const config = loadConfig();
   
   // Load common answers from database
-  const db = require('../lib/db.js');
   const commonAnswers = {
-    salary_expectation: db.getCommonAnswer('salary_expectation')?.answer_text || 'Open',
-    remote_preference: db.getCommonAnswer('remote_preference')?.answer_text,
-    start_date: db.getCommonAnswer('start_date')?.answer_text
+    salary_expectation: getCommonAnswer('salary_expectation')?.answer_text || 'Open',
+    remote_preference: getCommonAnswer('remote_preference')?.answer_text,
+    start_date: getCommonAnswer('start_date')?.answer_text
   };
   
   // Get resume content for enhanced answers
+  // HYBRID APPROACH: Check database first, fall back to parsing if needed
   let resumeContent = '';
   let selectedResumeVariant = config.resumeVariants[0];
   
   try {
-    // Parse the first available resume for context
-    const resumePath = config.resumeVariants.length > 0 
-      ? `${process.cwd()}/resumes/${config.resumeVariants[0]}`
-      : null;
+    // Check if we have resume data in database
+    const summary = getResumeDataSummary();
+    
+    if (summary.skillCount > 0 || summary.experienceCount > 0) {
+      // Use database data (fast, no AI calls)
+      console.log('Using resume data from database');
       
-    if (resumePath) {
-      const resume = await parseResume(resumePath);
-      if (resume.sections && resume.sections.length > 0) {
-        resumeContent = `\n\nRESUME CONTENT:\n${resume.sections.map(s => 
-          `[${s.type.toUpperCase()}] ${s.title}: ${s.content}`
-        ).join('\n')}`;
+      const skills = getUserSkills();
+      const experience = getUserExperience();
+      const education = getUserEducation();
+      
+      // Build resume content from database
+      const resumeParts: string[] = [];
+      
+      if (skills.length > 0) {
+        const skillsByCategory = skills.reduce((acc, skill) => {
+          const cat = skill.category || 'Other';
+          if (!acc[cat]) acc[cat] = [];
+          acc[cat].push(skill.skill_name);
+          return acc;
+        }, {} as Record<string, string[]>);
+        
+        resumeParts.push('[SKILLS]');
+        Object.entries(skillsByCategory).forEach(([category, skillList]) => {
+          resumeParts.push(`${category}: ${skillList.join(', ')}`);
+        });
       }
       
-      // Select best resume variant based on job requirements
-      if (config.resumeVariants.length > 1) {
-        selectedResumeVariant = await selectBestResumeVariant(jobTitle, jobDescription, config.resumeVariants);
+      if (experience.length > 0) {
+        resumeParts.push('\n[EXPERIENCE]');
+        experience.forEach(exp => {
+          resumeParts.push(`${exp.title} at ${exp.company}${exp.duration ? ` (${exp.duration})` : ''}`);
+          if (exp.description) {
+            resumeParts.push(exp.description);
+          }
+          if (exp.technologies) {
+            resumeParts.push(`Technologies: ${exp.technologies}`);
+          }
+        });
+      }
+      
+      if (education.length > 0) {
+        resumeParts.push('\n[EDUCATION]');
+        education.forEach(edu => {
+          resumeParts.push(`${edu.degree || ''} ${edu.field || ''} - ${edu.institution}`);
+        });
+      }
+      
+      if (resumeParts.length > 0) {
+        resumeContent = `\n\nRESUME CONTENT:\n${resumeParts.join('\n')}`;
+      }
+    } else {
+      // Fall back to parsing resume files (expensive AI calls)
+      console.log('Database empty, falling back to parsing resume files');
+      
+      const resumePath = config.resumeVariants.length > 0 
+        ? `${process.cwd()}/resumes/${config.resumeVariants[0]}`
+        : null;
+        
+      if (resumePath) {
+        const resume = await parseResume(resumePath);
+        if (resume.sections && resume.sections.length > 0) {
+          resumeContent = `\n\nRESUME CONTENT:\n${resume.sections.map(s => 
+            `[${s.type.toUpperCase()}] ${s.title}: ${s.content}`
+          ).join('\n')}`;
+        }
+        
+        // Select best resume variant based on job requirements
+        if (config.resumeVariants.length > 1) {
+          selectedResumeVariant = await selectBestResumeVariant(jobTitle, jobDescription, config.resumeVariants);
+        }
       }
     }
   } catch (error) {
-    console.warn('Failed to parse resume for context:', error);
+    console.warn('Failed to get resume content:', error);
     // Continue without resume content - system will still work with basic info
   }
   
@@ -159,6 +222,12 @@ Return ONLY a JSON object with this format:
     why_fit: whyFit,
     salary_expectation: commonAnswers.salary_expectation
   };
+  
+  console.log('[DEBUG] Profile data being used:');
+  console.log(`  Name: ${config.fullName}`);
+  console.log(`  Email: ${config.email}`);
+  console.log(`  Phone: ${config.phone}`);
+  console.log(`  City: ${config.city}`);
 
   const output: AnswersOutput = {
     answers,
@@ -210,11 +279,20 @@ Example: Senior-Developer.docx`;
     // Ensure result is a string
     const resultString = typeof result === 'string' ? result : String(result || '');
     
+    console.log(`[DEBUG] AI selected resume: "${resultString}"`);
+    console.log(`[DEBUG] Available resumes: ${JSON.stringify(resumeVariants)}`);
+    
     // Validate the result is one of the available variants
     const selectedVariant = resumeVariants.find(variant => 
       variant.toLowerCase().includes(resultString.toLowerCase()) ||
       resultString.toLowerCase().includes(variant.toLowerCase())
     );
+    
+    if (!selectedVariant) {
+      console.warn(`[DEBUG] AI returned invalid resume "${resultString}", using default: ${resumeVariants[0]}`);
+    } else {
+      console.log(`[DEBUG] Matched to: "${selectedVariant}"`);
+    }
     
     return selectedVariant || resumeVariants[0];
   } catch (error) {

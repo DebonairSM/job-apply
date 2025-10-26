@@ -6,6 +6,10 @@ dist/
 data/*.db
 data/*.db-shm
 data/*.db-wal
+data/*.db.inspect-temp
+data/*.db.old-*
+data/backups/
+databackup/
 
 # Session and storage
 storage/storageState.json
@@ -64,3 +68,5 @@ Thumbs.db
 *.tmp
 *.temp
 
+# Cursor IDE generated files
+.cursor/plans/

@@ -28,10 +28,18 @@ export function closeDb(): void {
 
 export function getDb(): Database.Database {
   if (!db) {
-    const dbPath = isTestMode ? TEST_DB_PATH : DB_PATH;
+    // Check environment variable for test mode
+    const envTestMode = process.env.NODE_ENV === 'test' || process.env.TEST_MODE === 'true';
+    const dbPath = (isTestMode || envTestMode) ? TEST_DB_PATH : DB_PATH;
+    
     db = new Database(dbPath);
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');
+    
+    // Log which database we're using (only in test mode for clarity)
+    if (envTestMode && dbPath === TEST_DB_PATH) {
+      console.log('🧪 Using in-memory test database (production data is safe)');
+    }
   }
   return db;
 }
@@ -102,6 +110,12 @@ export function initDb(): void {
   
   try {
     database.exec(`ALTER TABLE jobs ADD COLUMN description TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+  
+  try {
+    database.exec(`ALTER TABLE jobs ADD COLUMN profile TEXT`);
   } catch (e) {
     // Column already exists, ignore
   }
@@ -329,6 +343,7 @@ export interface Job {
   missing_keywords?: string; // JSON string
   posted_date?: string; // When the job was posted on LinkedIn
   description?: string; // Full job description text
+  profile?: string; // Search profile used to find this job (core, security, event-driven, etc.)
   created_at?: string; // When we added it to our database
   status_updated_at?: string; // When the status was last changed
 }
@@ -346,13 +361,13 @@ export function addJobs(jobs: Omit<Job, 'created_at'>[]): AddJobsResult {
   const checkExistingStmt = database.prepare('SELECT id, status FROM jobs WHERE id = ?');
   
   const insertStmt = database.prepare(`
-    INSERT INTO jobs (id, title, company, url, easy_apply, rank, status, fit_reasons, must_haves, blockers, category_scores, missing_keywords, posted_date, description, created_at, status_updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO jobs (id, title, company, url, easy_apply, rank, status, fit_reasons, must_haves, blockers, category_scores, missing_keywords, posted_date, description, profile, created_at, status_updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   const updateStmt = database.prepare(`
     UPDATE jobs 
-    SET status = ?, rank = ?, fit_reasons = ?, must_haves = ?, blockers = ?, category_scores = ?, missing_keywords = ?, posted_date = ?, description = ?, status_updated_at = ?
+    SET status = ?, rank = ?, fit_reasons = ?, must_haves = ?, blockers = ?, category_scores = ?, missing_keywords = ?, posted_date = ?, description = ?, profile = ?, status_updated_at = ?
     WHERE id = ?
   `);
 
@@ -383,6 +398,7 @@ export function addJobs(jobs: Omit<Job, 'created_at'>[]): AddJobsResult {
             job.missing_keywords ?? null,
             job.posted_date ?? null,
             job.description ?? null,
+            job.profile ?? null,
             now,
             job.id
           );
@@ -425,6 +441,7 @@ export function addJobs(jobs: Omit<Job, 'created_at'>[]): AddJobsResult {
             job.missing_keywords ?? null,
             job.posted_date ?? null,
             job.description ?? null,
+            job.profile ?? null,
             now,
             null  // Don't set status_updated_at for new jobs
           );
@@ -1587,6 +1604,65 @@ export function saveApplicationPreference(pref: Omit<ApplicationPreference, 'upd
 export function deleteApplicationPreference(key: string): void {
   const database = getDb();
   database.prepare('DELETE FROM application_preferences WHERE key = ?').run(key);
+}
+
+// Resume Data Query Helpers
+
+/**
+ * Get skills by category, returns all if no category specified
+ */
+export function getUserSkillsByCategory(category?: string): UserSkill[] {
+  return getUserSkills(category);
+}
+
+/**
+ * Find experience entries that mention a specific technology
+ */
+export function getUserExperienceByTechnology(tech: string): UserExperience[] {
+  const database = getDb();
+  const stmt = database.prepare(`
+    SELECT * FROM user_experience 
+    WHERE LOWER(technologies) LIKE LOWER(?) OR LOWER(description) LIKE LOWER(?)
+    ORDER BY start_date DESC
+  `);
+  const searchPattern = `%${tech}%`;
+  return stmt.all(searchPattern, searchPattern) as UserExperience[];
+}
+
+/**
+ * Get overview of resume data in database
+ */
+export interface ResumeDataSummary {
+  resumeCount: number;
+  skillCount: number;
+  experienceCount: number;
+  educationCount: number;
+  lastParsed?: string;
+}
+
+export function getResumeDataSummary(): ResumeDataSummary {
+  const database = getDb();
+  
+  const resumes = getResumeFiles(true);
+  const skills = getUserSkills();
+  const experience = getUserExperience();
+  const education = getUserEducation();
+  
+  // Get last parsed timestamp
+  let lastParsed: string | undefined;
+  if (resumes.length > 0) {
+    const stmt = database.prepare('SELECT MAX(parsed_at) as last_parsed FROM resume_files WHERE is_active = 1');
+    const result = stmt.get() as { last_parsed?: string };
+    lastParsed = result.last_parsed || undefined;
+  }
+  
+  return {
+    resumeCount: resumes.length,
+    skillCount: skills.length,
+    experienceCount: experience.length,
+    educationCount: education.length,
+    lastParsed
+  };
 }
 
 // Initialize on import

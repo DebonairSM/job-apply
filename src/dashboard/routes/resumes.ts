@@ -4,12 +4,28 @@ import {
   getResumeFileByName,
   saveResumeFile,
   deleteResumeFile,
-  ResumeFile 
+  ResumeFile,
+  clearUserSkills,
+  clearUserExperience,
+  clearUserEducation,
+  getResumeDataSummary
 } from '../../lib/db.js';
-import { extractResumeToDatabase } from '../../ai/rag.js';
+import { extractResumeToDatabase, getAvailableResumes } from '../../ai/rag.js';
+import { createBackup } from '../../lib/backup.js';
 import { join } from 'path';
 
 const router = Router();
+
+// GET /api/resumes/summary - Get resume data summary
+router.get('/summary', (req, res) => {
+  try {
+    const summary = getResumeDataSummary();
+    res.json(summary);
+  } catch (error) {
+    console.error('Error fetching resume summary:', error);
+    res.status(500).json({ error: 'Failed to fetch resume summary' });
+  }
+});
 
 // GET /api/resumes - Get all resume files
 router.get('/', (req, res) => {
@@ -105,6 +121,79 @@ router.delete('/:id', (req, res) => {
   } catch (error) {
     console.error('Error deleting resume:', error);
     res.status(500).json({ error: 'Failed to delete resume' });
+  }
+});
+
+// POST /api/resumes/sync-all - Sync all resumes to database
+router.post('/sync-all', async (req, res) => {
+  try {
+    const clearExisting = req.query.clearExisting === 'true';
+    
+    // FIRST: Create database backup before any writes
+    console.log('Creating database backup before resume sync...');
+    const backupResult = createBackup();
+    
+    if (!backupResult.success) {
+      return res.status(500).json({ 
+        error: 'Failed to create database backup',
+        details: backupResult.error 
+      });
+    }
+    
+    console.log(`Backup created: ${backupResult.backupPath}`);
+    
+    // Clear existing resume data if requested
+    if (clearExisting) {
+      console.log('Clearing existing resume data...');
+      clearUserSkills();
+      clearUserExperience();
+      clearUserEducation();
+    }
+    
+    // Get all resume files from resumes/ directory
+    const resumeFiles = getAvailableResumes();
+    
+    if (resumeFiles.length === 0) {
+      return res.json({
+        message: 'No resume files found',
+        backupPath: backupResult.backupPath,
+        syncedCount: 0,
+        errors: []
+      });
+    }
+    
+    // Extract each resume to database
+    const results = [];
+    const errors = [];
+    
+    for (const resumePath of resumeFiles) {
+      try {
+        console.log(`Extracting: ${resumePath}`);
+        const resumeFileId = await extractResumeToDatabase(resumePath);
+        results.push({ path: resumePath, id: resumeFileId });
+      } catch (error) {
+        console.error(`Failed to extract ${resumePath}:`, error);
+        errors.push({
+          path: resumePath,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        });
+      }
+    }
+    
+    res.json({
+      message: `Successfully synced ${results.length} resume(s)`,
+      backupPath: backupResult.backupPath,
+      syncedCount: results.length,
+      totalFiles: resumeFiles.length,
+      results,
+      errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (error) {
+    console.error('Error syncing resumes:', error);
+    res.status(500).json({ 
+      error: 'Failed to sync resumes',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 

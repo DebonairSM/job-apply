@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ResumeSync } from './ResumeSync';
 
 interface UserProfile {
   id?: number;
@@ -130,6 +131,11 @@ export function Settings() {
             <p className="text-red-800">{errorMessage}</p>
           </div>
         )}
+
+        {/* Resume Sync Component */}
+        <div className="mb-6">
+          <ResumeSync />
+        </div>
 
         {/* Profile Form */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">

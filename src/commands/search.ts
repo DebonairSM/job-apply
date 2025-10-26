@@ -118,7 +118,7 @@ async function updateMissingDescriptions(page: Page, limit: number = 10): Promis
   return updated;
 }
 
-async function processPage(page: Page, minScore: number, config: any, opts: SearchOptions): Promise<{ analyzed: number, queued: number }> {
+async function processPage(page: Page, minScore: number, config: any, opts: SearchOptions, shouldStopCheck: () => boolean = () => false): Promise<{ analyzed: number, queued: number }> {
   // Wait for initial results to load
   await page.waitForTimeout(2000);
   
@@ -141,13 +141,7 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
     console.log('Note: Could not inject styles to hide messaging overlay (CSP restriction)');
   }
 
-  console.log('   Style injection complete, pressing Escape...');
-  // Quick escape press to dismiss any non-messaging modals
-  await page.keyboard.press('Escape').catch(() => {});
-  console.log('   Escape pressed, waiting...');
-  await page.waitForTimeout(500);
-
-  // Wait a bit more to ensure all cards on current page are rendered
+  // Wait a bit to ensure all cards on current page are rendered
   await page.waitForTimeout(1000);
   
   // Dismiss any modals before processing jobs
@@ -203,6 +197,14 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
   }
 
   for (let i = 0; i < count; i++) {
+    // Check if we should stop before starting to process each card
+    const stopRequested = shouldStopCheck();
+    if (stopRequested) {
+      console.log(`\n⚠️  Stop signal received. Stopping search...`);
+      console.log(`   Processed ${i}/${count} jobs, gracefully exiting.\n`);
+      break;
+    }
+
     try {
       console.log(`   Processing card ${i + 1}/${count}...`);
       // Re-locate job cards each iteration (DOM may have changed) - use same selector
@@ -216,10 +218,22 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
         continue;
       }
       
+      // Check stop signal after visibility check
+      if (shouldStopCheck()) {
+        console.log(`\n⚠️  Stopping during job ${i + 1}...\n`);
+        break;
+      }
+      
       console.log(`   Scrolling into view...`);
       // Scroll card into view FIRST to trigger lazy loading of content
       await card.scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {});
       await page.waitForTimeout(500); // Give time for content to load
+      
+      // Check stop signal after scrolling
+      if (shouldStopCheck()) {
+        console.log(`\n⚠️  Stopping after scrolling card ${i + 1}...\n`);
+        break;
+      }
       
       console.log(`   Extracting title...`);
       // Extract job title - LinkedIn's new structure uses artdeco-entity-lockup__title
@@ -521,6 +535,12 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
       if (!descriptionFound) {
         description = title; // Fallback to title
       }
+      
+      // Check stop signal after description extraction
+      if (shouldStopCheck()) {
+        console.log(`\n⚠️  Stopping after extracting description for card ${i + 1}...\n`);
+        break;
+      }
 
       analyzed++;
 
@@ -549,6 +569,12 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
         continue;
       }
 
+      // Check if we should stop before expensive LLM operation
+      if (shouldStopCheck()) {
+        console.log(`\n⚠️  Stopping before ranking job ${i + 1}.\n`);
+        break;
+      }
+
       // Generate job ID for context
       const jobHashId = crypto.createHash('md5').update(link).digest('hex');
       
@@ -568,7 +594,7 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
       console.log(`        Score: ${ranking.fitScore}/100`);
       console.log(`        Azure: ${ranking.categoryScores.coreAzure} | Security: ${ranking.categoryScores.security} | Events: ${ranking.categoryScores.eventDriven}`);
       console.log(`        Perf: ${ranking.categoryScores.performance} | DevOps: ${ranking.categoryScores.devops} | Senior: ${ranking.categoryScores.seniority}`);
-      console.log(`        .NET: ${ranking.categoryScores.coreNet} | Legacy: ${ranking.categoryScores.legacyModernization}`);
+      console.log(`        .NET: ${ranking.categoryScores.coreNet} | Frontend: ${ranking.categoryScores.frontendFrameworks} | Legacy: ${ranking.categoryScores.legacyModernization}`);
       
       if (ranking.blockers.length > 0) {
         console.log(`        ⚠️  Blockers: ${ranking.blockers.join(', ')}`);
@@ -594,7 +620,8 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
           category_scores: JSON.stringify(ranking.categoryScores),
           missing_keywords: JSON.stringify(ranking.missingKeywords),
           posted_date: postedDate || undefined,
-          description: description || undefined
+          description: description || undefined,
+          profile: opts.profile || 'core' // Store the search profile used to find this job
         };
 
         // Save immediately to database instead of adding to array
@@ -619,7 +646,19 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
       await randomDelay();
 
     } catch (error) {
-      console.log(`   ⚠️  Error processing job ${i + 1}: ${(error as Error).message}`);
+      const err = error as Error;
+      let errorMsg = err.message;
+      
+      // Improve error messages for common issues
+      if (errorMsg.includes('Expected object, received array')) {
+        errorMsg = 'LLM returned array instead of object - retrying with better prompt';
+      } else if (errorMsg.includes('invalid_type') || errorMsg.startsWith('[')) {
+        errorMsg = 'LLM returned invalid data format - validation failed';
+      } else if (errorMsg.includes('Failed to get valid JSON')) {
+        errorMsg = 'LLM failed to return valid JSON after retries';
+      }
+      
+      console.log(`   ⚠️  Error processing job ${i + 1}: ${errorMsg}`);
       
       // Log error to database if we have job context
       if (process.env.JOB_ID) {
@@ -629,7 +668,7 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
             job_id: process.env.JOB_ID,
             step: 'job_processing',
             ok: false,
-            log: (error as Error).message
+            log: errorMsg
           });
         } catch (dbError) {
           console.error('Failed to log job processing error to database:', dbError);
@@ -748,6 +787,21 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
   }
   console.log();
 
+  // Flag to signal graceful shutdown
+  let shouldStop = false;
+
+  // Setup graceful shutdown handler - set flag instead of immediate exit
+  const shutdownHandler = () => {
+    if (!shouldStop) {
+      console.log('\n⚠️  Stop requested, finishing current job...');
+      shouldStop = true;
+      console.log('   Stop flag set to true');
+    }
+  };
+
+  process.on('SIGTERM', shutdownHandler);
+  process.on('SIGINT', shutdownHandler);
+
   const browser = await chromium.launch({
     headless: config.headless,
     slowMo: config.slowMo,
@@ -771,11 +825,11 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
   let currentPage = startPage;
 
   // Process pages in a loop
-  while (currentPage <= maxPages) {
+  while (currentPage <= maxPages && !shouldStop) {
     const pageDisplay = maxPages >= 999 ? 'all' : maxPages.toString();
     console.log(`\n📄 Processing page ${currentPage}/${pageDisplay}...`);
     
-    const pageResult = await processPage(page, minScore, config, opts);
+    const pageResult = await processPage(page, minScore, config, opts, () => shouldStop);
     totalAnalyzed += pageResult.analyzed;
     totalQueued += pageResult.queued;
 
@@ -783,6 +837,12 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
     console.log(`   Analyzed: ${pageResult.analyzed}`);
     console.log(`   Queued: ${pageResult.queued}`);
     console.log(`   Success Rate: ${pageResult.analyzed > 0 ? Math.round((pageResult.queued / pageResult.analyzed) * 100) : 0}%`);
+
+    // Check if we should stop
+    if (shouldStop) {
+      console.log('\n⚠️  Stopping gracefully...');
+      break;
+    }
 
     // Check if there's a next page
     if (currentPage < maxPages) {

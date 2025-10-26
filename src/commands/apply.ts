@@ -801,6 +801,21 @@ export async function applyCommand(opts: ApplyOptions): Promise<void> {
   console.log(`   Jobs to process: ${jobs.length}`);
   console.log(`   Dry run: ${opts.dryRun ? 'Yes' : 'No'}\n`);
 
+  // Flag to signal graceful shutdown
+  let shouldStop = false;
+
+  // Setup graceful shutdown handler - set flag instead of immediate exit
+  const shutdownHandler = () => {
+    if (!shouldStop) {
+      console.log('\n⚠️  Stop requested, finishing current application...');
+      shouldStop = true;
+      console.log('   Stop flag set to true');
+    }
+  };
+
+  process.on('SIGTERM', shutdownHandler);
+  process.on('SIGINT', shutdownHandler);
+
   const browser = await chromium.launch({
     headless: config.headless,
     slowMo: config.slowMo,
@@ -818,6 +833,12 @@ export async function applyCommand(opts: ApplyOptions): Promise<void> {
   let skipped = 0;
 
   for (const job of jobs) {
+    // Check if we should stop before starting to process each job
+    if (shouldStop) {
+      console.log(`\n⚠️  Stopping before processing ${job.title} at ${job.company}.\n`);
+      break;
+    }
+
     console.log(`\n📝 ${job.title} at ${job.company}`);
     console.log(`   Type: ${job.easy_apply ? 'Easy Apply' : 'External'}`);
     console.log(`   Rank: ${job.rank}/100`);
@@ -825,9 +846,15 @@ export async function applyCommand(opts: ApplyOptions): Promise<void> {
     try {
       await startTracing(context, job.id);
 
+      // Check if we should stop before expensive LLM operation
+      if (shouldStop) {
+        console.log(`\n⚠️  Stopping before generating answers for ${job.title}.\n`);
+        break;
+      }
+
       // Set job context for error logging
       process.env.JOB_ID = job.id;
-
+      
       // Generate answers
       const answersData = await synthesizeAnswers(
         job.id,
@@ -835,6 +862,12 @@ export async function applyCommand(opts: ApplyOptions): Promise<void> {
         job.description || '', // Use stored description or fallback to empty string
         config.profileSummary
       );
+      
+      // Check if we should stop after LLM operation (it can take a while)
+      if (shouldStop) {
+        console.log(`\n⚠️  Stopping after generating answers for ${job.title}.\n`);
+        break;
+      }
 
       console.log(`   📄 Using resume: ${answersData.resumeVariant}`);
       const resumePath = getResumePath(answersData.resumeVariant);
@@ -844,6 +877,12 @@ export async function applyCommand(opts: ApplyOptions): Promise<void> {
 
       // Navigate to job
       await page.goto(job.url, { waitUntil: 'domcontentloaded' });
+      
+      // Check stop signal after navigation
+      if (shouldStop) {
+        console.log(`\n⚠️  Stopping after navigating to ${job.title}.\n`);
+        break;
+      }
       await page.waitForTimeout(2000);
       
       // Take screenshot before attempting interaction for debugging

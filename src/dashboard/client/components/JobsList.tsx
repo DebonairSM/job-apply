@@ -287,6 +287,19 @@ export function JobsList() {
     setExpandedJobIds(new Set());
   };
 
+  const toggleAllJobs = () => {
+    // If any visible jobs are expanded, collapse all
+    // Otherwise expand all
+    if (hasAnyExpanded) {
+      collapseAllJobs();
+    } else {
+      expandAllJobs();
+    }
+  };
+
+  // Check if any visible jobs are expanded
+  const hasAnyExpanded = filteredAndSortedJobs.some(job => expandedJobIds.has(job.id));
+
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -339,24 +352,25 @@ export function JobsList() {
             </button>
           )}
           {filteredAndSortedJobs.length > 0 && (
-            <>
-              <button
-                onClick={expandAllJobs}
-                className="bg-green-600 hover:bg-green-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
+            <button
+              onClick={toggleAllJobs}
+              className={`${
+                hasAnyExpanded 
+                  ? 'bg-orange-600 hover:bg-orange-700' 
+                  : 'bg-green-600 hover:bg-green-700'
+              } text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm sm:text-base`}
+            >
+              <svg
+                className={`w-4 h-4 transition-transform duration-200 ${hasAnyExpanded ? 'rotate-180' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                <span>📖</span>
-                <span className="hidden sm:inline">Expand All</span>
-                <span className="sm:hidden">Expand</span>
-              </button>
-              <button
-                onClick={collapseAllJobs}
-                className="bg-orange-600 hover:bg-orange-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
-              >
-                <span>📕</span>
-                <span className="hidden sm:inline">Collapse All</span>
-                <span className="sm:hidden">Collapse</span>
-              </button>
-            </>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+              <span className="hidden sm:inline">{hasAnyExpanded ? 'Collapse All' : 'Expand All'}</span>
+              <span className="sm:hidden">{hasAnyExpanded ? 'Collapse' : 'Expand'}</span>
+            </button>
           )}
           <button
             onClick={handleExport}

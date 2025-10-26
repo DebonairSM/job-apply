@@ -3,34 +3,29 @@
 /**
  * Quick setup script to populate user profile in database
  * Edit the values below to match your information
+ * 
+ * SAFETY: Automatic backup created before profile changes
  */
 
-import Database from 'better-sqlite3';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { openDatabase } from './lib/db-safety.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const rootDir = join(__dirname, '..');
-
-const dbPath = join(rootDir, 'data', 'app.db');
-const db = new Database(dbPath);
+const db = openDatabase({ backup: true }); // Auto-backup before changes
 
 console.log('\n🔄 Setting up user profile in database...\n');
 
 try {
   // EDIT THESE VALUES WITH YOUR INFORMATION
   const profile = {
-    full_name: 'Your Name',
-    first_name: 'Your',
-    last_name: 'Name',
-    email: 'your.email@example.com',
-    phone: '+1-555-0123', // Optional
-    city: 'Your City', // Optional
-    linkedin_profile: 'https://linkedin.com/in/yourprofile', // Optional
-    work_authorization: 'Citizen', // Or 'Green Card', 'H1B', etc.
-    requires_sponsorship: 'No', // Or 'Yes'
-    profile_summary: 'Your professional summary here' // Optional
+    full_name: 'Rommel Bandeira',
+    first_name: 'Rommel',
+    last_name: 'Bandeira',
+    email: 'rommelb@gmail.com',
+    phone: '13523978650',
+    city: 'Brooksville',
+    linkedin_profile: 'https://www.linkedin.com/in/rombandeira/',
+    work_authorization: 'Citizen',
+    requires_sponsorship: 'No',
+    profile_summary: 'Senior Azure API Engineer with over 15 years of experience designing, building, and governing cloud-native APIs and enterprise systems using Microsoft Azure and .NET (6/8). Expert in Azure API Management (APIM), Azure Functions, Service Bus, App Services, and secure authentication (OAuth 2.0, JWT, Entra ID). Adept at modernizing legacy systems, optimizing performance with Redis and EF Core, and ensuring reliability through Azure Load Balancer, Application Insights, and monitoring solutions.'
   };
 
   // Check if profile already exists

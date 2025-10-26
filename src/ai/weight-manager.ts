@@ -1,4 +1,4 @@
-import { PROFILES, TechnicalProfile } from './profiles.js';
+import { PROFILES, PROFILE_WEIGHT_DISTRIBUTIONS, TechnicalProfile } from './profiles.js';
 import { 
   getCurrentWeightAdjustments, 
   saveWeightAdjustment,
@@ -11,26 +11,41 @@ export interface WeightAdjustments {
 }
 
 // Cache for current weights to avoid repeated database queries
-let weightCache: Record<string, number> | null = null;
-let cacheTimestamp: number = 0;
+// Now profile-aware: Map<profileKey, {weights, timestamp}>
+const weightCache = new Map<string, { weights: Record<string, number>; timestamp: number }>();
 const CACHE_DURATION = 60000; // 1 minute
 
-// Get active weights with adjustments applied
-export function getActiveWeights(): Record<string, number> {
-  const now = Date.now();
-  
-  // Use cache if it's still valid
-  if (weightCache && (now - cacheTimestamp) < CACHE_DURATION) {
-    return weightCache;
-  }
-  
-  // Load base weights from profiles
+// Get default base weights (used when no profile specified)
+function getDefaultWeights(): Record<string, number> {
   const baseWeights: Record<string, number> = {};
   Object.entries(PROFILES).forEach(([key, profile]) => {
     baseWeights[key] = profile.weight;
   });
+  return baseWeights;
+}
+
+// Get active weights with adjustments applied (profile-specific)
+export function getActiveWeights(profileKey?: string): Record<string, number> {
+  const now = Date.now();
+  const cacheKey = profileKey || 'default';
   
-  // Get adjustments from database
+  // Use cache if it's still valid
+  const cached = weightCache.get(cacheKey);
+  if (cached && (now - cached.timestamp) < CACHE_DURATION) {
+    return cached.weights;
+  }
+  
+  // Load base weights from profile-specific distribution or fallback to default
+  let baseWeights: Record<string, number>;
+  if (profileKey && PROFILE_WEIGHT_DISTRIBUTIONS[profileKey]) {
+    // Use profile-specific weight distribution
+    baseWeights = { ...PROFILE_WEIGHT_DISTRIBUTIONS[profileKey] };
+  } else {
+    // Fallback to default weights from PROFILES
+    baseWeights = getDefaultWeights();
+  }
+  
+  // Get global learning adjustments from database
   const adjustments = getCurrentWeightAdjustments();
   
   // Apply adjustments to base weights
@@ -43,9 +58,11 @@ export function getActiveWeights(): Record<string, number> {
   // Normalize weights to ensure they sum to 100%
   const normalizedWeights = normalizeWeights(adjustedWeights);
   
-  // Update cache
-  weightCache = normalizedWeights;
-  cacheTimestamp = now;
+  // Update cache for this profile
+  weightCache.set(cacheKey, {
+    weights: normalizedWeights,
+    timestamp: now
+  });
   
   return normalizedWeights;
 }
@@ -84,8 +101,8 @@ export function applyWeightAdjustment(
     rejection_id: rejectionId
   });
   
-  // Invalidate cache to force reload
-  weightCache = null;
+  // Invalidate all profile caches to force reload
+  weightCache.clear();
   
   console.log(`📊 Weight adjustment: ${category} ${oldWeight}% → ${finalNewWeight}% (${finalAdjustment > 0 ? '+' : ''}${finalAdjustment}%) - ${reason}`);
 }
@@ -155,8 +172,8 @@ export function resetWeightAdjustments(): void {
   // Clear all weight adjustments
   database.prepare('DELETE FROM weight_adjustments').run();
   
-  // Invalidate cache
-  weightCache = null;
+  // Invalidate all profile caches
+  weightCache.clear();
   
   console.log('🔄 Reset all weight adjustments to base weights');
 }

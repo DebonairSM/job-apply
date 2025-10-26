@@ -1,13 +1,43 @@
-import Database from 'better-sqlite3';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { openDatabase } from './lib/db-safety.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const DB_PATH = join(__dirname, '../data/app.db');
+// Profile-specific weight distributions (must match src/ai/profiles.ts)
+const PROFILE_WEIGHT_DISTRIBUTIONS = {
+  core: {
+    coreAzure: 25, security: 10, eventDriven: 15, performance: 10,
+    devops: 0, seniority: 10, coreNet: 20, frontendFrameworks: 5, legacyModernization: 5
+  },
+  security: {
+    coreAzure: 15, security: 35, eventDriven: 10, performance: 5,
+    devops: 0, seniority: 15, coreNet: 15, frontendFrameworks: 0, legacyModernization: 5
+  },
+  'event-driven': {
+    coreAzure: 15, security: 10, eventDriven: 30, performance: 15,
+    devops: 0, seniority: 10, coreNet: 15, frontendFrameworks: 0, legacyModernization: 5
+  },
+  performance: {
+    coreAzure: 15, security: 5, eventDriven: 10, performance: 30,
+    devops: 0, seniority: 10, coreNet: 20, frontendFrameworks: 5, legacyModernization: 5
+  },
+  devops: {
+    coreAzure: 20, security: 10, eventDriven: 10, performance: 10,
+    devops: 0, seniority: 10, coreNet: 25, frontendFrameworks: 10, legacyModernization: 5
+  },
+  backend: {
+    coreAzure: 20, security: 15, eventDriven: 15, performance: 10,
+    devops: 0, seniority: 10, coreNet: 25, frontendFrameworks: 0, legacyModernization: 5
+  },
+  'core-net': {
+    coreAzure: 10, security: 10, eventDriven: 5, performance: 15,
+    devops: 0, seniority: 10, coreNet: 40, frontendFrameworks: 5, legacyModernization: 5
+  },
+  'legacy-modernization': {
+    coreAzure: 15, security: 5, eventDriven: 10, performance: 10,
+    devops: 0, seniority: 15, coreNet: 20, frontendFrameworks: 5, legacyModernization: 20
+  }
+};
 
-// Profile definitions (must match src/ai/profiles.ts)
-const PROFILES = {
+// Default profile weights (used when job has no profile specified)
+const DEFAULT_PROFILES = {
   coreAzure: { weight: 20 },
   security: { weight: 15 },
   eventDriven: { weight: 10 },
@@ -20,8 +50,8 @@ const PROFILES = {
 };
 
 async function recalculateRanks() {
-  const db = new Database(DB_PATH);
-  console.log('🔄 Recalculating job ranks with proper weighted formula...\n');
+  const db = openDatabase({ backup: true }); // Auto-backup before changes
+  console.log('🔄 Recalculating job ranks with profile-specific weights...\n');
 
   try {
     // Get current weight adjustments from learning system
@@ -44,8 +74,8 @@ async function recalculateRanks() {
       console.log('');
     }
 
-    // Get all jobs with category scores
-    const jobs = db.prepare('SELECT id, title, company, category_scores FROM jobs WHERE category_scores IS NOT NULL').all();
+    // Get all jobs with category scores and their profile
+    const jobs = db.prepare('SELECT id, title, company, profile, category_scores FROM jobs WHERE category_scores IS NOT NULL').all();
 
     if (jobs.length === 0) {
       console.log('⚠️  No jobs with category scores found.');
@@ -62,14 +92,31 @@ async function recalculateRanks() {
     // Track rank distribution
     const rankDistribution = { '0-50': 0, '50-70': 0, '70-85': 0, '85-95': 0, '95-100': 0 };
 
+    // Track profile usage for reporting
+    const profileStats = {};
+    
     for (const job of jobs) {
       try {
         const scores = JSON.parse(job.category_scores);
         
-        // Calculate weighted score using current weights + adjustments
+        // Get profile-specific base weights, or use default
+        let baseWeights;
+        if (job.profile && PROFILE_WEIGHT_DISTRIBUTIONS[job.profile]) {
+          baseWeights = PROFILE_WEIGHT_DISTRIBUTIONS[job.profile];
+          profileStats[job.profile] = (profileStats[job.profile] || 0) + 1;
+        } else {
+          // Fallback to default weights for jobs without profile
+          baseWeights = {};
+          Object.entries(DEFAULT_PROFILES).forEach(([key, prof]) => {
+            baseWeights[key] = prof.weight;
+          });
+          profileStats['default'] = (profileStats['default'] || 0) + 1;
+        }
+        
+        // Calculate weighted score using profile-specific weights + adjustments
         let fitScore = 0;
-        Object.entries(PROFILES).forEach(([key, prof]) => {
-          const weight = (prof.weight + (adjustments[key] || 0)) / 100;
+        Object.entries(baseWeights).forEach(([key, baseWeight]) => {
+          const weight = (baseWeight + (adjustments[key] || 0)) / 100;
           const score = scores[key] || 0;
           fitScore += score * weight;
         });
@@ -99,6 +146,11 @@ async function recalculateRanks() {
     if (skipped > 0) {
       console.log(`   Skipped: ${skipped} jobs (errors)`);
     }
+    
+    console.log('\n📋 Profile usage:');
+    Object.entries(profileStats).sort((a, b) => b[1] - a[1]).forEach(([profile, count]) => {
+      console.log(`   ${profile}: ${count} jobs`);
+    });
     
     console.log('\n📊 New rank distribution:');
     console.log(`   0-50:   ${rankDistribution['0-50']} jobs`);

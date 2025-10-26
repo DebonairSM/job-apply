@@ -17,6 +17,7 @@ import skillsRouter from './routes/skills.js';
 import commonAnswersRouter from './routes/common-answers.js';
 import preferencesRouter from './routes/preferences.js';
 import resumesRouter from './routes/resumes.js';
+import automationRouter from './routes/automation.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -72,6 +73,9 @@ app.use('/api/skills', skillsRouter);
 app.use('/api/common-answers', commonAnswersRouter);
 app.use('/api/preferences', preferencesRouter);
 app.use('/api/resumes', resumesRouter);
+
+// Automation Routes
+app.use('/api/automation', automationRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

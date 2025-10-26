@@ -41,9 +41,9 @@ export function JobDescriptionPanel({
     };
   }, [job]);
   
-  // Generate highlighted HTML
-  const highlightedDescription = useMemo(() => {
-    if (!description) return '';
+  // Generate highlighted HTML with counts
+  const highlightResult = useMemo(() => {
+    if (!description) return { html: '', counts: { green: 0, yellow: 0, red: 0 } };
     
     // Always apply highlighting (uses static keywords + AI data)
     return highlightKeywords(description, { mustHaves, blockers });
@@ -115,17 +115,29 @@ export function JobDescriptionPanel({
               <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
                 <div className="text-sm font-medium text-gray-700 mb-2">Keyword Highlighting:</div>
                 <div className="flex flex-wrap gap-3 text-xs">
-                  <div className="flex items-center gap-1">
-                    <span className="inline-block w-4 h-4 bg-green-200 border border-green-300 rounded"></span>
-                    <span className="text-gray-600">Microsoft Ecosystem Match</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-gray-600">Microsoft Ecosystem</span>
+                    {highlightResult.counts.green > 0 && (
+                      <span className="px-1.5 py-0.5 bg-green-200 text-green-900 rounded font-medium">
+                        {highlightResult.counts.green}
+                      </span>
+                    )}
                   </div>
-                  <div className="flex items-center gap-1">
-                    <span className="inline-block w-4 h-4 bg-yellow-200 border border-yellow-300 rounded"></span>
-                    <span className="text-gray-600">Acceptable Cloud (AWS)</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-gray-600">Acceptable Tech</span>
+                    {highlightResult.counts.yellow > 0 && (
+                      <span className="px-1.5 py-0.5 bg-yellow-200 text-yellow-900 rounded font-medium">
+                        {highlightResult.counts.yellow}
+                      </span>
+                    )}
                   </div>
-                  <div className="flex items-center gap-1">
-                    <span className="inline-block w-4 h-4 bg-red-200 border border-red-300 rounded"></span>
-                    <span className="text-gray-600">Non-Microsoft / Prohibitive</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-gray-600">Prohibitive</span>
+                    {highlightResult.counts.red > 0 && (
+                      <span className="px-1.5 py-0.5 bg-red-200 text-red-900 rounded font-medium">
+                        {highlightResult.counts.red}
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -133,7 +145,7 @@ export function JobDescriptionPanel({
               <div className="prose prose-sm max-w-none">
                 <div 
                   className="whitespace-pre-wrap text-gray-800 leading-relaxed"
-                  dangerouslySetInnerHTML={{ __html: highlightedDescription }}
+                  dangerouslySetInnerHTML={{ __html: highlightResult.html }}
                 />
               </div>
             </>
