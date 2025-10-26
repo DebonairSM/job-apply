@@ -2,6 +2,8 @@ import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
 import { 
   initDb, 
+  setTestMode,
+  closeDb,
   saveLabelMapping, 
   getLabelMapping, 
   getAllMappings,
@@ -16,6 +18,7 @@ import {
 describe('Selector Learning System', () => {
   beforeEach(() => {
     // Initialize fresh database for each test
+    setTestMode(true);
     initDb();
     clearLabelMappings();
   });
@@ -23,6 +26,7 @@ describe('Selector Learning System', () => {
   afterEach(() => {
     // Clean up after each test
     clearLabelMappings();
+    closeDb();
   });
 
   describe('Database Schema and Operations', () => {

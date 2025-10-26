@@ -61,13 +61,19 @@ export function applyWeightAdjustment(
   const currentWeights = getActiveWeights();
   const oldWeight = currentWeights[category];
   
-  // Clamp adjustment to reasonable bounds (-10 to +10 percentage points)
-  const clampedAdjustment = Math.max(-10, Math.min(10, adjustment));
+  // Clamp adjustment to reasonable bounds (-5 to +5 percentage points) - reduced from 10
+  const clampedAdjustment = Math.max(-5, Math.min(5, adjustment));
   const newWeight = oldWeight + clampedAdjustment;
   
   // Ensure final weight is not negative (minimum 0.1%)
   const finalNewWeight = Math.max(0.1, newWeight);
   const finalAdjustment = finalNewWeight - oldWeight;
+  
+  // Skip adjustments that are too small (less than 0.5%)
+  if (Math.abs(finalAdjustment) < 0.5) {
+    console.log(`⚠️  Skipping small adjustment: ${category} ${finalAdjustment.toFixed(2)}% - ${reason}`);
+    return;
+  }
   
   // Save adjustment to database
   saveWeightAdjustment({

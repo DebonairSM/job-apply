@@ -3,11 +3,12 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Dashboard } from './components/Dashboard';
 import { JobsList } from './components/JobsList';
 import { ActivityLog } from './components/ActivityLog';
+import { Settings } from './components/Settings';
 import { JobNavigationProvider, useJobNavigation } from './contexts/JobNavigationContext';
 
 const queryClient = new QueryClient();
 
-type View = 'dashboard' | 'jobs' | 'activity';
+type View = 'dashboard' | 'jobs' | 'activity' | 'settings';
 
 function AppContent() {
   const [currentView, setCurrentView] = useState<View>('dashboard');
@@ -78,6 +79,16 @@ function AppContent() {
               >
                 Activity
               </button>
+              <button
+                onClick={() => setCurrentView('settings')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  currentView === 'settings'
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                Settings
+              </button>
             </div>
           </div>
 
@@ -124,6 +135,19 @@ function AppContent() {
                 >
                   Activity
                 </button>
+                <button
+                  onClick={() => {
+                    setCurrentView('settings');
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`px-4 py-3 rounded-lg font-medium transition-colors text-left ${
+                    currentView === 'settings'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  Settings
+                </button>
               </div>
             </div>
           )}
@@ -135,6 +159,7 @@ function AppContent() {
         {currentView === 'dashboard' && <Dashboard />}
         {currentView === 'jobs' && <JobsList />}
         {currentView === 'activity' && <ActivityLog />}
+        {currentView === 'settings' && <Settings />}
       </main>
     </div>
   );

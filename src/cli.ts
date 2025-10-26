@@ -285,6 +285,141 @@ yargs(hideBin(process.argv))
       console.log('   Run: npm test (once tests/mapper.test.ts is created)\n');
     }
   )
+  .command(
+    'migrate',
+    'Migrate .env data and resumes to database',
+    {},
+    async () => {
+      console.log('\n🔄 Starting migration to database...\n');
+      console.log('This will:');
+      console.log('  1. Extract user profile from .env');
+      console.log('  2. Parse all resume files');
+      console.log('  3. Populate database tables');
+      console.log('  4. Create new simplified .env\n');
+      
+      const { exec } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(exec);
+      
+      try {
+        const { stdout, stderr } = await execAsync('node scripts/migrate-to-database.js');
+        console.log(stdout);
+        if (stderr) console.error(stderr);
+      } catch (error: any) {
+        console.error('❌ Migration failed:', error.message);
+        process.exit(1);
+      }
+    }
+  )
+  .command(
+    'setup',
+    'Initial setup wizard',
+    {},
+    async () => {
+      console.log('\n👋 Welcome to Job Application Automation Setup!\n');
+      console.log('This wizard will help you configure your profile.\n');
+      
+      const readline = await import('readline');
+      const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+      });
+      
+      const question = (prompt: string): Promise<string> => {
+        return new Promise((resolve) => {
+          rl.question(prompt, resolve);
+        });
+      };
+      
+      try {
+        const { saveUserProfile, saveApplicationPreference, getUserProfile } = await import('./lib/db.js');
+        
+        // Check if profile already exists
+        const existing = getUserProfile();
+        if (existing) {
+          const overwrite = await question('Profile already exists. Overwrite? (y/N): ');
+          if (overwrite.toLowerCase() !== 'y') {
+            console.log('\n✅ Setup cancelled. Use dashboard to edit profile.\n');
+            rl.close();
+            return;
+          }
+        }
+        
+        console.log('📋 Please provide your information:\n');
+        
+        const fullName = await question('Full Name: ');
+        const email = await question('Email: ');
+        const phone = await question('Phone (optional): ');
+        const city = await question('City (optional): ');
+        const linkedinProfile = await question('LinkedIn URL (optional): ');
+        const workAuthorization = await question('Work Authorization (e.g., Citizen, Green Card): ');
+        const requiresSponsorship = await question('Requires Sponsorship? (Yes/No): ');
+        const profileSummary = await question('Profile Summary (optional): ');
+        
+        console.log('\n⚙️  Application Preferences:\n');
+        
+        const minFitScore = await question('Minimum Fit Score (0-100, default 70): ');
+        const yearsDotnet = await question('Years of .NET experience (optional): ');
+        const yearsAzure = await question('Years of Azure experience (optional): ');
+        
+        // Split name
+        const nameParts = fullName.trim().split(/\s+/);
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+        
+        // Save profile
+        saveUserProfile({
+          full_name: fullName,
+          first_name: firstName,
+          last_name: lastName,
+          email,
+          phone: phone || undefined,
+          city: city || undefined,
+          linkedin_profile: linkedinProfile || undefined,
+          work_authorization: workAuthorization || 'Citizen',
+          requires_sponsorship: requiresSponsorship || 'No',
+          profile_summary: profileSummary || undefined
+        });
+        
+        // Save preferences
+        if (minFitScore) {
+          saveApplicationPreference({
+            key: 'MIN_FIT_SCORE',
+            value: minFitScore,
+            description: 'Minimum job fit score threshold'
+          });
+        }
+        
+        if (yearsDotnet) {
+          saveApplicationPreference({
+            key: 'YEARS_DOTNET',
+            value: yearsDotnet,
+            description: 'Years of .NET experience'
+          });
+        }
+        
+        if (yearsAzure) {
+          saveApplicationPreference({
+            key: 'YEARS_AZURE',
+            value: yearsAzure,
+            description: 'Years of Azure experience'
+          });
+        }
+        
+        console.log('\n✅ Profile saved successfully!\n');
+        console.log('📋 Next steps:');
+        console.log('   1. Add resumes to resumes/ folder');
+        console.log('   2. Run: npm run cli -- migrate (to parse resumes)');
+        console.log('   3. Start dashboard: npm run dev:dashboard');
+        console.log('   4. Add/edit skills in dashboard Settings page\n');
+        
+      } catch (error: any) {
+        console.error('\n❌ Setup failed:', error.message);
+      } finally {
+        rl.close();
+      }
+    }
+  )
   .demandCommand(1, 'You must specify a command')
   .help()
   .alias('help', 'h')

@@ -61,11 +61,90 @@ export async function askOllama<T>(
       cleanedText = cleanedText.replace(/^```\s*/gim, '');
       cleanedText = cleanedText.replace(/\s*```$/gim, '');
       
-      // Try to extract JSON object if there's surrounding text
-      const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        cleanedText = jsonMatch[0];
+      // Try to extract JSON (object or array) if there's surrounding text
+      // Use a more sophisticated approach to handle nested braces/brackets
+      let extractedJson = '';
+      
+      // Try to find array first (for responses that should be arrays)
+      const arrayStart = cleanedText.indexOf('[');
+      if (arrayStart !== -1) {
+        let depth = 0;
+        let inString = false;
+        let escapeNext = false;
+        
+        for (let i = arrayStart; i < cleanedText.length; i++) {
+          const char = cleanedText[i];
+          
+          if (escapeNext) {
+            escapeNext = false;
+            continue;
+          }
+          
+          if (char === '\\') {
+            escapeNext = true;
+            continue;
+          }
+          
+          if (char === '"') {
+            inString = !inString;
+            continue;
+          }
+          
+          if (!inString) {
+            if (char === '[') depth++;
+            if (char === ']') {
+              depth--;
+              if (depth === 0) {
+                extractedJson = cleanedText.substring(arrayStart, i + 1);
+                break;
+              }
+            }
+          }
+        }
       }
+      
+      // If no valid array found, try to find object
+      if (!extractedJson) {
+        const objectStart = cleanedText.indexOf('{');
+        if (objectStart !== -1) {
+          let depth = 0;
+          let inString = false;
+          let escapeNext = false;
+          
+          for (let i = objectStart; i < cleanedText.length; i++) {
+            const char = cleanedText[i];
+            
+            if (escapeNext) {
+              escapeNext = false;
+              continue;
+            }
+            
+            if (char === '\\') {
+              escapeNext = true;
+              continue;
+            }
+            
+            if (char === '"') {
+              inString = !inString;
+              continue;
+            }
+            
+            if (!inString) {
+              if (char === '{') depth++;
+              if (char === '}') {
+                depth--;
+                if (depth === 0) {
+                  extractedJson = cleanedText.substring(objectStart, i + 1);
+                  break;
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      // Use extracted JSON if found, otherwise use the whole cleaned text
+      cleanedText = extractedJson || cleanedText;
       
       // Fix common JSON issues
       cleanedText = cleanedText.replace(/:\s*\+(\d+)/g, ': $1'); // Fix +0 -> 0

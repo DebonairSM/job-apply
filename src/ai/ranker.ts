@@ -108,12 +108,24 @@ DESCRIPTION: ${desc}
 Rate fit 0-100 for each area (parenthesis shows weight for final score):
 ${scoring.criteria}
 
-Return JSON with your scores for each category:
-{"categoryScores":{"${scoring.categories.join('":85,"')}":85},"reasons":["Strong match","Good fit"],"mustHaves":["Required skill"],"blockers":[],"missingKeywords":["Missing skill"]}`;
+IMPORTANT: Score each category independently based on how well the job matches that specific area. Consider the actual job requirements, not generic assumptions.
+
+Return JSON with your scores for each category. Include ALL categories:
+{"categoryScores":{
+        "coreAzure": 0,
+        "security": 0,
+        "eventDriven": 0,
+        "performance": 0,
+        "devops": 0,
+        "seniority": 0,
+        "coreNet": 0,
+        "frontendFrameworks": 0,
+        "legacyModernization": 0
+      },"reasons":["Strong match","Good fit"],"mustHaves":["Required skill"],"blockers":[],"missingKeywords":["Missing skill"]}`;
 
   const startTime = Date.now();
   const result = await askOllama<RankOutput>(prompt, 'RankOutput', {
-    temperature: 0.1, // Lower temperature for more consistent JSON output
+    temperature: 0.5, // Higher temperature for more varied scoring
     retries: 3  // Increase retries for complex prompts
   });
   const duration = Date.now() - startTime;
@@ -121,6 +133,14 @@ Return JSON with your scores for each category:
   // Log performance for monitoring
   if (process.env.DEBUG) {
     console.log(`   ⏱️  LLM response time: ${(duration / 1000).toFixed(1)}s`);
+  }
+
+  // Ensure all required category scores exist
+  const requiredCategories = ['coreAzure', 'security', 'eventDriven', 'performance', 'devops', 'seniority', 'coreNet', 'frontendFrameworks', 'legacyModernization'];
+  for (const category of requiredCategories) {
+    if (!(category in result.categoryScores)) {
+      result.categoryScores[category as keyof typeof result.categoryScores] = 0;
+    }
   }
 
   // Recalculate fitScore from category scores using current weights
@@ -136,6 +156,9 @@ Return JSON with your scores for each category:
     const categoryScore = result.categoryScores[key as keyof typeof result.categoryScores] || 0;
     calculatedFitScore += categoryScore * finalWeight;
   });
+
+  // Ensure fitScore is within 0-100 range (clamp it)
+  calculatedFitScore = Math.max(0, Math.min(100, calculatedFitScore));
 
   // Override LLM's fitScore with our accurate calculation
   result.fitScore = calculatedFitScore;

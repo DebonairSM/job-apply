@@ -124,11 +124,18 @@ RULES:
 LABELS TO MAP:
 ${labels.map((l, i) => `${i + 1}. ${l}`).join('\n')}
 
-Return JSON in this exact format:
+IMPORTANT: Return ONLY valid JSON in this exact format (object with "mappings" array):
 {
   "mappings": [
-    {"label": "exact label text", "key": "canonical_key"},
-    ...
+    {"label": "exact label text", "key": "canonical_key"}
+  ]
+}
+
+Example response:
+{
+  "mappings": [
+    {"label": "Email Address", "key": "email"},
+    {"label": "Phone Number", "key": "phone"}
   ]
 }`;
 
@@ -136,8 +143,17 @@ Return JSON in this exact format:
     temperature: 0.1
   });
 
-  // Validate
-  const validated = MappingOutputSchema.parse(result);
+  // Handle both formats: {"mappings": [...]} or just [...]
+  let validated: MappingOutput;
+  
+  if (Array.isArray(result)) {
+    // Ollama returned just the array, wrap it
+    validated = { mappings: result as Array<{ label: string; key: string }> };
+  } else {
+    // Ollama returned the full object
+    validated = MappingOutputSchema.parse(result);
+  }
+  
   return validated.mappings;
 }
 

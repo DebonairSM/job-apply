@@ -9,6 +9,15 @@ services:
     environment:
       OLLAMA_KEEP_ALIVE: 24h
     restart: unless-stopped
+    # GPU acceleration for NVIDIA GPUs
+    # Intel NPU support is not available in Ollama containers yet
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
 volumes:
   ollama: {}

@@ -5,18 +5,50 @@ import http from 'http';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { networkInterfaces } from 'os';
 import statsRouter from './routes/stats.js';
 import jobsRouter from './routes/jobs.js';
 import runsRouter from './routes/runs.js';
 import analyticsRouter from './routes/analytics.js';
 import coverLetterRouter from './routes/cover-letter-router.js';
 import { generateHeadline } from './routes/headline.js';
+import profileRouter from './routes/profile.js';
+import skillsRouter from './routes/skills.js';
+import commonAnswersRouter from './routes/common-answers.js';
+import preferencesRouter from './routes/preferences.js';
+import resumesRouter from './routes/resumes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Function to get available network IP addresses
+function getNetworkIPs(): string[] {
+  const interfaces = networkInterfaces();
+  const ips: string[] = [];
+  
+  // Collect all non-internal IPv4 addresses
+  for (const name of Object.keys(interfaces)) {
+    const iface = interfaces[name];
+    if (iface) {
+      for (const alias of iface) {
+        if (alias.family === 'IPv4' && !alias.internal) {
+          ips.push(alias.address);
+        }
+      }
+    }
+  }
+  
+  return ips.length > 0 ? ips : ['localhost'];
+}
+
+// Function to get the primary network IP address (first available)
+function getNetworkIP(): string {
+  const ips = getNetworkIPs();
+  return ips[0];
+}
 
 // Middleware
 app.use(cors());
@@ -33,6 +65,13 @@ app.use('/api/runs', runsRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/cover-letter', coverLetterRouter);
 app.post('/api/headline/generate', generateHeadline);
+
+// User Configuration Routes
+app.use('/api/profile', profileRouter);
+app.use('/api/skills', skillsRouter);
+app.use('/api/common-answers', commonAnswersRouter);
+app.use('/api/preferences', preferencesRouter);
+app.use('/api/resumes', resumesRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -62,16 +101,24 @@ if (useHttps) {
 
   // Start HTTPS server
   https.createServer(httpsOptions, app).listen(Number(PORT), '0.0.0.0', () => {
+    const networkIPs = getNetworkIPs();
     console.log(`📊 Dashboard server running on https://localhost:${PORT}`);
     console.log(`   API available at https://localhost:${PORT}/api`);
-    console.log(`   Network: https://192.168.1.214:${PORT} (accept certificate warning)`);
+    console.log(`   Network addresses:`);
+    networkIPs.forEach(ip => {
+      console.log(`     https://${ip}:${PORT} (accept certificate warning)`);
+    });
   });
 } else {
   // Start HTTP server (fallback if no certificates)
   http.createServer(app).listen(Number(PORT), '0.0.0.0', () => {
+    const networkIPs = getNetworkIPs();
     console.log(`📊 Dashboard server running on http://localhost:${PORT}`);
     console.log(`   API available at http://localhost:${PORT}/api`);
-    console.log(`   Network: http://192.168.1.214:${PORT}`);
+    console.log(`   Network addresses:`);
+    networkIPs.forEach(ip => {
+      console.log(`     http://${ip}:${PORT}`);
+    });
   });
 }
 

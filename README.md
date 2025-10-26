@@ -33,6 +33,64 @@ npm run login
 
 Browser opens for LinkedIn login. Complete authentication, then press ENTER in terminal.
 
+## Transferring to New Computer
+
+When moving to a new computer, you need to transfer these files to preserve your data and configuration:
+
+### Required Files
+
+**Environment Configuration:**
+- `.env` - Your personal settings (MIN_FIT_SCORE, LLM_MODEL, HEADLESS, ENABLE_TRACING)
+- `.env.local` - Any local environment overrides
+
+**Personal Documents:**
+- `resumes/` folder contents - Your PDF/DOCX resume files for AI context
+
+**Session Data:**
+- `storage/storageState.json` - LinkedIn session state (avoids re-login)
+
+**Application Data:**
+- `data/app.db` - SQLite database with all job data, applications, and learning history
+- `data/app.db-shm` and `data/app.db-wal` - SQLite temporary files (if they exist)
+
+**Configuration Files:**
+- `answers-policy.yml` - Controls form field validation and response policies
+
+### Optional Files
+
+**Debug Artifacts (if preserving debugging history):**
+- `artifacts/` folder - Screenshots and traces from failed applications
+
+**Generated Reports (if keeping historical reports):**
+- `reports/` folder - Any generated HTML reports
+
+### What You DON'T Need to Transfer
+
+These are automatically generated or recreated:
+- `node_modules/` - Recreated with `npm install`
+- `dist/` - Dashboard build output, recreated with `npm run dashboard:build`
+- SSL certificates (`*.pem`, `*.key`, `*.crt`) - Generated automatically for HTTPS
+- Log files (`*.log`) - Temporary files
+
+### Setup Steps on New Computer
+
+1. **Clone the repository**
+2. **Transfer the required files above** to their respective locations
+3. **Install dependencies**: `npm install`
+4. **Install Playwright**: `npx playwright install`
+5. **Start LLM**: `docker compose -f docker-compose.llm.yml up -d`
+6. **Login** (if you didn't transfer session): `npm run login`
+
+### Most Critical Files
+
+The most important files to transfer are:
+1. **`.env`** - Your configuration
+2. **`resumes/`** - Your resume files for AI context
+3. **`data/app.db`** - Your job data and learning history
+4. **`answers-policy.yml`** - Your form response policies
+
+Without these, you'll lose your job data, learning history, and need to reconfigure everything.
+
 ## Usage
 
 ### Search for Jobs

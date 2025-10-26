@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import https from 'https';
+import http from 'http';
 
 function waitForServer(url, maxAttempts = 30, delay = 1000) {
   return new Promise((resolve, reject) => {
@@ -9,7 +10,11 @@ function waitForServer(url, maxAttempts = 30, delay = 1000) {
     const checkServer = () => {
       attempts++;
       
-      const req = https.get(url, { rejectUnauthorized: false }, (res) => {
+      // Determine if URL is HTTPS or HTTP
+      const isHttps = url.startsWith('https://');
+      const client = isHttps ? https : http;
+      
+      const req = client.get(url, { rejectUnauthorized: false }, (res) => {
         console.log('✅ Server is ready!');
         resolve();
       });
@@ -31,7 +36,7 @@ function waitForServer(url, maxAttempts = 30, delay = 1000) {
   });
 }
 
-const serverUrl = process.argv[2] || 'https://localhost:3001/api/health';
+const serverUrl = process.argv[2] || 'http://localhost:3001/api/health';
 
 waitForServer(serverUrl)
   .then(() => {

@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
-import { initDb, clearLabelMappings, saveLabelMapping } from '../../src/lib/db.js';
+import { initDb, setTestMode, closeDb, clearLabelMappings, saveLabelMapping } from '../../src/lib/db.js';
 
 // Mock Playwright Page and Locator for testing
 class MockLocator {
@@ -210,6 +210,7 @@ describe('Form Field Learning Integration', () => {
   let mockPage: MockPage;
 
   beforeEach(() => {
+    setTestMode(true);
     initDb();
     clearLabelMappings();
     mockPage = new MockPage();
@@ -217,6 +218,7 @@ describe('Form Field Learning Integration', () => {
 
   afterEach(() => {
     clearLabelMappings();
+    closeDb();
   });
 
   describe('Selector Extraction', () => {

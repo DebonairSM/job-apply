@@ -2,6 +2,8 @@ import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
 import { 
   initDb, 
+  setTestMode,
+  closeDb,
   saveRejectionPattern, 
   getRejectionPatternsByType, 
   getAllRejectionPatterns,
@@ -37,6 +39,7 @@ import {
 
 describe('Rejection Learning System', () => {
   beforeEach(() => {
+    setTestMode(true);
     initDb();
     // Clear any existing data
     clearAllCaches();
@@ -49,6 +52,7 @@ describe('Rejection Learning System', () => {
     clearAllCaches();
     resetWeightAdjustments();
     clearAllFilters();
+    closeDb();
   });
 
   describe('Database Schema', () => {

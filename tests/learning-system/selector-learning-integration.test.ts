@@ -2,6 +2,8 @@ import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
 import { 
   initDb, 
+  setTestMode,
+  closeDb,
   clearLabelMappings, 
   saveLabelMapping, 
   getLabelMapping,
@@ -14,12 +16,14 @@ import { mapLabelsSmart } from '../../src/ai/mapper.js';
 
 describe('Selector Learning System - End-to-End Integration', () => {
   beforeEach(() => {
+    setTestMode(true);
     initDb();
     clearLabelMappings();
   });
 
   afterEach(() => {
     clearLabelMappings();
+    closeDb();
   });
 
   describe('Complete Learning Workflow', () => {

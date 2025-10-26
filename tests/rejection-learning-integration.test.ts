@@ -2,6 +2,8 @@ import { describe, it, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
 import { 
   initDb, 
+  setTestMode,
+  closeDb,
   updateJobStatus, 
   getJobById,
   addJobs,
@@ -15,6 +17,7 @@ import { rankJob } from '../src/ai/ranker.js';
 
 describe('Rejection Learning Integration', () => {
   beforeEach(() => {
+    setTestMode(true);
     initDb();
     clearAllCaches();
     resetWeightAdjustments();
@@ -25,6 +28,7 @@ describe('Rejection Learning Integration', () => {
     clearAllCaches();
     resetWeightAdjustments();
     clearAllFilters();
+    closeDb();
   });
 
   describe('End-to-End Rejection Learning Workflow', () => {

@@ -5,12 +5,31 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const DB_PATH = join(__dirname, '../../data/app.db');
+const TEST_DB_PATH = ':memory:'; // In-memory database for tests
 
 let db: Database.Database | null = null;
+let isTestMode = false;
+
+export function setTestMode(testMode: boolean = true): void {
+  isTestMode = testMode;
+  // Close existing database if switching modes
+  if (db) {
+    db.close();
+    db = null;
+  }
+}
+
+export function closeDb(): void {
+  if (db) {
+    db.close();
+    db = null;
+  }
+}
 
 export function getDb(): Database.Database {
   if (!db) {
-    db = new Database(DB_PATH);
+    const dbPath = isTestMode ? TEST_DB_PATH : DB_PATH;
+    db = new Database(dbPath);
     db.pragma('journal_mode = WAL');
     db.pragma('foreign_keys = ON');
   }
@@ -183,6 +202,111 @@ export function initDb(): void {
       screenshot_path TEXT,
       started_at TEXT DEFAULT CURRENT_TIMESTAMP,
       ended_at TEXT
+    )
+  `);
+
+  // User profile table (single row)
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS user_profile (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      full_name TEXT NOT NULL,
+      first_name TEXT,
+      last_name TEXT,
+      email TEXT NOT NULL,
+      phone TEXT,
+      city TEXT,
+      linkedin_profile TEXT,
+      work_authorization TEXT,
+      requires_sponsorship TEXT,
+      profile_summary TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // User skills table
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS user_skills (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      skill_name TEXT NOT NULL,
+      category TEXT,
+      proficiency_level TEXT,
+      years_experience REAL,
+      source TEXT DEFAULT 'manual',
+      resume_file_id INTEGER,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(skill_name, category)
+    )
+  `);
+
+  // User experience table
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS user_experience (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      company TEXT NOT NULL,
+      title TEXT NOT NULL,
+      start_date TEXT,
+      end_date TEXT,
+      duration TEXT,
+      description TEXT,
+      technologies TEXT,
+      achievements TEXT,
+      resume_file_id INTEGER,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // User education table
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS user_education (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      institution TEXT NOT NULL,
+      degree TEXT,
+      field TEXT,
+      graduation_year TEXT,
+      description TEXT,
+      resume_file_id INTEGER,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Resume files metadata table
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS resume_files (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      file_name TEXT NOT NULL UNIQUE,
+      variant_type TEXT,
+      parsed_at TEXT,
+      sections_extracted INTEGER DEFAULT 0,
+      is_active INTEGER DEFAULT 1,
+      full_text TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Common answers table
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS common_answers (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      question_key TEXT NOT NULL UNIQUE,
+      answer_text TEXT NOT NULL,
+      description TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Application preferences table (key-value store)
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS application_preferences (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL,
+      description TEXT,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
 }
@@ -405,8 +529,8 @@ export function updateJobStatus(jobId: string, status: Job['status'], appliedMet
   const stmt = database.prepare('UPDATE jobs SET status = ?, applied_method = ?, rejection_reason = ?, status_updated_at = ? WHERE id = ?');
   stmt.run(status, appliedMethod ?? null, rejectionReason ?? null, new Date().toISOString(), jobId);
   
-  // Trigger learning on rejection
-  if (status === 'rejected' && rejectionReason) {
+  // Trigger learning on rejection (skip in test mode)
+  if (status === 'rejected' && rejectionReason && !isTestMode) {
     // Use dynamic import to avoid circular dependencies
     analyzeAndLearnFromRejection(jobId, rejectionReason).catch(error => {
       console.error('Error learning from rejection:', error);
@@ -1064,6 +1188,405 @@ export function resetWeightAdjustments(): void {
 export function clearAllFilters(): void {
   const database = getDb();
   database.prepare(`DELETE FROM rejection_patterns`).run();
+}
+
+// User Profile operations
+export interface UserProfile {
+  id?: number;
+  full_name: string;
+  first_name?: string;
+  last_name?: string;
+  email: string;
+  phone?: string;
+  city?: string;
+  linkedin_profile?: string;
+  work_authorization?: string;
+  requires_sponsorship?: string;
+  profile_summary?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export function getUserProfile(): UserProfile | null {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM user_profile WHERE id = 1');
+  return stmt.get() as UserProfile | null;
+}
+
+export function saveUserProfile(profile: Omit<UserProfile, 'id' | 'created_at' | 'updated_at'>): void {
+  const database = getDb();
+  const existing = getUserProfile();
+  
+  if (existing) {
+    // Update existing profile
+    database.prepare(`
+      UPDATE user_profile 
+      SET full_name = ?, first_name = ?, last_name = ?, email = ?, phone = ?, 
+          city = ?, linkedin_profile = ?, work_authorization = ?, 
+          requires_sponsorship = ?, profile_summary = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = 1
+    `).run(
+      profile.full_name,
+      profile.first_name || null,
+      profile.last_name || null,
+      profile.email,
+      profile.phone || null,
+      profile.city || null,
+      profile.linkedin_profile || null,
+      profile.work_authorization || null,
+      profile.requires_sponsorship || null,
+      profile.profile_summary || null
+    );
+  } else {
+    // Insert new profile
+    database.prepare(`
+      INSERT INTO user_profile (id, full_name, first_name, last_name, email, phone, 
+                                city, linkedin_profile, work_authorization, 
+                                requires_sponsorship, profile_summary)
+      VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      profile.full_name,
+      profile.first_name || null,
+      profile.last_name || null,
+      profile.email,
+      profile.phone || null,
+      profile.city || null,
+      profile.linkedin_profile || null,
+      profile.work_authorization || null,
+      profile.requires_sponsorship || null,
+      profile.profile_summary || null
+    );
+  }
+}
+
+// User Skills operations
+export interface UserSkill {
+  id?: number;
+  skill_name: string;
+  category?: string;
+  proficiency_level?: string;
+  years_experience?: number;
+  source?: 'manual' | 'resume';
+  resume_file_id?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export function getUserSkills(category?: string): UserSkill[] {
+  const database = getDb();
+  let query = 'SELECT * FROM user_skills';
+  const params: any[] = [];
+  
+  if (category) {
+    query += ' WHERE category = ?';
+    params.push(category);
+  }
+  
+  query += ' ORDER BY years_experience DESC, skill_name ASC';
+  
+  const stmt = database.prepare(query);
+  return stmt.all(...params) as UserSkill[];
+}
+
+export function findSkillByName(skillName: string): UserSkill | null {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM user_skills WHERE LOWER(skill_name) = LOWER(?)');
+  return stmt.get(skillName) as UserSkill | null;
+}
+
+export function saveUserSkill(skill: Omit<UserSkill, 'id' | 'created_at' | 'updated_at'>): void {
+  const database = getDb();
+  database.prepare(`
+    INSERT INTO user_skills (skill_name, category, proficiency_level, years_experience, source, resume_file_id)
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(skill_name, category) DO UPDATE SET
+      proficiency_level = excluded.proficiency_level,
+      years_experience = excluded.years_experience,
+      source = excluded.source,
+      resume_file_id = excluded.resume_file_id,
+      updated_at = CURRENT_TIMESTAMP
+  `).run(
+    skill.skill_name,
+    skill.category || null,
+    skill.proficiency_level || null,
+    skill.years_experience || null,
+    skill.source || 'manual',
+    skill.resume_file_id || null
+  );
+}
+
+export function deleteUserSkill(id: number): void {
+  const database = getDb();
+  database.prepare('DELETE FROM user_skills WHERE id = ?').run(id);
+}
+
+export function clearUserSkills(): void {
+  const database = getDb();
+  database.prepare('DELETE FROM user_skills').run();
+}
+
+// User Experience operations
+export interface UserExperience {
+  id?: number;
+  company: string;
+  title: string;
+  start_date?: string;
+  end_date?: string;
+  duration?: string;
+  description?: string;
+  technologies?: string;
+  achievements?: string;
+  resume_file_id?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export function getUserExperience(): UserExperience[] {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM user_experience ORDER BY start_date DESC');
+  return stmt.all() as UserExperience[];
+}
+
+export function saveUserExperience(exp: Omit<UserExperience, 'id' | 'created_at' | 'updated_at'>): number {
+  const database = getDb();
+  const result = database.prepare(`
+    INSERT INTO user_experience (company, title, start_date, end_date, duration, 
+                                  description, technologies, achievements, resume_file_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    exp.company,
+    exp.title,
+    exp.start_date || null,
+    exp.end_date || null,
+    exp.duration || null,
+    exp.description || null,
+    exp.technologies || null,
+    exp.achievements || null,
+    exp.resume_file_id || null
+  );
+  return result.lastInsertRowid as number;
+}
+
+export function deleteUserExperience(id: number): void {
+  const database = getDb();
+  database.prepare('DELETE FROM user_experience WHERE id = ?').run(id);
+}
+
+export function clearUserExperience(): void {
+  const database = getDb();
+  database.prepare('DELETE FROM user_experience').run();
+}
+
+// User Education operations
+export interface UserEducation {
+  id?: number;
+  institution: string;
+  degree?: string;
+  field?: string;
+  graduation_year?: string;
+  description?: string;
+  resume_file_id?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export function getUserEducation(): UserEducation[] {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM user_education ORDER BY graduation_year DESC');
+  return stmt.all() as UserEducation[];
+}
+
+export function saveUserEducation(edu: Omit<UserEducation, 'id' | 'created_at' | 'updated_at'>): number {
+  const database = getDb();
+  const result = database.prepare(`
+    INSERT INTO user_education (institution, degree, field, graduation_year, description, resume_file_id)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(
+    edu.institution,
+    edu.degree || null,
+    edu.field || null,
+    edu.graduation_year || null,
+    edu.description || null,
+    edu.resume_file_id || null
+  );
+  return result.lastInsertRowid as number;
+}
+
+export function deleteUserEducation(id: number): void {
+  const database = getDb();
+  database.prepare('DELETE FROM user_education WHERE id = ?').run(id);
+}
+
+export function clearUserEducation(): void {
+  const database = getDb();
+  database.prepare('DELETE FROM user_education').run();
+}
+
+// Resume Files operations
+export interface ResumeFile {
+  id?: number;
+  file_name: string;
+  variant_type?: string;
+  parsed_at?: string;
+  sections_extracted?: number;
+  is_active?: boolean;
+  full_text?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export function getResumeFiles(activeOnly: boolean = false): ResumeFile[] {
+  const database = getDb();
+  let query = 'SELECT * FROM resume_files';
+  if (activeOnly) {
+    query += ' WHERE is_active = 1';
+  }
+  query += ' ORDER BY created_at DESC';
+  
+  const stmt = database.prepare(query);
+  const rows = stmt.all() as any[];
+  return rows.map(row => ({
+    ...row,
+    is_active: row.is_active === 1
+  }));
+}
+
+export function getResumeFileByName(fileName: string): ResumeFile | null {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM resume_files WHERE file_name = ?');
+  const row = stmt.get(fileName) as any;
+  if (!row) return null;
+  return {
+    ...row,
+    is_active: row.is_active === 1
+  };
+}
+
+export function saveResumeFile(resume: Omit<ResumeFile, 'id' | 'created_at' | 'updated_at'>): number {
+  const database = getDb();
+  const existing = getResumeFileByName(resume.file_name);
+  
+  if (existing) {
+    // Update existing
+    database.prepare(`
+      UPDATE resume_files 
+      SET variant_type = ?, parsed_at = ?, sections_extracted = ?, 
+          is_active = ?, full_text = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE file_name = ?
+    `).run(
+      resume.variant_type || null,
+      resume.parsed_at || null,
+      resume.sections_extracted || 0,
+      resume.is_active ? 1 : 0,
+      resume.full_text || null,
+      resume.file_name
+    );
+    return existing.id!;
+  } else {
+    // Insert new
+    const result = database.prepare(`
+      INSERT INTO resume_files (file_name, variant_type, parsed_at, sections_extracted, is_active, full_text)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      resume.file_name,
+      resume.variant_type || null,
+      resume.parsed_at || null,
+      resume.sections_extracted || 0,
+      resume.is_active ? 1 : 0,
+      resume.full_text || null
+    );
+    return result.lastInsertRowid as number;
+  }
+}
+
+export function deleteResumeFile(id: number): void {
+  const database = getDb();
+  database.prepare('DELETE FROM resume_files WHERE id = ?').run(id);
+}
+
+// Common Answers operations
+export interface CommonAnswer {
+  id?: number;
+  question_key: string;
+  answer_text: string;
+  description?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export function getCommonAnswer(questionKey: string): CommonAnswer | null {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM common_answers WHERE question_key = ?');
+  return stmt.get(questionKey) as CommonAnswer | null;
+}
+
+export function getAllCommonAnswers(): CommonAnswer[] {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM common_answers ORDER BY question_key ASC');
+  return stmt.all() as CommonAnswer[];
+}
+
+export function saveCommonAnswer(answer: Omit<CommonAnswer, 'id' | 'created_at' | 'updated_at'>): void {
+  const database = getDb();
+  database.prepare(`
+    INSERT INTO common_answers (question_key, answer_text, description)
+    VALUES (?, ?, ?)
+    ON CONFLICT(question_key) DO UPDATE SET
+      answer_text = excluded.answer_text,
+      description = excluded.description,
+      updated_at = CURRENT_TIMESTAMP
+  `).run(
+    answer.question_key,
+    answer.answer_text,
+    answer.description || null
+  );
+}
+
+export function deleteCommonAnswer(questionKey: string): void {
+  const database = getDb();
+  database.prepare('DELETE FROM common_answers WHERE question_key = ?').run(questionKey);
+}
+
+// Application Preferences operations
+export interface ApplicationPreference {
+  key: string;
+  value: string;
+  description?: string;
+  updated_at?: string;
+}
+
+export function getApplicationPreference(key: string, defaultValue?: string): string | null {
+  const database = getDb();
+  const stmt = database.prepare('SELECT value FROM application_preferences WHERE key = ?');
+  const result = stmt.get(key) as { value: string } | undefined;
+  return result?.value || defaultValue || null;
+}
+
+export function getAllApplicationPreferences(): ApplicationPreference[] {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM application_preferences ORDER BY key ASC');
+  return stmt.all() as ApplicationPreference[];
+}
+
+export function saveApplicationPreference(pref: Omit<ApplicationPreference, 'updated_at'>): void {
+  const database = getDb();
+  database.prepare(`
+    INSERT INTO application_preferences (key, value, description)
+    VALUES (?, ?, ?)
+    ON CONFLICT(key) DO UPDATE SET
+      value = excluded.value,
+      description = excluded.description,
+      updated_at = CURRENT_TIMESTAMP
+  `).run(
+    pref.key,
+    pref.value,
+    pref.description || null
+  );
+}
+
+export function deleteApplicationPreference(key: string): void {
+  const database = getDb();
+  database.prepare('DELETE FROM application_preferences WHERE key = ?').run(key);
 }
 
 // Initialize on import

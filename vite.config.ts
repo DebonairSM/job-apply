@@ -15,13 +15,19 @@ export default defineConfig({
     host: true,
     port: 3000,
     strictPort: true,
-    https: {
-      key: fs.readFileSync(resolve(__dirname, 'localhost+2-key.pem')),
-      cert: fs.readFileSync(resolve(__dirname, 'localhost+2.pem'))
-    },
+    // Only use HTTPS if certificates exist, otherwise fall back to HTTP
+    ...(fs.existsSync(resolve(__dirname, 'localhost+2-key.pem')) && fs.existsSync(resolve(__dirname, 'localhost+2.pem')) ? {
+      https: {
+        key: fs.readFileSync(resolve(__dirname, 'localhost+2-key.pem')),
+        cert: fs.readFileSync(resolve(__dirname, 'localhost+2.pem'))
+      }
+    } : {}),
     proxy: {
       '/api': {
-        target: 'https://localhost:3001',
+        // Use HTTP or HTTPS based on whether certificates exist
+        target: fs.existsSync(resolve(__dirname, 'localhost+2-key.pem')) && fs.existsSync(resolve(__dirname, 'localhost+2.pem')) 
+          ? 'https://localhost:3001' 
+          : 'http://localhost:3001',
         changeOrigin: true,
         secure: false,
         configure: (proxy, options) => {
