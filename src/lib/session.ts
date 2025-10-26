@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { getUserProfile } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -92,9 +93,7 @@ export function loadTechnicalConfig(): TechnicalConfig {
 export function getUserConfig(): UserConfig {
   // Try to load from database first
   try {
-    // Use synchronous import - db.js is already imported and initialized
-    const db = require('./db.js');
-    const profile = db.getUserProfile();
+    const profile = getUserProfile();
     
     if (profile) {
       return {
