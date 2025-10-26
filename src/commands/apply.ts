@@ -8,6 +8,7 @@ import { GreenhouseAdapter } from '../adapters/greenhouse.js';
 import { LeverAdapter } from '../adapters/lever.js';
 import { WorkdayAdapter } from '../adapters/workday.js';
 import { ATSAdapter } from '../adapters/base.js';
+import { shouldStop as checkStopSignal, clearStopSignal } from '../lib/stop-signal.js';
 
 export interface ApplyOptions {
   easy?: boolean;
@@ -801,8 +802,21 @@ export async function applyCommand(opts: ApplyOptions): Promise<void> {
   console.log(`   Jobs to process: ${jobs.length}`);
   console.log(`   Dry run: ${opts.dryRun ? 'Yes' : 'No'}\n`);
 
+  // Clear any existing stop signal from previous runs
+  clearStopSignal();
+  
   // Flag to signal graceful shutdown
   let shouldStop = false;
+
+  // Check function that combines flag and file-based signal (for Windows compatibility)
+  const shouldStopNow = () => {
+    if (!shouldStop && checkStopSignal()) {
+      console.log('\n⚠️  Stop signal detected (file-based), finishing current application...');
+      shouldStop = true;
+      console.log('   Stop flag set to true');
+    }
+    return shouldStop;
+  };
 
   // Setup graceful shutdown handler - set flag instead of immediate exit
   const shutdownHandler = () => {
@@ -813,8 +827,16 @@ export async function applyCommand(opts: ApplyOptions): Promise<void> {
     }
   };
 
-  process.on('SIGTERM', shutdownHandler);
-  process.on('SIGINT', shutdownHandler);
+  // Prevent default exit behavior and use our flag-based shutdown
+  process.on('SIGTERM', (signal) => {
+    shutdownHandler();
+    // Don't exit immediately - let the graceful shutdown complete
+  });
+  
+  process.on('SIGINT', (signal) => {
+    shutdownHandler();
+    // Don't exit immediately - let the graceful shutdown complete
+  });
 
   const browser = await chromium.launch({
     headless: config.headless,
@@ -834,7 +856,7 @@ export async function applyCommand(opts: ApplyOptions): Promise<void> {
 
   for (const job of jobs) {
     // Check if we should stop before starting to process each job
-    if (shouldStop) {
+    if (shouldStopNow()) {
       console.log(`\n⚠️  Stopping before processing ${job.title} at ${job.company}.\n`);
       break;
     }
@@ -847,7 +869,7 @@ export async function applyCommand(opts: ApplyOptions): Promise<void> {
       await startTracing(context, job.id);
 
       // Check if we should stop before expensive LLM operation
-      if (shouldStop) {
+      if (shouldStopNow()) {
         console.log(`\n⚠️  Stopping before generating answers for ${job.title}.\n`);
         break;
       }
@@ -864,7 +886,7 @@ export async function applyCommand(opts: ApplyOptions): Promise<void> {
       );
       
       // Check if we should stop after LLM operation (it can take a while)
-      if (shouldStop) {
+      if (shouldStopNow()) {
         console.log(`\n⚠️  Stopping after generating answers for ${job.title}.\n`);
         break;
       }
@@ -879,7 +901,7 @@ export async function applyCommand(opts: ApplyOptions): Promise<void> {
       await page.goto(job.url, { waitUntil: 'domcontentloaded' });
       
       // Check stop signal after navigation
-      if (shouldStop) {
+      if (shouldStopNow()) {
         console.log(`\n⚠️  Stopping after navigating to ${job.title}.\n`);
         break;
       }
@@ -951,7 +973,20 @@ export async function applyCommand(opts: ApplyOptions): Promise<void> {
   console.log(`\n✨ Application process complete!`);
   console.log(`   Applied: ${applied}`);
   console.log(`   Skipped: ${skipped}`);
-  console.log(`   Total: ${jobs.length}\n`);
+  console.log(`   Total: ${jobs.length}`);
+  
+  if (shouldStop) {
+    console.log('\n✅ Application stopped gracefully.\n');
+  } else {
+    console.log();
+  }
+  
+  // Clean up signal handlers
+  process.removeListener('SIGTERM', shutdownHandler);
+  process.removeListener('SIGINT', shutdownHandler);
+  
+  // Exit cleanly
+  process.exit(0);
 }
 
 

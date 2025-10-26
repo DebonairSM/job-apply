@@ -4,6 +4,7 @@ import { addJobs, Job, AddJobsResult, jobExistsByUrl, getJobByUrl, getJobsByStat
 import { rankJob } from '../ai/ranker.js';
 import { randomDelay } from '../lib/resilience.js';
 import { BOOLEAN_SEARCHES } from '../ai/profiles.js';
+import { shouldStop as checkStopSignal, clearStopSignal } from '../lib/stop-signal.js';
 import crypto from 'crypto';
 
 export interface SearchOptions {
@@ -118,7 +119,7 @@ async function updateMissingDescriptions(page: Page, limit: number = 10): Promis
   return updated;
 }
 
-async function processPage(page: Page, minScore: number, config: any, opts: SearchOptions, shouldStopCheck: () => boolean = () => false): Promise<{ analyzed: number, queued: number }> {
+async function processPage(page: Page, minScore: number, config: any, opts: SearchOptions, shouldStopNow: () => boolean = () => false): Promise<{ analyzed: number, queued: number }> {
   // Wait for initial results to load
   await page.waitForTimeout(2000);
   
@@ -198,7 +199,7 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
 
   for (let i = 0; i < count; i++) {
     // Check if we should stop before starting to process each card
-    const stopRequested = shouldStopCheck();
+    const stopRequested = shouldStopNow();
     if (stopRequested) {
       console.log(`\n⚠️  Stop signal received. Stopping search...`);
       console.log(`   Processed ${i}/${count} jobs, gracefully exiting.\n`);
@@ -219,7 +220,7 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
       }
       
       // Check stop signal after visibility check
-      if (shouldStopCheck()) {
+      if (shouldStopNow()) {
         console.log(`\n⚠️  Stopping during job ${i + 1}...\n`);
         break;
       }
@@ -230,7 +231,7 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
       await page.waitForTimeout(500); // Give time for content to load
       
       // Check stop signal after scrolling
-      if (shouldStopCheck()) {
+      if (shouldStopNow()) {
         console.log(`\n⚠️  Stopping after scrolling card ${i + 1}...\n`);
         break;
       }
@@ -537,7 +538,7 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
       }
       
       // Check stop signal after description extraction
-      if (shouldStopCheck()) {
+      if (shouldStopNow()) {
         console.log(`\n⚠️  Stopping after extracting description for card ${i + 1}...\n`);
         break;
       }
@@ -570,8 +571,9 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
       }
 
       // Check if we should stop before expensive LLM operation
-      if (shouldStopCheck()) {
-        console.log(`\n⚠️  Stopping before ranking job ${i + 1}.\n`);
+      const stopBeforeRank = shouldStopNow();
+      if (stopBeforeRank) {
+        console.log(`\n⚠️  Stop detected before ranking job ${i + 1}. Exiting loop.\n`);
         break;
       }
 
@@ -581,11 +583,23 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
       // Set job context for error logging
       process.env.JOB_ID = jobHashId;
       
+      console.log(`   🤖 Ranking job ${i + 1}...`);
+      
       // Rank the job (expensive LLM operation - only for new jobs)
       const ranking = await rankJob(
         { title, company, description },
         opts.profile || 'coreAzure' // Use the actual profile from CLI, fallback to coreAzure
       );
+      
+      console.log(`   ✓ Ranking complete for job ${i + 1}`);
+      
+      // Check if stop was requested during LLM operation
+      const stopAfterRank = shouldStopNow();
+      if (stopAfterRank) {
+        console.log(`\n⚠️  Stop detected after ranking job ${i + 1}. Exiting loop.\n`);
+        delete process.env.JOB_ID;
+        break;
+      }
       
       // Clear job context
       delete process.env.JOB_ID;
@@ -787,8 +801,21 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
   }
   console.log();
 
+  // Clear any existing stop signal from previous runs
+  clearStopSignal();
+  
   // Flag to signal graceful shutdown
   let shouldStop = false;
+
+  // Check function that combines flag and file-based signal (for Windows compatibility)
+  const shouldStopNow = () => {
+    if (!shouldStop && checkStopSignal()) {
+      console.log('\n⚠️  Stop signal detected (file-based), finishing current job...');
+      shouldStop = true;
+      console.log('   Stop flag set to true');
+    }
+    return shouldStop;
+  };
 
   // Setup graceful shutdown handler - set flag instead of immediate exit
   const shutdownHandler = () => {
@@ -799,8 +826,16 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
     }
   };
 
-  process.on('SIGTERM', shutdownHandler);
-  process.on('SIGINT', shutdownHandler);
+  // Prevent default exit behavior and use our flag-based shutdown
+  process.on('SIGTERM', (signal) => {
+    shutdownHandler();
+    // Don't exit immediately - let the graceful shutdown complete
+  });
+  
+  process.on('SIGINT', (signal) => {
+    shutdownHandler();
+    // Don't exit immediately - let the graceful shutdown complete
+  });
 
   const browser = await chromium.launch({
     headless: config.headless,
@@ -829,7 +864,7 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
     const pageDisplay = maxPages >= 999 ? 'all' : maxPages.toString();
     console.log(`\n📄 Processing page ${currentPage}/${pageDisplay}...`);
     
-    const pageResult = await processPage(page, minScore, config, opts, () => shouldStop);
+    const pageResult = await processPage(page, minScore, config, opts, shouldStopNow);
     totalAnalyzed += pageResult.analyzed;
     totalQueued += pageResult.queued;
 
@@ -882,7 +917,19 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
   console.log(`   Min Score Threshold: ${minScore}`);
   console.log(`   Average Jobs per Page: ${currentPage > 0 ? Math.round(totalAnalyzed / currentPage) : 0}`);
   console.log(`   Processing Time: ${totalTime}s (${jobsPerMinute} jobs/min)`);
-  console.log('\n✅ Search complete!\n');
+  
+  if (shouldStop) {
+    console.log('\n✅ Search stopped gracefully.\n');
+  } else {
+    console.log('\n✅ Search complete!\n');
+  }
+  
+  // Clean up signal handlers
+  process.removeListener('SIGTERM', shutdownHandler);
+  process.removeListener('SIGINT', shutdownHandler);
+  
+  // Exit cleanly
+  process.exit(0);
 }
 
 

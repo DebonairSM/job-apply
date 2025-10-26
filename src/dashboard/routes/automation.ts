@@ -3,6 +3,7 @@ import { spawn, ChildProcess } from 'child_process';
 import { z } from 'zod';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { createStopSignal, clearStopSignal } from '../../lib/stop-signal.js';
 
 const router = Router();
 
@@ -83,6 +84,9 @@ router.post('/start', async (req: Request, res: Response) => {
         error: 'A job is already running. Please stop it first.' 
       });
     }
+    
+    // Clear any existing stop signal from previous runs
+    clearStopSignal();
 
     // Build command arguments
     const args: string[] = [parsed.command];
@@ -255,7 +259,10 @@ router.post('/stop', async (req: Request, res: Response) => {
     broadcastLog('\n⚠️  Stop requested, finishing current operation...\n');
     broadcastStatus('stopping');
 
-    // Send SIGTERM for graceful shutdown
+    // Create stop signal file (works on all platforms, including Windows)
+    createStopSignal();
+    
+    // Also send SIGTERM for Unix-like systems
     activeProcess.kill('SIGTERM');
 
     // Set timeout for forceful kill
