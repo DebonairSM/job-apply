@@ -322,9 +322,9 @@ export function Settings() {
           {/* Metadata */}
           {profile?.created_at && (
             <div className="mt-6 pt-6 border-t border-gray-200 text-sm text-gray-500">
-              <p>Created: {new Date(profile.created_at).toLocaleString()}</p>
+              <p>Created: {new Date(profile.created_at + (profile.created_at.includes('Z') ? '' : 'Z')).toLocaleString()}</p>
               {profile.updated_at && profile.updated_at !== profile.created_at && (
-                <p>Last updated: {new Date(profile.updated_at).toLocaleString()}</p>
+                <p>Last updated: {new Date(profile.updated_at + (profile.updated_at.includes('Z') ? '' : 'Z')).toLocaleString()}</p>
               )}
             </div>
           )}
