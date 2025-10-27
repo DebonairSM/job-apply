@@ -18,7 +18,7 @@ try {
   
   // Get all patterns grouped by type
   const patterns = db.prepare(`
-    SELECT pattern_type, pattern_value, confidence, count, last_seen
+    SELECT pattern_type, pattern_value, count, last_seen, weight_adjustment
     FROM rejection_patterns
     ORDER BY pattern_type, count DESC, pattern_value
   `).all();
@@ -42,7 +42,7 @@ try {
     console.log(`\n${type.toUpperCase()} (${items.length}):`);
     items.forEach(item => {
       const active = item.count >= 2 ? '✓ ACTIVE' : '  inactive';
-      console.log(`  ${active} - ${item.pattern_value} (count: ${item.count}, confidence: ${item.confidence.toFixed(2)})`);
+      console.log(`  ${active} - ${item.pattern_value} (count: ${item.count}, weight adj: ${item.weight_adjustment.toFixed(2)})`);
     });
   });
   

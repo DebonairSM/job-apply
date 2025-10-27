@@ -31,7 +31,8 @@
     "dashboard:prod": "npm run dashboard:build && npm run dashboard:serve",
     "filters:add": "node scripts/add-tech-filters.js",
     "filters:remove": "node scripts/remove-tech-filters.js",
-    "filters:list": "node scripts/list-filters.js"
+    "filters:list": "node scripts/list-filters.js",
+    "block:company": "tsx scripts/block-company.js"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.5",
