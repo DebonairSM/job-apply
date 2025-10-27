@@ -190,6 +190,7 @@ async function fillEasyApply(
   let stepNum = 0;
   const maxSteps = 10;
   let previousLabelsHash = '';
+  let previousNextBtnState = '';
   let stuckCount = 0;
 
   for (stepNum = 0; stepNum < maxSteps; stepNum++) {
@@ -209,19 +210,38 @@ async function fillEasyApply(
     
     // Create a hash of labels to detect if we're on the same step
     const labelsHash = labels.sort().join('|');
-    const isSameStep = labelsHash === previousLabelsHash && labelsHash !== '';
+    
+    // Also track if Next button state changed
+    const nextBtnState = await checkNextButtonState(page);
+    const isSameStep = labelsHash === previousLabelsHash && 
+                       labelsHash !== '' && 
+                       nextBtnState === previousNextBtnState;
     
     if (isSameStep) {
       stuckCount++;
-      console.log(`      Step ${stepNum + 1}: Same as previous step (stuck count: ${stuckCount})`);
+      console.log(`      Step ${stepNum + 1}: Same as previous (stuck: ${stuckCount})`);
+      
+      // Try clicking Next anyway - may be slow form validation
+      if (stuckCount === 2) {
+        console.log('      Attempting to progress despite same fields...');
+        const action = await nextOrSubmit(page, dryRun);
+        if (action === 'next') {
+          stuckCount = 0; // Reset if we progressed
+          previousLabelsHash = '';
+          previousNextBtnState = '';
+          continue;
+        }
+      }
+      
       if (stuckCount >= 3) {
-        console.log('   ⚠️  Form appears stuck - same fields detected 3 times');
+        console.log('   ⚠️  Form stuck - cannot progress');
         return false;
       }
     } else {
       stuckCount = 0;
       console.log(`      Step ${stepNum + 1}: Found ${labels.length} fields`);
       previousLabelsHash = labelsHash;
+      previousNextBtnState = nextBtnState;
     }
 
     if (labels.length > 0 && !isSameStep) {
@@ -517,6 +537,15 @@ async function extractLabels(page: Page): Promise<string[]> {
   }
 
   return [...new Set(labels)]; // Remove duplicates
+}
+
+async function checkNextButtonState(page: Page): Promise<string> {
+  const nextBtn = page.locator('button:has-text("Next"), button:has-text("Continue"), button[aria-label*="Continue"], button[aria-label*="Next"]');
+  if (await nextBtn.count() > 0) {
+    const isEnabled = await nextBtn.first().isEnabled().catch(() => false);
+    return isEnabled ? 'enabled' : 'disabled';
+  }
+  return 'none';
 }
 
 function extractNumericValue(text: string): string {

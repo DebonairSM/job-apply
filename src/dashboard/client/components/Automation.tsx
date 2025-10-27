@@ -31,7 +31,7 @@ const DATE_OPTIONS = [
 
 export function Automation() {
   const [command, setCommand] = useState<CommandType>('search');
-  const [configExpanded, setConfigExpanded] = useState(true);
+  const [configExpanded, setConfigExpanded] = useState(false);
   
   // Search options
   const [profile, setProfile] = useState('');
@@ -86,6 +86,11 @@ export function Automation() {
       startMutation.mutate({
         command: 'search',
         options: searchOptions,
+      }, {
+        onError: (error: Error) => {
+          console.error('[Automation] Search failed:', error.message);
+          alert(`Failed to start search: ${error.message}`);
+        }
       });
     } else {
       // Log the raw state values first
@@ -93,6 +98,9 @@ export function Automation() {
       
       // Require explicit filter selection
       if (!easyOnly && !externalOnly && !jobId) {
+        console.log('[Automation] BLOCKING - No filter selected!');
+        console.log('[Automation] State check: easyOnly=%s, externalOnly=%s, jobId=%s', 
+          easyOnly, externalOnly, jobId);
         alert(
           '❌ No filter selected\n\n' +
           'Please select one of:\n' +
@@ -100,9 +108,11 @@ export function Automation() {
           '• External ATS only\n' +
           '• Specific Job ID'
         );
-        console.log('[Automation] Blocked - no filter selected');
         return;
       }
+      
+      console.log('[Automation] Validation passed - proceeding with filter:', 
+        easyOnly ? 'easy' : externalOnly ? 'external' : 'jobId=' + jobId);
       
       const applyOptions: ApplyOptions = {};
       
@@ -128,6 +138,11 @@ export function Automation() {
       startMutation.mutate({
         command: 'apply',
         options: applyOptions,
+      }, {
+        onError: (error: Error) => {
+          console.error('[Automation] Start failed:', error.message);
+          alert(`Failed to start: ${error.message}`);
+        }
       });
     }
   };

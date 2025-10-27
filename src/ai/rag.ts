@@ -57,59 +57,54 @@ export async function parseResume(resumePath: string): Promise<ParsedResume> {
 
 // Use AI to parse resume sections
 async function parseResumeSections(fullText: string): Promise<ResumeSection[]> {
-  const prompt = `Parse this resume text and extract structured information. Return ONLY a valid JSON array.
+  const prompt = `Parse this resume text into structured JSON sections.
 
-RESUME TEXT:
 ${fullText}
 
-Extract sections with these types:
-- "summary": Professional summary or objective
-- "experience": Work experience entries
-- "education": Education entries  
-- "skill": Skills and technologies
-- "project": Projects or achievements
+Return a JSON array of resume sections. Each section must have:
+- type: string (e.g., "experience", "education", "skills", "summary")
+- title: string (section heading)
+- content: string (section text, ESCAPE ALL QUOTES)
 
-For each section, provide:
-- type: section type (required)
-- title: section title or job title (required)
-- content: main content/description (required)
-- company: company name (optional, for experience)
-- duration: time period (optional, for experience/education)
-- technologies: array of technologies mentioned (optional)
+CRITICAL JSON RULES:
+1. Use double quotes for strings
+2. Escape internal quotes: " becomes \\"
+3. No trailing commas
+4. No comments or explanations outside JSON
+5. Content field: keep under 500 chars per section
+6. Return ONLY the JSON array, nothing else
 
-IMPORTANT: Return ONLY valid JSON. No explanations, no markdown, no extra text.
-
-Example format:
+RETURN ONLY THE JSON ARRAY. Example:
 [
   {
     "type": "experience",
-    "title": "Senior Software Engineer",
-    "content": "Led development of microservices architecture",
-    "company": "Tech Corp",
-    "duration": "2020-2023",
-    "technologies": ["C#", "Azure", "Docker"]
+    "title": "Senior Engineer at Tech Corp",
+    "content": "Led API development with Azure and .NET"
   }
 ]`;
 
   try {
     const result = await askOllama<ResumeSection[]>(prompt, 'ResumeSection[]', {
-      temperature: 0.1
+      temperature: 0.05, // Lower temp for more deterministic JSON
+      format: 'json' // Ollama JSON mode if available
     });
     
-    // Validate the result is an array of valid sections
+    // Validate and clean result
     if (Array.isArray(result)) {
-      return result.filter(section => 
-        section && 
-        typeof section === 'object' && 
-        typeof section.type === 'string' && 
-        typeof section.title === 'string' && 
-        typeof section.content === 'string'
-      );
+      return result
+        .filter(s => s && typeof s === 'object' && s.type && s.title && s.content)
+        .map(s => ({
+          type: s.type,
+          title: s.title.substring(0, 200),
+          content: s.content.substring(0, 500),
+          company: s.company || '',
+          duration: s.duration || ''
+        }));
     }
     
     return [];
   } catch (error) {
-    console.warn('Failed to parse resume sections with AI, using fallback:', error);
+    console.warn('LLM resume parsing failed:', error);
     return createFallbackSections(fullText);
   }
 }

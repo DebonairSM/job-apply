@@ -27,10 +27,17 @@ const ApplyOptionsSchema = z.object({
   dryRun: z.boolean().optional(),
 });
 
-const StartCommandSchema = z.object({
-  command: z.enum(['search', 'apply']),
-  options: z.union([SearchOptionsSchema, ApplyOptionsSchema]),
-});
+// Use discriminated union for proper option parsing
+const StartCommandSchema = z.discriminatedUnion('command', [
+  z.object({
+    command: z.literal('search'),
+    options: SearchOptionsSchema,
+  }),
+  z.object({
+    command: z.literal('apply'),
+    options: ApplyOptionsSchema,
+  }),
+]);
 
 // State management
 let activeProcess: ChildProcess | null = null;

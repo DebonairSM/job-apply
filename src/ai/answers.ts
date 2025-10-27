@@ -96,25 +96,40 @@ export async function synthesizeAnswers(
         resumeContent = `\n\nRESUME CONTENT:\n${resumeParts.join('\n')}`;
       }
     } else {
-      // Fall back to parsing resume files (expensive AI calls)
-      console.log('Database empty, falling back to parsing resume files');
+      // Fall back to parsing resume files (with caching)
+      const { getResumeCache, saveResumeCache } = await import('../lib/db.js');
       
-      const resumePath = config.resumeVariants.length > 0 
-        ? `${process.cwd()}/resumes/${config.resumeVariants[0]}`
-        : null;
+      // Try cache first (key by first resume variant)
+      const cacheKey = config.resumeVariants[0];
+      const cached = getResumeCache(cacheKey);
+      
+      if (cached && cached.sections) {
+        console.log(`[DEBUG] Using cached resume parse for ${cacheKey}`);
+        resumeContent = `\n\nRESUME CONTENT:\n${cached.sections.map((s: any) => 
+          `[${s.type.toUpperCase()}] ${s.title}: ${s.content}`
+        ).join('\n')}`;
+      } else {
+        console.log('Database cache miss, parsing resume files');
         
-      if (resumePath) {
-        const resume = await parseResume(resumePath);
-        if (resume.sections && resume.sections.length > 0) {
-          resumeContent = `\n\nRESUME CONTENT:\n${resume.sections.map(s => 
-            `[${s.type.toUpperCase()}] ${s.title}: ${s.content}`
-          ).join('\n')}`;
+        const resumePath = config.resumeVariants.length > 0 
+          ? `${process.cwd()}/resumes/${config.resumeVariants[0]}`
+          : null;
+          
+        if (resumePath) {
+          const resume = await parseResume(resumePath);
+          if (resume.sections && resume.sections.length > 0) {
+            // Save to cache for next time
+            saveResumeCache(cacheKey, resume.sections);
+            resumeContent = `\n\nRESUME CONTENT:\n${resume.sections.map(s => 
+              `[${s.type.toUpperCase()}] ${s.title}: ${s.content}`
+            ).join('\n')}`;
+          }
         }
-        
-        // Select best resume variant based on job requirements
-        if (config.resumeVariants.length > 1) {
-          selectedResumeVariant = await selectBestResumeVariant(jobTitle, jobDescription, config.resumeVariants);
-        }
+      }
+      
+      // Select best resume variant based on job requirements
+      if (config.resumeVariants.length > 1) {
+        selectedResumeVariant = await selectBestResumeVariant(jobTitle, jobDescription, config.resumeVariants);
       }
     }
   } catch (error) {
@@ -276,8 +291,23 @@ Example: Senior-Developer.docx`;
       temperature: 0.1
     });
     
-    // Ensure result is a string
-    const resultString = typeof result === 'string' ? result : String(result || '');
+    // Handle LLM returning object instead of string
+    let resultString: string;
+    if (typeof result === 'object' && result !== null) {
+      // Extract filename from object (LLM may return {filename: "..."})
+      resultString = (result as any).filename || 
+                     (result as any).name || 
+                     (result as any).resume ||
+                     JSON.stringify(result);
+    } else {
+      resultString = typeof result === 'string' ? result : String(result || '');
+    }
+    
+    // Clean up common LLM artifacts
+    resultString = resultString.trim()
+      .replace(/^["']|["']$/g, '') // Remove quotes
+      .replace(/^File(name)?:\s*/i, '') // Remove "Filename:" prefix
+      .replace(/^Resume:\s*/i, ''); // Remove "Resume:" prefix
     
     console.log(`[DEBUG] AI selected resume: "${resultString}"`);
     console.log(`[DEBUG] Available resumes: ${JSON.stringify(resumeVariants)}`);

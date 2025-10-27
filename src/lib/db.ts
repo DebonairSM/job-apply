@@ -323,6 +323,15 @@ export function initDb(): void {
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Resume cache table for parsed resume sections
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS resume_cache (
+      filename TEXT PRIMARY KEY,
+      sections TEXT NOT NULL,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 }
 
 // Job operations
@@ -1663,6 +1672,23 @@ export function getResumeDataSummary(): ResumeDataSummary {
     educationCount: education.length,
     lastParsed
   };
+}
+
+// Resume cache operations
+export function getResumeCache(filename: string): { sections: any[] } | null {
+  const database = getDb();
+  const stmt = database.prepare('SELECT sections FROM resume_cache WHERE filename = ?');
+  const row = stmt.get(filename) as { sections: string } | undefined;
+  return row ? { sections: JSON.parse(row.sections) } : null;
+}
+
+export function saveResumeCache(filename: string, sections: any[]): void {
+  const database = getDb();
+  const stmt = database.prepare(`
+    INSERT OR REPLACE INTO resume_cache (filename, sections, updated_at)
+    VALUES (?, ?, datetime('now'))
+  `);
+  stmt.run(filename, JSON.stringify(sections));
 }
 
 // Initialize on import
