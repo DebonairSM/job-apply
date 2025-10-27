@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { TerminalLog } from './TerminalLog';
 import {
   useAutomationStatus,
@@ -8,6 +8,7 @@ import {
   SearchOptions,
   ApplyOptions,
 } from '../hooks/useAutomation';
+import { usePersistedAutomationSettings } from '../hooks/usePersistedAutomationSettings';
 
 type CommandType = 'search' | 'apply';
 
@@ -30,25 +31,41 @@ const DATE_OPTIONS = [
 ];
 
 export function Automation() {
-  const [command, setCommand] = useState<CommandType>('search');
-  const [configExpanded, setConfigExpanded] = useState(false);
-  
-  // Search options
-  const [profile, setProfile] = useState('');
-  const [keywords, setKeywords] = useState('');
-  const [location, setLocation] = useState('');
-  const [remote, setRemote] = useState(false);
-  const [datePosted, setDatePosted] = useState<'day' | 'week' | 'month'>('day');
-  const [minScore, setMinScore] = useState<number>(70);
-  const [maxPages, setMaxPages] = useState<number>(5);
-  const [startPage, setStartPage] = useState<number>(1);
-  const [updateDescriptions, setUpdateDescriptions] = useState(false);
-
-  // Apply options - require explicit selection (no default)
-  const [easyOnly, setEasyOnly] = useState(false);
-  const [externalOnly, setExternalOnly] = useState(false);
-  const [jobId, setJobId] = useState('');
-  const [dryRun, setDryRun] = useState(false);
+  const {
+    // State values
+    command,
+    profile,
+    keywords,
+    location,
+    remote,
+    datePosted,
+    minScore,
+    maxPages,
+    startPage,
+    updateDescriptions,
+    easyOnly,
+    externalOnly,
+    jobId,
+    dryRun,
+    isLoaded,
+    
+    // Setters
+    setCommand,
+    setProfile,
+    setKeywords,
+    setLocation,
+    setRemote,
+    setDatePosted,
+    setMinScore,
+    setMaxPages,
+    setStartPage,
+    setUpdateDescriptions,
+    setEasyOnly,
+    setExternalOnly,
+    setJobId,
+    setDryRun,
+    clearSettings,
+  } = usePersistedAutomationSettings();
 
   const { data: status, isLoading: statusLoading } = useAutomationStatus();
   const startMutation = useStartAutomation();
@@ -58,6 +75,18 @@ export function Automation() {
   const isRunning = status?.status === 'running';
   const isStopping = status?.status === 'stopping';
   const isIdle = status?.status === 'idle';
+
+  // Don't render until settings are loaded to prevent flashing
+  if (!isLoaded) {
+    return (
+      <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+        <div className="animate-pulse">
+          <div className="h-4 bg-gray-200 rounded w-1/4 mb-4"></div>
+          <div className="h-32 bg-gray-200 rounded mb-4"></div>
+        </div>
+      </div>
+    );
+  }
 
   const handleStart = () => {
     if (command === 'search') {
@@ -171,14 +200,16 @@ export function Automation() {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-full mx-auto overflow-hidden">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800 mb-2">Automation Control</h1>
         <p className="text-gray-600">Run search and apply commands with live output monitoring</p>
       </div>
 
-      {/* Status and Controls */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
+        {/* Configuration Panel */}
+        <div className="xl:col-span-5">
+          <div className="bg-white rounded-lg shadow-md p-6 mb-6 xl:mb-0">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <span className="text-sm font-medium text-gray-700">Status:</span>
@@ -203,54 +234,36 @@ export function Automation() {
         </div>
 
         {/* Command Selection */}
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Command</label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  value="search"
-                  checked={command === 'search'}
-                  onChange={(e) => setCommand(e.target.value as CommandType)}
-                  disabled={!isIdle}
-                  className="text-blue-600"
-                />
-                <span className="text-gray-700">Search</span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  value="apply"
-                  checked={command === 'apply'}
-                  onChange={(e) => setCommand(e.target.value as CommandType)}
-                  disabled={!isIdle}
-                  className="text-blue-600"
-                />
-                <span className="text-gray-700">Apply</span>
-              </label>
-            </div>
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Command</label>
+          <div className="flex gap-4">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                value="search"
+                checked={command === 'search'}
+                onChange={(e) => setCommand(e.target.value as CommandType)}
+                disabled={!isIdle}
+                className="text-blue-600"
+              />
+              <span className="text-gray-700">Search</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                value="apply"
+                checked={command === 'apply'}
+                onChange={(e) => setCommand(e.target.value as CommandType)}
+                disabled={!isIdle}
+                className="text-blue-600"
+              />
+              <span className="text-gray-700">Apply</span>
+            </label>
           </div>
-          
-          {/* Toggle Configuration Button */}
-          <button
-            onClick={() => setConfigExpanded(!configExpanded)}
-            className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-          >
-            <svg
-              className={`w-4 h-4 transition-transform duration-200 ${configExpanded ? 'rotate-180' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-            <span>{configExpanded ? 'Hide' : 'Show'} Configuration</span>
-          </button>
         </div>
 
         {/* Configuration Panel */}
-        {configExpanded && (command === 'search' ? (
+        {command === 'search' ? (
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-800 mb-3">Search Configuration</h3>
             
@@ -391,7 +404,7 @@ export function Automation() {
           <div className="space-y-4">
             <h3 className="text-lg font-semibold text-gray-800 mb-3">Apply Configuration</h3>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Specific Job ID (optional)
@@ -469,17 +482,21 @@ export function Automation() {
               </div>
             )}
           </div>
-        ))}
-      </div>
+        )}
+          </div>
+        </div>
 
-      {/* Terminal Display */}
-      <div className="bg-white rounded-lg shadow-md overflow-hidden">
-        <TerminalLog
-          logs={logs}
-          isConnected={isConnected}
-          onClear={clearLogs}
-          canClear={isIdle}
-        />
+        {/* Terminal Display */}
+        <div className="xl:col-span-7">
+          <div className="bg-white rounded-lg shadow-md overflow-hidden h-full">
+            <TerminalLog
+              logs={logs}
+              isConnected={isConnected}
+              onClear={clearLogs}
+              canClear={isIdle}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

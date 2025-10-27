@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 const API_BASE = '/api/automation';
 
@@ -124,13 +124,47 @@ export function useStopAutomation() {
   });
 }
 
+const LOGS_STORAGE_KEY = 'automation-session-logs';
+const SESSION_ID_STORAGE_KEY = 'automation-session-id';
+
 // Hook to stream logs via SSE
 export function useAutomationLogs() {
   const [logs, setLogs] = useState<string[]>([]);
   const [isConnected, setIsConnected] = useState(false);
+  const [sessionId, setSessionId] = useState<string>('');
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
+
+  // Load logs from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const storedLogs = sessionStorage.getItem(LOGS_STORAGE_KEY);
+      const storedSessionId = sessionStorage.getItem(SESSION_ID_STORAGE_KEY);
+      
+      if (storedLogs && storedSessionId) {
+        const parsedLogs = JSON.parse(storedLogs);
+        setLogs(parsedLogs);
+        setSessionId(storedSessionId);
+      }
+    } catch (error) {
+      console.warn('Failed to load stored logs:', error);
+    }
+  }, []);
+
+  // Save logs to sessionStorage whenever they change
+  const saveLogs = useCallback((newLogs: string[], newSessionId?: string) => {
+    try {
+      const currentSessionId = newSessionId || sessionId || Date.now().toString();
+      sessionStorage.setItem(LOGS_STORAGE_KEY, JSON.stringify(newLogs));
+      sessionStorage.setItem(SESSION_ID_STORAGE_KEY, currentSessionId);
+      if (newSessionId && newSessionId !== sessionId) {
+        setSessionId(newSessionId);
+      }
+    } catch (error) {
+      console.warn('Failed to save logs:', error);
+    }
+  }, [sessionId]);
 
   const connect = () => {
     // Close existing connection
@@ -153,11 +187,26 @@ export function useAutomationLogs() {
           
           if (data.type === 'log' && data.message) {
             // Add log message
-            setLogs((prev) => [...prev, data.message!]);
+            setLogs((prev) => {
+              const newLogs = [...prev, data.message!];
+              saveLogs(newLogs);
+              return newLogs;
+            });
           } else if (data.type === 'status') {
             // Status update - could show in UI
             if (data.status === 'error' && data.error) {
-              setLogs((prev) => [...prev, `❌ Error: ${data.error}`]);
+              setLogs((prev) => {
+                const newLogs = [...prev, `❌ Error: ${data.error}`];
+                saveLogs(newLogs);
+                return newLogs;
+              });
+            }
+            
+            // Start new session if running starts
+            if (data.status === 'running') {
+              const newSessionId = Date.now().toString();
+              setLogs([]);
+              saveLogs([], newSessionId);
             }
           } else if (data.type === 'connected') {
             // Initial connection message
@@ -202,9 +251,16 @@ export function useAutomationLogs() {
     setIsConnected(false);
   };
 
-  const clearLogs = () => {
+  const clearLogs = useCallback(() => {
     setLogs([]);
-  };
+    try {
+      sessionStorage.removeItem(LOGS_STORAGE_KEY);
+      sessionStorage.removeItem(SESSION_ID_STORAGE_KEY);
+    } catch (error) {
+      console.warn('Failed to clear stored logs:', error);
+    }
+    setSessionId('');
+  }, []);
 
   // Auto-connect on mount
   useEffect(() => {

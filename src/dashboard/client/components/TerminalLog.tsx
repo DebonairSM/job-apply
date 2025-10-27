@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 
 interface TerminalLogProps {
   logs: string[];
@@ -9,12 +9,41 @@ interface TerminalLogProps {
 
 export function TerminalLog({ logs, isConnected, onClear, canClear = true }: TerminalLogProps) {
   const logContainerRef = useRef<HTMLDivElement>(null);
-  const [autoScroll, setAutoScroll] = useState(true);
+  const [isFollowing, setIsFollowing] = useState(true); // Follow mode (like tail -f)
   const [userScrolled, setUserScrolled] = useState(false);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [hasNewErrors, setHasNewErrors] = useState(false);
   const [pausedOnError, setPausedOnError] = useState(false);
   const [errorCount, setErrorCount] = useState(0);
+  const [showFollowButton, setShowFollowButton] = useState(false);
+
+  // Follow logs function
+  const handleFollowLogs = useCallback(() => {
+    setIsFollowing(true);
+    setUserScrolled(false);
+    setPausedOnError(false);
+    setHasNewErrors(false);
+    setShowFollowButton(false);
+    if (logContainerRef.current) {
+      logContainerRef.current.scrollTo({
+        top: logContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, []);
+
+  // Keyboard shortcut for following logs (Ctrl+F)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.ctrlKey && event.key === 'f' && !isFollowing) {
+        event.preventDefault();
+        handleFollowLogs();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isFollowing, handleFollowLogs]);
 
   // Check for new errors and update error count
   useEffect(() => {
@@ -30,51 +59,60 @@ export function TerminalLog({ logs, isConnected, onClear, canClear = true }: Ter
       setHasNewErrors(true);
       setErrorCount(newErrorCount);
       
-      // Pause auto-scroll on new errors to let user examine
-      if (autoScroll) {
+      // Pause following on new errors to let user examine
+      if (isFollowing) {
         setPausedOnError(true);
-        setAutoScroll(false);
+        setIsFollowing(false);
+        setShowFollowButton(true);
       }
     }
-  }, [logs, errorCount, autoScroll]);
+  }, [logs, errorCount, isFollowing]);
 
-  // Auto-scroll to bottom when new logs arrive (unless paused on error)
+  // Follow mode - auto-scroll to bottom when new logs arrive
   useEffect(() => {
-    if (autoScroll && !userScrolled && !pausedOnError && logContainerRef.current) {
-      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+    if (isFollowing && !pausedOnError && logContainerRef.current) {
+      // Smooth scroll to bottom for that "rolling logs" effect
+      const container = logContainerRef.current;
+      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
+      
+      if (isNearBottom) {
+        // If already near bottom, instant scroll (fast updates)
+        container.scrollTop = container.scrollHeight;
+      } else {
+        // If far from bottom, smooth scroll to show movement
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: 'smooth'
+        });
+      }
     }
-  }, [logs, autoScroll, userScrolled, pausedOnError]);
+  }, [logs, isFollowing, pausedOnError]);
 
   // Handle scroll events to detect manual scrolling
   const handleScroll = () => {
     if (logContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = logContainerRef.current;
-      const isAtBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 10;
+      const isAtBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 50; // More generous bottom detection
       const position = scrollHeight > clientHeight ? (scrollTop / (scrollHeight - clientHeight)) * 100 : 100;
       
       setScrollPosition(Math.round(position));
       
-      if (!isAtBottom && autoScroll) {
+      // If user manually scrolls up from bottom, pause following
+      if (!isAtBottom && isFollowing && !pausedOnError) {
+        setIsFollowing(false);
         setUserScrolled(true);
-        setAutoScroll(false);
+        setShowFollowButton(true);
         setPausedOnError(false); // Clear error pause when user scrolls
-      } else if (isAtBottom && !autoScroll && !pausedOnError) {
-        setUserScrolled(false);
-        setAutoScroll(true);
+      }
+      
+      // If user scrolls back to bottom, potentially resume following
+      if (isAtBottom && userScrolled && !pausedOnError) {
+        // Don't auto-resume, let them click Follow button
         setHasNewErrors(false); // Clear error indicator when back at bottom
       }
     }
   };
 
-  const handleResumeAutoScroll = () => {
-    setAutoScroll(true);
-    setUserScrolled(false);
-    setPausedOnError(false);
-    setHasNewErrors(false);
-    if (logContainerRef.current) {
-      logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
-    }
-  };
 
   const handleJumpToLatestError = () => {
     if (logContainerRef.current && logs.length > 0) {
@@ -107,21 +145,40 @@ export function TerminalLog({ logs, isConnected, onClear, canClear = true }: Ter
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0 w-full overflow-hidden">
       {/* Terminal Header */}
       <div className="bg-gray-800 text-gray-300 px-4 py-2 flex items-center justify-between border-b border-gray-700">
         <div className="flex items-center gap-3">
           <div className="flex gap-1.5">
             <div className="w-3 h-3 rounded-full bg-red-500"></div>
             <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+            <div className={`w-3 h-3 rounded-full ${isFollowing ? 'bg-green-500 animate-pulse' : 'bg-green-700'}`}></div>
           </div>
-          <span className="text-sm font-mono">automation@dashboard ~ {isConnected ? '●' : '○'}</span>
+          <span className="text-sm font-mono">
+            automation@dashboard ~ {isConnected ? '●' : '○'} 
+            {isFollowing ? (
+              <span className="text-green-400 ml-2">[FOLLOWING]</span>
+            ) : (
+              <span className="text-yellow-400 ml-2">[PAUSED]</span>
+            )}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <div className="text-xs text-gray-400">
-            {scrollPosition < 100 ? `${scrollPosition}%` : 'Bottom'}
+            {scrollPosition < 100 ? `${scrollPosition}%` : 'Live'}
           </div>
+          
+          {/* Follow button - prominent when not following */}
+          {showFollowButton && !isFollowing && (
+            <button
+              onClick={handleFollowLogs}
+              className="px-3 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors font-medium animate-pulse"
+              title="Resume following new logs (like tail -f)"
+            >
+              ⤓ Follow
+            </button>
+          )}
+          
           {hasNewErrors && (
             <button
               onClick={handleJumpToLatestError}
@@ -131,19 +188,13 @@ export function TerminalLog({ logs, isConnected, onClear, canClear = true }: Ter
               ⚠ Error
             </button>
           )}
+          
           {pausedOnError && (
-            <div className="px-2 py-1 text-xs bg-yellow-600 text-white rounded" title="Auto-scroll paused on error">
-              ⏸ Paused
+            <div className="px-2 py-1 text-xs bg-yellow-600 text-white rounded" title="Following paused on error">
+              ⏸ Error
             </div>
           )}
-          {!autoScroll && !pausedOnError && (
-            <button
-              onClick={handleResumeAutoScroll}
-              className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-            >
-              Resume Auto-scroll
-            </button>
-          )}
+          
           {canClear && onClear && (
             <button
               onClick={onClear}
@@ -159,15 +210,15 @@ export function TerminalLog({ logs, isConnected, onClear, canClear = true }: Ter
       <div
         ref={logContainerRef}
         onScroll={handleScroll}
-        className="flex-1 bg-black text-green-400 font-mono text-sm p-4 overflow-y-auto"
-        style={{ height: '600px', minHeight: '400px' }}
+        className="flex-1 bg-black text-green-400 font-mono text-sm p-4 overflow-y-auto overflow-x-hidden"
+        style={{ height: '600px', minHeight: '400px', maxWidth: '100%' }}
       >
         {logs.length === 0 ? (
           <div className="text-gray-500">
             Waiting for output...
           </div>
         ) : (
-          <div className="whitespace-pre-wrap break-words">
+          <div className="whitespace-pre-wrap break-words word-break overflow-wrap-anywhere">
             {logs.map((log, index) => {
               const isError = log.includes('ERROR:') || 
                             log.includes('error:') || 
@@ -179,6 +230,7 @@ export function TerminalLog({ logs, isConnected, onClear, canClear = true }: Ter
                 <div 
                   key={index} 
                   className={`leading-relaxed ${isError ? 'text-red-400 font-medium' : ''}`}
+                  style={{ wordBreak: 'break-all', overflowWrap: 'anywhere' }}
                 >
                   {log}
                 </div>
@@ -189,11 +241,30 @@ export function TerminalLog({ logs, isConnected, onClear, canClear = true }: Ter
       </div>
 
       {/* Connection Status Footer */}
-      <div className="bg-gray-800 text-gray-400 px-4 py-1 text-xs border-t border-gray-700">
-        {isConnected ? (
-          <span className="text-green-400">● Connected</span>
-        ) : (
-          <span className="text-red-400">○ Disconnected - Reconnecting...</span>
+      <div className="bg-gray-800 text-gray-400 px-4 py-1 text-xs border-t border-gray-700 flex items-center justify-between">
+        <div>
+          {isConnected ? (
+            <span className="text-green-400">● Connected</span>
+          ) : (
+            <span className="text-red-400">○ Disconnected - Reconnecting...</span>
+          )}
+        </div>
+        
+        {/* Quick follow shortcut in footer when paused */}
+        {!isFollowing && !pausedOnError && (
+          <button
+            onClick={handleFollowLogs}
+            className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+            title="Press to resume following logs (Ctrl+F)"
+          >
+            Press Ctrl+F to follow logs
+          </button>
+        )}
+        
+        {isFollowing && (
+          <span className="text-green-400 text-xs">
+            Following logs • Scroll up to pause
+          </span>
         )}
       </div>
     </div>
