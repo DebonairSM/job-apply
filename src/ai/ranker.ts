@@ -3,6 +3,9 @@ import { RankOutput, RankOutputSchema } from '../lib/validation.js';
 import { PROFILES } from './profiles.js';
 
 // Map CLI profile names (kebab-case) to profile keys (camelCase)
+// CRITICAL: Every profile in BOOLEAN_SEARCHES must have an entry here
+// Maps search profiles to technical profiles used for scoring
+// Missing entry = "Unknown profile: <name>" error
 const PROFILE_NAME_MAP: Record<string, string> = {
   'core': 'coreAzure',
   'security': 'security',
@@ -12,7 +15,7 @@ const PROFILE_NAME_MAP: Record<string, string> = {
   'backend': 'coreNet', // Map backend to coreNet for now
   'core-net': 'coreNet',
   'legacy-modernization': 'legacyModernization',
-  'contract': 'contract'
+  'contract': 'coreNet'  // Contract roles use same technical criteria as core .NET
 };
 
 function getProfileKey(cliProfileName: string): string {

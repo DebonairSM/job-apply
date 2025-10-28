@@ -54,7 +54,9 @@ npm run filters:list                # View active filters
 ## How It Works
 
 **Search Profiles**  
-Choose from 9 pre-configured profiles with tailored Boolean searches and smart scoring:
+Choose from 9 pre-configured profiles with tailored Boolean searches and smart scoring.
+
+Want to create your own profile? See [`docs/PROFILE_CREATION_GUIDE.md`](docs/PROFILE_CREATION_GUIDE.md) for the complete process.
 
 | Profile | Focus | Best For |
 |---------|-------|----------|

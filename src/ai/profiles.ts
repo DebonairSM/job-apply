@@ -1,4 +1,12 @@
 // Technical evaluation profiles for Azure API Engineer roles
+//
+// IMPORTANT: When adding a new profile, you must also update:
+// 1. BOOLEAN_SEARCHES (below) - defines how to search for jobs
+// 2. PROFILE_WEIGHT_DISTRIBUTIONS (below) - defines scoring weights
+// 3. src/ai/ranker.ts PROFILE_NAME_MAP - maps search profile to technical profile
+// 4. src/cli.ts - adds profile to CLI choices and type assertions
+//
+// See docs/PROFILE_CREATION_GUIDE.md for complete instructions.
 
 export interface TechnicalProfile {
   name: string;
