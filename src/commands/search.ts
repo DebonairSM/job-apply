@@ -9,7 +9,7 @@ import crypto from 'crypto';
 
 export interface SearchOptions {
   keywords?: string;
-  profile?: 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization';
+  profile?: 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract';
   location?: string;
   remote?: boolean;
   datePosted?: 'day' | 'week' | 'month';
@@ -555,7 +555,7 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
 
       // Check rejection filters before ranking
       const { applyFilters } = await import('../ai/rejection-filters.js');
-      const filterResult = applyFilters({ title, company, description });
+      const filterResult = applyFilters({ title, company, description }, opts.profile);
       if (filterResult.blocked) {
         console.log(`   ${analyzed}/${count} ${title} at ${company}`);
         console.log(`        ⚠️  Filtered: ${filterResult.reason}`);
@@ -715,6 +715,11 @@ function buildSearchUrl(opts: SearchOptions, page: number = 1): string {
   // Don't add remote filter if using profile (already included in Boolean search)
   if (opts.remote && !opts.profile) {
     params.set('f_WT', '2'); // Remote filter
+  }
+  
+  // Add contract job type filter for contract profile
+  if (opts.profile === 'contract') {
+    params.set('f_JT', 'C'); // Contract job type
   }
   
   if (opts.datePosted) {

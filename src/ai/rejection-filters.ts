@@ -99,9 +99,43 @@ class TechStackFilter implements JobFilter {
   }
 }
 
+// Contract-only filter (for contract profile)
+class ContractOnlyFilter implements JobFilter {
+  private contractKeywords: Set<string>;
+  
+  constructor() {
+    this.contractKeywords = new Set([
+      'contract',
+      'contractor',
+      'c2h',
+      'contract to hire',
+      'contract position',
+      'hourly',
+      '1099',
+      'corp to corp',
+      'c2c'
+    ]);
+  }
+  
+  shouldFilter(job: JobInput): boolean {
+    const text = `${job.title} ${job.description}`.toLowerCase();
+    // Filter out (block) jobs that DON'T contain contract keywords
+    return !Array.from(this.contractKeywords).some(keyword => text.includes(keyword));
+  }
+  
+  get reason(): string {
+    return 'Job does not appear to be a contract position';
+  }
+}
+
 // Build filters from rejection patterns
-export function buildFiltersFromPatterns(): JobFilter[] {
+export function buildFiltersFromPatterns(profile?: string): JobFilter[] {
   const filters: JobFilter[] = [];
+  
+  // Add contract-only filter if using contract profile
+  if (profile === 'contract') {
+    filters.push(new ContractOnlyFilter());
+  }
   
   // Get company patterns
   const companyPatterns = getRejectionPatternsByType('company');
@@ -155,8 +189,8 @@ export function buildFiltersFromPatterns(): JobFilter[] {
 }
 
 // Apply all filters to a job
-export function applyFilters(job: JobInput): FilterResult {
-  const filters = buildFiltersFromPatterns();
+export function applyFilters(job: JobInput, profile?: string): FilterResult {
+  const filters = buildFiltersFromPatterns(profile);
   
   // buildFiltersFromPatterns() already includes all patterns with count >= 2
   // No need to add manual filters again (they're already included)

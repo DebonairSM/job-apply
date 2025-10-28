@@ -30,23 +30,23 @@ System learns from every rejection, automatically adjusting weights and building
 
 ## Quick Start
 
-**Daily Workflow**
+**1. Find Jobs**
 ```bash
-npm run search -- --profile core    # Find jobs matching your core skills
-npm run apply -- --easy             # Apply to Easy Apply positions  
-npm run dashboard:dev                # Monitor progress at https://localhost:3000
+npm run search -- --profile core      # Full-time Azure/Cloud roles
+npm run search -- --profile contract  # Contract/freelance positions
+npm run search -- --profile security  # Security-focused roles
 ```
 
-**Block Unwanted Companies**
+**2. Apply to Jobs**
 ```bash
-npm run block:company "CompanyName" # Never see jobs from this company again
-npm run filters:list                # View all active blocks and filters
+npm run apply -- --easy              # Apply to Easy Apply positions  
+npm run dashboard:dev                # Monitor at https://localhost:3000
 ```
 
-**Technology Filtering**
+**3. Manage Filters** (optional)
 ```bash
-npm run filters:add                 # Block Go, Java, Python-focused roles
-npm run filters:remove              # Clear technology filters
+npm run block:company "CompanyName" # Block specific companies
+npm run filters:list                # View active filters
 ```
 
 ---
@@ -54,65 +54,52 @@ npm run filters:remove              # Clear technology filters
 ## How It Works
 
 **Search Profiles**  
-Choose from 8 pre-configured search profiles, each with tailored Boolean queries and scoring weights:
-- `core` - Azure API Engineer roles
-- `security` - Security-focused positions  
-- `performance` - Performance optimization roles
-- `devops` - DevOps and infrastructure
-- `core-net` - Pure .NET development
-- `legacy-modernization` - Legacy system upgrades
-- `backend` - General backend development
-- `event-driven` - Event-driven architecture
+Choose from 9 pre-configured profiles with tailored Boolean searches and smart scoring:
 
-**Intelligent Scoring**  
-Jobs are evaluated across 9 weighted categories. The same job scores differently depending on which profile found it - a security job ranks security skills higher, while a performance job emphasizes optimization expertise.
+| Profile | Focus | Best For |
+|---------|-------|----------|
+| `core` | Azure API Engineer | Cloud-native full-time roles |
+| `contract` | Contract .NET Developer | Freelance/contract positions |
+| `core-net` | Pure .NET | Traditional .NET development |
+| `security` | Security Engineer | Auth, governance, API security |
+| `performance` | Performance Engineer | Optimization and reliability |
+| `backend` | Backend Developer | General backend work |
+| `event-driven` | Integration Engineer | Messaging and events |
+| `devops` | DevOps Developer | CI/CD and automation |
+| `legacy-modernization` | Modernization | Legacy system upgrades |
 
-**Adaptive Learning**  
-Every rejection teaches the system:
-- "Too junior" → increases seniority requirements
-- "Wrong tech stack" → blocks similar technologies  
-- Multiple company rejections → adds company to blocklist
-- Location issues → filters non-remote positions
+**Smart Scoring**  
+Jobs score differently based on which profile finds them. Security profile emphasizes auth/governance, performance profile focuses on optimization, contract profile targets freelance keywords.
 
-**Smart Applications**  
-AI generates personalized responses using your profile and resume context. Forms are filled intelligently with automatic ATS detection and field mapping that improves over time.
+**Learns From Rejections**  
+- "Too junior" → filters entry-level jobs
+- "Wrong tech" → blocks similar technologies  
+- Multiple rejections → blocklists company
+- Location mismatch → filters non-remote
+
+**Auto-Apply**  
+Generates personalized responses using your resume. Handles LinkedIn Easy Apply, Greenhouse, Lever, and Workday forms with intelligent field mapping.
 
 ---
 
 ## Dashboard Features
 
-Access your command center at **https://localhost:3000**
+Access at **https://localhost:3000**
 
-**📈 Real-time Statistics**  
-Live metrics, success rates, and trend tracking that updates every 5 seconds.
-
-**📝 Job Management**  
-Complete job listings with filtering, status updates, and detailed scoring breakdowns.
-
-**🎯 AI Content Generation**  
-Generate professional headlines and cover letters tailored to each position.
-
-**📊 Analytics & Insights**  
-Application timelines, company performance, rank distributions, and rejection learning patterns.
-
-**🤖 Automation Control**  
-Run search and apply commands directly from the dashboard with live log streaming.
-
-**🧠 Learning Monitor**  
-Watch the system learn in real-time as it adjusts weights and builds filters from rejection patterns.
+- **Live Stats** - Success rates, trends, updates every 5 seconds
+- **Job Management** - Filter, update status, view detailed scores
+- **AI Content** - Generate headlines and cover letters per job
+- **Analytics** - Timeline, company performance, score distributions
+- **Automation** - Run search/apply commands with live logs
+- **Learning Monitor** - Watch AI adjust from rejection patterns
 
 ---
 
 ## Privacy & Performance
 
-**Completely Local**  
-All AI processing runs on your machine using Ollama. No data leaves your system, no API costs, complete privacy.
-
-**Blazingly Fast**  
-Intelligent caching and three-tier mapping (heuristics → cache → AI) ensures optimal performance. Most operations complete in seconds.
-
-**Enterprise Resilient**  
-Automatic error recovery, session persistence, and comprehensive logging with screenshot capture for debugging.
+- **100% Local** - Ollama runs on your machine. Zero API costs, complete privacy.
+- **Fast** - Smart caching and three-tier mapping. Operations complete in seconds.
+- **Resilient** - Auto error recovery, session persistence, debug screenshots.
 
 ---
 
@@ -128,57 +115,55 @@ Update statuses as you hear back to help the learning system improve.
 
 ---
 
-## Sample Commands
+## Common Commands
 
-**Search & Discovery**
+**Search**
 ```bash
-npm run search "Software Engineer"              # Keyword search
-npm run search -- --profile security --remote  # Profile search with filters
-npm run search -- --min-score 85 --max-pages 3 # Custom scoring threshold
+npm run search -- --profile contract           # Contract positions
+npm run search -- --profile core               # Full-time Azure roles
+npm run search -- --min-score 85 --max-pages 3 # Custom threshold
 ```
 
-**Application Management**
+**Apply**
 ```bash
-npm run apply -- --dry-run                     # Test without submitting
-npm run apply -- --job <job-id>                # Apply to specific job
-npm run status                                  # View statistics summary
-npm run list queued                             # List jobs by status
+npm run apply -- --dry-run                     # Test mode (no submit)
+npm run apply -- --easy                        # Easy Apply only
+npm run apply -- --job <job-id>                # Specific job
 ```
 
-**System Management**
+**Manage**
 ```bash
-npm run clear-cache                             # Clear AI response cache
-npm run reset:queue                             # Reset queued jobs to try again
-npm run backup                                  # Create manual database backup
+npm run status                                 # View statistics
+npm run list queued                            # Show queued jobs
+npm run backup                                 # Backup database
 ```
 
 ---
 
-## Quick Setup
+## Setup
 
-**Requirements**  
-Node.js 20+, Docker Desktop, Git
+**Requirements:** Node.js 20+, Docker Desktop, Git
 
-**Installation**
+**Install**
 ```bash
 git clone <repository-url>
 cd job-apply
 npm install
 npx playwright install
-docker compose -f docker-compose.llm.yml up -d  # Start local AI (5GB download)
-npm run login                                    # Authenticate with LinkedIn
+docker compose -f docker-compose.llm.yml up -d  # Starts Ollama (5GB)
+npm run login                                    # LinkedIn auth
 ```
 
-**Configuration**  
-- Add your resumes to `resumes/` folder (PDF/DOCX)
-- Edit `.env` for scoring thresholds and preferences  
-- Customize `answers-policy.yml` for form response policies
+**Configure**
+1. Add resumes to `resumes/` folder (PDF/DOCX)
+2. Edit `.env` for min score threshold (default: 70)
+3. Optional: Edit `answers-policy.yml` for form policies
 
-**Start Using**
+**Run**
 ```bash
-npm run search -- --profile core                # Find jobs
-npm run dashboard:dev                            # Open dashboard
-npm run apply -- --easy                         # Start applying
+npm run search -- --profile contract            # Find contract jobs
+npm run dashboard:dev                           # Open dashboard
+npm run apply -- --easy                         # Apply to jobs
 ```
 
 ---

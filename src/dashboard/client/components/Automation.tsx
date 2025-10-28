@@ -22,6 +22,7 @@ const PROFILE_OPTIONS = [
   { value: 'backend', label: 'Backend' },
   { value: 'core-net', label: 'Core .NET' },
   { value: 'legacy-modernization', label: 'Legacy Modernization' },
+  { value: 'contract', label: 'Contract' },
 ];
 
 const DATE_OPTIONS = [

@@ -9,7 +9,7 @@ const router = Router();
 
 // Validation schemas
 const SearchOptionsSchema = z.object({
-  profile: z.enum(['core', 'security', 'event-driven', 'performance', 'devops', 'backend', 'core-net', 'legacy-modernization']).optional(),
+  profile: z.enum(['core', 'security', 'event-driven', 'performance', 'devops', 'backend', 'core-net', 'legacy-modernization', 'contract']).optional(),
   keywords: z.string().optional(),
   location: z.string().optional(),
   remote: z.boolean().optional(),

@@ -259,7 +259,9 @@ export const BOOLEAN_SEARCHES: Record<string, string> = {
   
   'core-net': '("Senior .NET Developer" OR "Senior Software Engineer" OR ".NET Developer" OR "C# Developer") AND (C# OR VB.NET OR ".NET Core" OR ".NET 6" OR ".NET 8") AND (ASP.NET OR MVC OR "Web API" OR "REST API") AND (Entity Framework OR "EF Core" OR SQL OR Database) AND (Senior OR Lead OR Principal) AND Remote',
   
-  'legacy-modernization': '("Senior .NET Developer" OR "Legacy Developer" OR "Modernization Engineer" OR "Migration Specialist") AND ((VB.NET OR WebForms OR "ASP.NET MVC" OR Legacy) OR (Modernization OR Migration OR "Cloud Migration")) AND (C# OR ".NET Core" OR ".NET 6" OR ".NET 8") AND (Azure OR Cloud OR "System Migration") AND (Senior OR Lead OR Principal) AND Remote'
+  'legacy-modernization': '("Senior .NET Developer" OR "Legacy Developer" OR "Modernization Engineer" OR "Migration Specialist") AND ((VB.NET OR WebForms OR "ASP.NET MVC" OR Legacy) OR (Modernization OR Migration OR "Cloud Migration")) AND (C# OR ".NET Core" OR ".NET 6" OR ".NET 8") AND (Azure OR Cloud OR "System Migration") AND (Senior OR Lead OR Principal) AND Remote',
+  
+  contract: '("Senior .NET Developer" OR "Contract .NET Developer" OR "C# Contractor" OR "Contract Software Engineer") AND (C# OR ".NET Core" OR ".NET 6" OR ".NET 8") AND (Contract OR Contractor OR "Contract to Hire" OR C2H OR "Contract Position") AND (ASP.NET OR "Web API" OR REST) AND (Remote OR "Remote Contract")'
 };
 
 // Profile-specific weight distributions
@@ -367,6 +369,19 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
     coreNet: 20,             // Both old and new .NET
     frontendFrameworks: 5,
     legacyModernization: 20  // Primary focus on modernization
+  },
+  
+  // Contract roles - pure .NET development
+  contract: {
+    coreAzure: 10,           // Some Azure helpful but not primary
+    security: 10,
+    eventDriven: 5,
+    performance: 15,
+    devops: 0,
+    seniority: 10,
+    coreNet: 40,             // Primary focus on .NET skills
+    frontendFrameworks: 5,
+    legacyModernization: 5
   }
 };
 

@@ -32,12 +32,16 @@ export function TerminalLog({ logs, isConnected, onClear, canClear = true }: Ter
     }
   }, []);
 
-  // Keyboard shortcut for following logs (Ctrl+F)
+  // Keyboard shortcut for following logs (F key)
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.ctrlKey && event.key === 'f' && !isFollowing) {
-        event.preventDefault();
-        handleFollowLogs();
+      // Only trigger if F is pressed without modifiers and not in an input field
+      if (event.key === 'f' && !event.ctrlKey && !event.altKey && !event.metaKey && !isFollowing) {
+        const target = event.target as HTMLElement;
+        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && !target.isContentEditable) {
+          event.preventDefault();
+          handleFollowLogs();
+        }
       }
     };
 
@@ -71,47 +75,54 @@ export function TerminalLog({ logs, isConnected, onClear, canClear = true }: Ter
   // Follow mode - auto-scroll to bottom when new logs arrive
   useEffect(() => {
     if (isFollowing && !pausedOnError && logContainerRef.current) {
-      // Smooth scroll to bottom for that "rolling logs" effect
       const container = logContainerRef.current;
-      const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 100;
-      
-      if (isNearBottom) {
-        // If already near bottom, instant scroll (fast updates)
-        container.scrollTop = container.scrollHeight;
-      } else {
-        // If far from bottom, smooth scroll to show movement
-        container.scrollTo({
-          top: container.scrollHeight,
-          behavior: 'smooth'
-        });
-      }
+      container.scrollTop = container.scrollHeight;
     }
   }, [logs, isFollowing, pausedOnError]);
 
   // Handle scroll events to detect manual scrolling
-  const handleScroll = () => {
+  const handleScroll = useCallback(() => {
     if (logContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = logContainerRef.current;
-      const isAtBottom = Math.abs(scrollHeight - clientHeight - scrollTop) < 50; // More generous bottom detection
-      const position = scrollHeight > clientHeight ? (scrollTop / (scrollHeight - clientHeight)) * 100 : 100;
+      const distanceFromBottom = scrollHeight - clientHeight - scrollTop;
+      const isAtBottom = distanceFromBottom < 10;
       
-      setScrollPosition(Math.round(position));
+      // Calculate scroll position percentage
+      let position = 100;
+      if (scrollHeight > clientHeight) {
+        position = (scrollTop / (scrollHeight - clientHeight)) * 100;
+      }
+      
+      setScrollPosition(Math.round(Math.max(0, Math.min(100, position))));
       
       // If user manually scrolls up from bottom, pause following
       if (!isAtBottom && isFollowing && !pausedOnError) {
         setIsFollowing(false);
         setUserScrolled(true);
         setShowFollowButton(true);
-        setPausedOnError(false); // Clear error pause when user scrolls
       }
       
-      // If user scrolls back to bottom, potentially resume following
+      // Clear error indicator when back at bottom (but don't auto-resume)
       if (isAtBottom && userScrolled && !pausedOnError) {
-        // Don't auto-resume, let them click Follow button
-        setHasNewErrors(false); // Clear error indicator when back at bottom
+        setHasNewErrors(false);
       }
     }
-  };
+  }, [isFollowing, pausedOnError, userScrolled]);
+
+  // Update scroll position when logs change
+  useEffect(() => {
+    if (logContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = logContainerRef.current;
+      const isScrollable = scrollHeight > clientHeight;
+      
+      if (isScrollable) {
+        const position = (scrollTop / (scrollHeight - clientHeight)) * 100;
+        setScrollPosition(Math.round(Math.max(0, Math.min(100, position))));
+      } else {
+        setScrollPosition(100);
+      }
+    }
+  }, [logs]);
 
 
   const handleJumpToLatestError = () => {
@@ -145,7 +156,7 @@ export function TerminalLog({ logs, isConnected, onClear, canClear = true }: Ter
   };
 
   return (
-    <div className="flex flex-col h-full min-h-0 w-full overflow-hidden">
+    <div className="flex flex-col w-full overflow-hidden" style={{ height: 'auto' }}>
       {/* Terminal Header */}
       <div className="bg-gray-800 text-gray-300 px-4 py-2 flex items-center justify-between border-b border-gray-700">
         <div className="flex items-center gap-3">
@@ -164,8 +175,8 @@ export function TerminalLog({ logs, isConnected, onClear, canClear = true }: Ter
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="text-xs text-gray-400">
-            {scrollPosition < 100 ? `${scrollPosition}%` : 'Live'}
+          <div className="text-xs text-gray-400" title={`Logs: ${logs.length}, Following: ${isFollowing}`}>
+            {isFollowing ? 'Live' : `${scrollPosition}%`}
           </div>
           
           {/* Follow button - prominent when not following */}
@@ -210,8 +221,14 @@ export function TerminalLog({ logs, isConnected, onClear, canClear = true }: Ter
       <div
         ref={logContainerRef}
         onScroll={handleScroll}
-        className="flex-1 bg-black text-green-400 font-mono text-sm p-4 overflow-y-auto overflow-x-hidden"
-        style={{ height: '600px', minHeight: '400px', maxWidth: '100%' }}
+        className="bg-black text-green-400 font-mono text-sm p-4 overflow-y-scroll overflow-x-hidden"
+        style={{ 
+          height: '600px', // Fixed height - DO NOT use flex-1
+          maxHeight: '600px',
+          minHeight: '400px', 
+          maxWidth: '100%',
+          flexShrink: 0 // Prevent flex from shrinking this
+        }}
       >
         {logs.length === 0 ? (
           <div className="text-gray-500">
@@ -255,9 +272,9 @@ export function TerminalLog({ logs, isConnected, onClear, canClear = true }: Ter
           <button
             onClick={handleFollowLogs}
             className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-            title="Press to resume following logs (Ctrl+F)"
+            title="Press to resume following logs (F key)"
           >
-            Press Ctrl+F to follow logs
+            Press F to follow logs
           </button>
         )}
         
@@ -270,6 +287,7 @@ export function TerminalLog({ logs, isConnected, onClear, canClear = true }: Ter
     </div>
   );
 }
+
 
 
 

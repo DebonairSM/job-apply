@@ -11,7 +11,8 @@ const PROFILE_NAME_MAP: Record<string, string> = {
   'devops': 'devops',
   'backend': 'coreNet', // Map backend to coreNet for now
   'core-net': 'coreNet',
-  'legacy-modernization': 'legacyModernization'
+  'legacy-modernization': 'legacyModernization',
+  'contract': 'contract'
 };
 
 function getProfileKey(cliProfileName: string): string {
