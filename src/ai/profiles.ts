@@ -251,27 +251,25 @@ export const PROFILES: Record<string, TechnicalProfile> = {
   }
 };
 
-// Boolean search strings for LinkedIn
+// Boolean search strings for LinkedIn (without Remote - added dynamically)
 export const BOOLEAN_SEARCHES: Record<string, string> = {
-  core: '("Senior API Engineer" OR "Senior Backend Developer" OR "Azure API Engineer") AND (C# OR VB.NET OR ".NET") AND (Azure OR "Microsoft Azure") AND ("API Management" OR APIM) AND ("Azure Functions" OR "App Services") AND ("Service Bus" OR "Event Grid") AND Remote',
+  core: '("Senior API Engineer" OR "Senior Backend Developer" OR "Azure API Engineer") AND (C# OR VB.NET OR ".NET") AND (Azure OR "Microsoft Azure") AND ("API Management" OR APIM) AND ("Azure Functions" OR "App Services") AND ("Service Bus" OR "Event Grid")',
   
-  security: '("Senior API Engineer" OR "Azure Backend Engineer") AND (C# OR VB.NET OR ".NET") AND (Azure OR "Microsoft Azure") AND ("API Management" OR APIM) AND ("OAuth 2.0" OR JWT OR "Entra ID" OR "Azure AD") AND ("APIM Policies" OR "API Governance") AND ("Service Bus" OR "Functions" OR "App Services") AND Remote',
+  security: '("Senior API Engineer" OR "Azure Backend Engineer") AND (C# OR VB.NET OR ".NET") AND (Azure OR "Microsoft Azure") AND ("API Management" OR APIM) AND ("OAuth 2.0" OR JWT OR "Entra ID" OR "Azure AD") AND ("APIM Policies" OR "API Governance") AND ("Service Bus" OR "Functions" OR "App Services")',
   
-  'event-driven': '("Senior API Engineer" OR "Integration Engineer" OR "Azure Integration Developer") AND (C# OR VB.NET OR ".NET") AND (Azure OR "Microsoft Azure") AND ("Service Bus" OR "Event Grid" OR "Event Driven") AND ("Azure Functions" OR "App Services") AND (APIM OR "API Management") AND Remote',
+  'event-driven': '("Senior API Engineer" OR "Integration Engineer" OR "Azure Integration Developer") AND (C# OR VB.NET OR ".NET") AND (Azure OR "Microsoft Azure") AND ("Service Bus" OR "Event Grid" OR "Event Driven") AND ("Azure Functions" OR "App Services") AND (APIM OR "API Management")',
   
-  performance: '("Senior API Engineer" OR "Senior Backend Developer") AND (C# OR VB.NET OR ".NET") AND (Azure OR "Microsoft Azure") AND (APIM OR "API Management") AND ("Azure Load Testing" OR Locust OR "performance testing" OR "load testing") AND (Redis OR "EF Core" OR "SQL Server") AND ("App Insights" OR Serilog OR Splunk OR KQL) AND Remote',
+  performance: '("Senior API Engineer" OR "Senior Backend Developer") AND (C# OR VB.NET OR ".NET") AND (Azure OR "Microsoft Azure") AND (APIM OR "API Management") AND ("Azure Load Testing" OR Locust OR "performance testing" OR "load testing") AND (Redis OR "EF Core" OR "SQL Server") AND ("App Insights" OR Serilog OR Splunk OR KQL)',
   
-  devops: '("Senior Software Developer" OR "Senior Software Engineer" OR "Azure Developer" OR "Full-Stack Developer" OR "Backend Developer") AND (C# OR VB.NET OR ".NET") AND (Azure OR "Microsoft Azure") AND ("Azure DevOps" OR "GitHub Actions" OR "CI/CD" OR Docker OR "DevOps Practices") AND ("Azure Functions" OR "App Services" OR "Web API") AND Remote',
+  devops: '("Senior Software Developer" OR "Senior Software Engineer" OR "Azure Developer" OR "Full-Stack Developer" OR "Backend Developer") AND (C# OR VB.NET OR ".NET") AND (Azure OR "Microsoft Azure") AND ("Azure DevOps" OR "GitHub Actions" OR "CI/CD" OR Docker OR "DevOps Practices") AND ("Azure Functions" OR "App Services" OR "Web API")',
   
-  backend: '("Senior Backend Engineer" OR "Senior API Engineer" OR "Azure Developer" OR ".NET Core Developer") AND (C# OR VB.NET OR ".NET") AND (Azure OR "Microsoft Azure") AND (REST OR API OR APIM OR "API Management") AND ("Azure Functions" OR "App Services") AND (Redis OR SQL OR "EF Core") AND Remote',
+  backend: '("Senior Backend Engineer" OR "Senior API Engineer" OR "Azure Developer" OR ".NET Core Developer") AND (C# OR VB.NET OR ".NET") AND (Azure OR "Microsoft Azure") AND (REST OR API OR APIM OR "API Management") AND ("Azure Functions" OR "App Services") AND (Redis OR SQL OR "EF Core")',
   
-  'core-net': '("Senior .NET Developer" OR "Senior Software Engineer" OR ".NET Developer" OR "C# Developer") AND (C# OR VB.NET OR ".NET Core" OR ".NET 6" OR ".NET 8") AND (ASP.NET OR MVC OR "Web API" OR "REST API") AND (Entity Framework OR "EF Core" OR SQL OR Database) AND (Senior OR Lead OR Principal) AND Remote',
+  'core-net': '("Senior .NET Developer" OR "Senior Software Engineer" OR ".NET Developer" OR "C# Developer") AND (C# OR VB.NET OR ".NET Core" OR ".NET 6" OR ".NET 8") AND (ASP.NET OR MVC OR "Web API" OR "REST API") AND (Entity Framework OR "EF Core" OR SQL OR Database) AND (Senior OR Lead OR Principal)',
   
-  'legacy-modernization': '("Senior .NET Developer" OR "Legacy Developer" OR "Modernization Engineer" OR "Migration Specialist") AND ((VB.NET OR WebForms OR "ASP.NET MVC" OR Legacy) OR (Modernization OR Migration OR "Cloud Migration")) AND (C# OR ".NET Core" OR ".NET 6" OR ".NET 8") AND (Azure OR Cloud OR "System Migration") AND (Senior OR Lead OR Principal) AND Remote',
+  'legacy-modernization': '("Senior .NET Developer" OR "Legacy Developer" OR "Modernization Engineer" OR "Migration Specialist") AND ((VB.NET OR WebForms OR "ASP.NET MVC" OR Legacy) OR (Modernization OR Migration OR "Cloud Migration")) AND (C# OR ".NET Core" OR ".NET 6" OR ".NET 8") AND (Azure OR Cloud OR "System Migration") AND (Senior OR Lead OR Principal)',
   
-  contract: '("Senior .NET Developer" OR "Contract .NET Developer" OR "C# Contractor" OR "Contract Software Engineer") AND (C# OR ".NET Core" OR ".NET 6" OR ".NET 8") AND (Contract OR Contractor OR "Contract to Hire" OR C2H OR "Contract Position") AND (ASP.NET OR "Web API" OR REST) AND (Remote OR "Remote Contract")',
-  
-  'florida-central': '("Senior .NET Developer" OR "Senior Software Engineer" OR "Azure Developer" OR "Senior API Engineer" OR ".NET Core Developer" OR "Backend Developer") AND (C# OR VB.NET OR ".NET Core" OR ".NET 6" OR ".NET 8" OR ".NET") AND ((ASP.NET OR MVC OR "Web API" OR "REST API" OR "Web Forms") OR (Azure OR "Microsoft Azure" OR APIM OR "API Management" OR "Azure Functions" OR "App Services")) AND (Senior OR Lead OR Principal)'
+  contract: '("Senior .NET Developer" OR "Contract .NET Developer" OR "C# Contractor" OR "Contract Software Engineer") AND (C# OR ".NET Core" OR ".NET 6" OR ".NET 8") AND (Contract OR Contractor OR "Contract to Hire" OR C2H OR "Contract Position") AND (ASP.NET OR "Web API" OR REST)'
 };
 
 // Profile-specific weight distributions
@@ -391,19 +389,6 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
     seniority: 10,
     coreNet: 40,             // Primary focus on .NET skills
     frontendFrameworks: 5,
-    legacyModernization: 5
-  },
-  
-  // Florida Central (Orlando/Tampa) - balanced ASP.NET and Azure API development
-  'florida-central': {
-    coreAzure: 22,           // Balanced Azure Cloud API emphasis
-    security: 10,
-    eventDriven: 12,
-    performance: 10,
-    devops: 0,
-    seniority: 10,           // No remote requirement, so lower weight
-    coreNet: 22,             // Balanced ASP.NET emphasis
-    frontendFrameworks: 9,
     legacyModernization: 5
   }
 };

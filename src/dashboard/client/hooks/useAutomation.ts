@@ -11,7 +11,7 @@ export interface AutomationStatus {
 }
 
 export interface SearchOptions {
-  profile?: 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | 'florida-central';
+  profile?: 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract';
   keywords?: string;
   location?: string;
   remote?: boolean;

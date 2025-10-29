@@ -228,7 +228,6 @@ Return ONLY a JSON object with this format:
     last_name: config.lastName,
     email: config.email,
     phone: config.phone,
-    city: config.city,
     work_authorization: config.workAuthorization,
     requires_sponsorship: config.requiresSponsorship,
     years_dotnet: config.yearsDotnet,
@@ -242,7 +241,6 @@ Return ONLY a JSON object with this format:
   console.log(`  Name: ${config.fullName}`);
   console.log(`  Email: ${config.email}`);
   console.log(`  Phone: ${config.phone}`);
-  console.log(`  City: ${config.city}`);
 
   const output: AnswersOutput = {
     answers,

@@ -343,6 +343,17 @@ export function initDb(): void {
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Search profiles table for storing per-profile location preferences
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS profiles (
+      profile_key TEXT PRIMARY KEY,
+      location TEXT,
+      remote INTEGER DEFAULT 0,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 }
 
 // Job operations
@@ -1742,6 +1753,48 @@ export function saveResumeCache(filename: string, sections: any[]): void {
     VALUES (?, ?, datetime('now'))
   `);
   stmt.run(filename, JSON.stringify(sections));
+}
+
+// Profile operations
+export interface Profile {
+  profile_key: string;
+  location?: string;
+  remote?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export function getProfile(profileKey: string): Profile | null {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM profiles WHERE profile_key = ?');
+  const result = stmt.get(profileKey) as Profile | undefined;
+  
+  if (!result) return null;
+  
+  return {
+    ...result,
+    remote: result.remote === 1
+  };
+}
+
+export function saveProfile(profile: Profile): void {
+  const database = getDb();
+  const stmt = database.prepare(`
+    INSERT OR REPLACE INTO profiles (profile_key, location, remote, updated_at)
+    VALUES (?, ?, ?, datetime('now'))
+  `);
+  stmt.run(profile.profile_key, profile.location || null, profile.remote ? 1 : 0);
+}
+
+export function getAllProfiles(): Profile[] {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM profiles');
+  const results = stmt.all() as Profile[];
+  
+  return results.map(r => ({
+    ...r,
+    remote: r.remote === 1
+  }));
 }
 
 // Initialize on import

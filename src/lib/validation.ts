@@ -14,7 +14,6 @@ export const AnswersSchema = z.object({
     full_name: z.string().min(2),
     email: z.string().email(),
     phone: z.string().min(7),
-    city: z.string().min(2),
     work_authorization: z.string(),
     requires_sponsorship: z.enum(['Yes', 'No']),
     years_dotnet: z.string(),

@@ -9,7 +9,7 @@ const router = Router();
 
 // Validation schemas
 const SearchOptionsSchema = z.object({
-  profile: z.enum(['core', 'security', 'event-driven', 'performance', 'devops', 'backend', 'core-net', 'legacy-modernization', 'contract', 'florida-central']).optional(),
+  profile: z.enum(['core', 'security', 'event-driven', 'performance', 'devops', 'backend', 'core-net', 'legacy-modernization', 'contract']).optional(),
   keywords: z.string().optional(),
   location: z.string().optional(),
   remote: z.boolean().optional(),
@@ -114,7 +114,7 @@ router.post('/start', async (req: Request, res: Response) => {
       if (opts.location) {
         args.push('--location', opts.location);
       }
-      if (opts.remote && !opts.profile) {
+      if (opts.remote) {
         args.push('--remote');
       }
       if (opts.datePosted) {
@@ -132,6 +132,8 @@ router.post('/start', async (req: Request, res: Response) => {
       if (opts.updateDescriptions) {
         args.push('--update-descriptions');
       }
+      
+      console.log('[Automation API] Search args:', JSON.stringify(args));
     } else {
       const opts = parsed.options as z.infer<typeof ApplyOptionsSchema>;
       
@@ -167,17 +169,26 @@ router.post('/start', async (req: Request, res: Response) => {
     
     // Use tsx binary directly from node_modules (more reliable than npx)
     const projectRoot = process.cwd();
-    const tsxBinary = process.platform === 'win32' 
-      ? join(projectRoot, 'node_modules', '.bin', 'tsx.cmd')
-      : join(projectRoot, 'node_modules', '.bin', 'tsx');
     
-    activeProcess = spawn(tsxBinary, ['--no-cache', 'src/cli.ts', ...args], {
+    // Build command with proper quoting for arguments with spaces
+    const escapedArgs = args.map(arg => {
+      if (arg.includes(' ') || arg.includes('&') || arg.includes('|')) {
+        return `"${arg.replace(/"/g, '\\"')}"`;
+      }
+      return arg;
+    });
+    
+    const command = `tsx --no-cache src/cli.ts ${escapedArgs.join(' ')}`;
+    
+    console.log('[Automation API] Executing command:', command);
+    
+    activeProcess = spawn(command, {
       cwd: projectRoot,
       env: { 
         ...process.env,
         TSX_TSCONFIG_PATH: undefined, // Force tsx to reload
       },
-      shell: process.platform === 'win32', // Use shell on Windows for .cmd files
+      shell: true, // Use shell to properly handle quoted arguments
     });
 
     // Capture stdout

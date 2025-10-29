@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 export interface SearchOptions {
   keywords?: string;
-  profile?: 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | 'florida-central';
+  profile?: 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract';
   location?: string;
   remote?: boolean;
   datePosted?: 'day' | 'week' | 'month';
@@ -702,22 +702,24 @@ function buildSearchUrl(opts: SearchOptions, page: number = 1): string {
   const params = new URLSearchParams();
   
   // Use profile-based Boolean search if specified, otherwise use keywords
+  let keywords = '';
   if (opts.profile && BOOLEAN_SEARCHES[opts.profile]) {
-    params.set('keywords', BOOLEAN_SEARCHES[opts.profile]);
+    keywords = BOOLEAN_SEARCHES[opts.profile];
   } else if (opts.keywords) {
-    params.set('keywords', opts.keywords);
+    keywords = opts.keywords;
   } else {
     throw new Error('Either keywords or profile must be specified');
   }
   
-  if (opts.location) {
-    params.set('location', opts.location);
+  // Add remote filter to search string if remote is enabled
+  if (opts.remote) {
+    keywords += ' AND Remote';
   }
   
-  // Don't add remote filter if using profile (already included in Boolean search)
-  // Exception: florida-central doesn't include Remote in its search, so allow remote filter
-  if (opts.remote && (!opts.profile || opts.profile === 'florida-central')) {
-    params.set('f_WT', '2'); // Remote filter
+  params.set('keywords', keywords);
+  
+  if (opts.location) {
+    params.set('location', opts.location);
   }
   
   // Add contract job type filter for contract profile
@@ -742,7 +744,9 @@ function buildSearchUrl(opts: SearchOptions, page: number = 1): string {
   // Add origin parameter to match LinkedIn's search behavior
   params.set('origin', 'JOBS_HOME_SEARCH_BUTTON');
 
-  return `https://www.linkedin.com/jobs/search-results/?${params.toString()}`;
+  const url = `https://www.linkedin.com/jobs/search-results/?${params.toString()}`;
+  console.log(`[DEBUG] Built search URL: ${url}`);
+  return url;
 }
 
 export async function searchCommand(opts: SearchOptions): Promise<void> {
@@ -861,7 +865,82 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
   console.log('📄 Loading search results...');
   
   const searchUrl = buildSearchUrl(opts, startPage);
+  
+  // Navigate to the search URL
   await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
+  
+  // LinkedIn may override location with saved preferences, try to set it via UI
+  if (opts.location) {
+    await page.waitForTimeout(3000); // Wait for page to fully load
+    
+    try {
+      // Try to find and click the location filter button (logged-in view)
+      const locationFilterButton = page.locator('.jobs-semantic-search-location-filter button, button.artdeco-dropdown__trigger:has(svg[data-test-icon="location-marker-small"])').first();
+      
+      if (await locationFilterButton.count() > 0) {
+        console.log(`   📍 Clicking location filter button...`);
+        await locationFilterButton.click();
+        await page.waitForTimeout(1000);
+        
+        // Look for the location input field in the dropdown
+        const locationInput = page.locator('input[aria-label*="City"], input[placeholder*="City"], input[aria-label*="Location"]').first();
+        
+        if (await locationInput.count() > 0) {
+          // Clear existing value
+          await locationInput.click();
+          await page.waitForTimeout(300);
+          await page.keyboard.press('Control+A');
+          await page.keyboard.press('Backspace');
+          await page.waitForTimeout(300);
+          
+          // Type the new location
+          console.log(`   ⌨️  Typing: ${opts.location}`);
+          await page.keyboard.type(opts.location, { delay: 80 });
+          await page.waitForTimeout(1500);
+          
+          // Look for dropdown suggestions and click the matching one
+          const suggestion = page.locator(`[role="option"]:has-text("${opts.location}")`).first();
+          
+          if (await suggestion.count() > 0) {
+            console.log(`   ✅ Found matching suggestion, clicking...`);
+            await suggestion.click();
+            await page.waitForTimeout(1000);
+          } else {
+            // No exact match found, try USA as fallback
+            console.log(`   ⚠️ No match for "${opts.location}", trying USA...`);
+            await page.keyboard.press('Control+A');
+            await page.keyboard.press('Backspace');
+            await page.waitForTimeout(300);
+            await page.keyboard.type('United States', { delay: 80 });
+            await page.waitForTimeout(1000);
+            
+            const usaSuggestion = page.locator('[role="option"]:has-text("United States")').first();
+            if (await usaSuggestion.count() > 0) {
+              await usaSuggestion.click();
+              await page.waitForTimeout(1000);
+              console.log(`   ✅ Set location to: United States (fallback)`);
+            } else {
+              // Just press Enter
+              await page.keyboard.press('Enter');
+              await page.waitForTimeout(1000);
+            }
+          }
+          
+          // Close the filter modal by clicking outside or pressing Escape
+          await page.keyboard.press('Escape');
+          await page.waitForTimeout(500);
+          
+          console.log(`   ✅ Location filter applied`);
+        } else {
+          console.log(`   ⚠️ Could not find location input field in dropdown`);
+        }
+      } else {
+        console.log(`   ⚠️ Could not find location filter button, using URL parameter`);
+      }
+    } catch (error) {
+      console.log(`   ⚠️ Failed to set location via UI: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
 
   let totalAnalyzed = 0;
   let totalQueued = 0;

@@ -23,13 +23,19 @@ const PROFILE_OPTIONS = [
   { value: 'core-net', label: 'Core .NET' },
   { value: 'legacy-modernization', label: 'Legacy Modernization' },
   { value: 'contract', label: 'Contract' },
-  { value: 'florida-central', label: 'Florida Central (Orlando/Tampa)' },
 ];
 
 const DATE_OPTIONS = [
   { value: 'day', label: 'Past 24 hours' },
   { value: 'week', label: 'Past week' },
   { value: 'month', label: 'Past month' },
+];
+
+const LOCATION_OPTIONS = [
+  { value: '', label: 'None' },
+  { value: 'Greater Tampa Bay Area', label: 'Greater Tampa Bay Area' },
+  { value: 'Greater Orlando Area', label: 'Greater Orlando Area' },
+  { value: 'Greater Roanoke Area', label: 'Greater Roanoke Area' },
 ];
 
 export function Automation() {
@@ -107,7 +113,7 @@ export function Automation() {
       }
       
       if (location) searchOptions.location = location;
-      if (remote && (!profile || profile === 'florida-central')) searchOptions.remote = remote;
+      if (remote) searchOptions.remote = remote;
       if (datePosted) searchOptions.datePosted = datePosted;
       if (minScore !== 70) searchOptions.minScore = minScore;
       if (maxPages !== 5) searchOptions.maxPages = maxPages;
@@ -306,14 +312,31 @@ export function Automation() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Location
                 </label>
-                <input
-                  type="text"
+                <select
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   disabled={!isIdle}
-                  placeholder="e.g., United States"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
-                />
+                >
+                  {LOCATION_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={remote}
+                    onChange={(e) => setRemote(e.target.checked)}
+                    disabled={!isIdle}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:bg-gray-100"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Remote Only</span>
+                </label>
               </div>
 
               <div>
@@ -351,20 +374,6 @@ export function Automation() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Max Pages
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  value={maxPages}
-                  onChange={(e) => setMaxPages(parseInt(e.target.value) || 1)}
-                  disabled={!isIdle}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Start Page
                 </label>
                 <input
@@ -376,20 +385,23 @@ export function Automation() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
                 />
               </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Max Pages
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={maxPages}
+                  onChange={(e) => setMaxPages(parseInt(e.target.value) || 1)}
+                  disabled={!isIdle}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
+                />
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-4 pt-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={remote}
-                  onChange={(e) => setRemote(e.target.checked)}
-                  disabled={!isIdle || (!!profile && profile !== 'florida-central')}
-                  className="text-blue-600 rounded"
-                />
-                <span className="text-sm text-gray-700">Remote only</span>
-              </label>
-
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
