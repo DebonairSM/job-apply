@@ -135,6 +135,7 @@ export function useAutomationLogs() {
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
+  const isMountedRef = useRef(true);
 
   // Load logs from sessionStorage on mount
   useEffect(() => {
@@ -167,9 +168,19 @@ export function useAutomationLogs() {
   }, [sessionId]);
 
   const connect = () => {
+    // Check if component is still mounted
+    if (!isMountedRef.current) {
+      return;
+    }
+
     // Close existing connection
     if (eventSourceRef.current) {
-      eventSourceRef.current.close();
+      try {
+        eventSourceRef.current.close();
+      } catch (error) {
+        // Ignore errors when closing existing connection
+      }
+      eventSourceRef.current = null;
     }
 
     try {
@@ -177,17 +188,26 @@ export function useAutomationLogs() {
       eventSourceRef.current = eventSource;
 
       eventSource.onopen = () => {
+        if (!isMountedRef.current) {
+          eventSource.close();
+          return;
+        }
         setIsConnected(true);
         reconnectAttemptsRef.current = 0;
       };
 
       eventSource.onmessage = (event) => {
+        if (!isMountedRef.current) {
+          return;
+        }
+
         try {
           const data: LogMessage = JSON.parse(event.data);
           
           if (data.type === 'log' && data.message) {
             // Add log message
             setLogs((prev) => {
+              if (!isMountedRef.current) return prev;
               const newLogs = [...prev, data.message!];
               saveLogs(newLogs);
               return newLogs;
@@ -196,6 +216,7 @@ export function useAutomationLogs() {
             // Status update - could show in UI
             if (data.status === 'error' && data.error) {
               setLogs((prev) => {
+                if (!isMountedRef.current) return prev;
                 const newLogs = [...prev, `❌ Error: ${data.error}`];
                 saveLogs(newLogs);
                 return newLogs;
@@ -217,10 +238,27 @@ export function useAutomationLogs() {
         }
       };
 
-      eventSource.onerror = () => {
+      eventSource.onerror = (error) => {
+        if (!isMountedRef.current) {
+          return;
+        }
+
         setIsConnected(false);
-        eventSource.close();
         
+        try {
+          if (eventSourceRef.current === eventSource) {
+            eventSource.close();
+            eventSourceRef.current = null;
+          }
+        } catch (closeError) {
+          // Ignore errors when closing
+        }
+        
+        // Only attempt to reconnect if component is still mounted
+        if (!isMountedRef.current) {
+          return;
+        }
+
         // Attempt to reconnect with exponential backoff
         reconnectAttemptsRef.current++;
         const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 30000);
@@ -228,23 +266,33 @@ export function useAutomationLogs() {
         console.log(`SSE connection lost. Reconnecting in ${delay}ms...`);
         
         reconnectTimeoutRef.current = setTimeout(() => {
-          connect();
+          if (isMountedRef.current) {
+            connect();
+          }
         }, delay);
       };
     } catch (error) {
       console.error('Failed to create EventSource:', error);
-      setIsConnected(false);
+      if (isMountedRef.current) {
+        setIsConnected(false);
+      }
     }
   };
 
   const disconnect = () => {
+    isMountedRef.current = false;
+
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
     
     if (eventSourceRef.current) {
-      eventSourceRef.current.close();
+      try {
+        eventSourceRef.current.close();
+      } catch (error) {
+        // Ignore errors when closing
+      }
       eventSourceRef.current = null;
     }
     
@@ -252,6 +300,9 @@ export function useAutomationLogs() {
   };
 
   const clearLogs = useCallback(() => {
+    if (!isMountedRef.current) {
+      return;
+    }
     setLogs([]);
     try {
       sessionStorage.removeItem(LOGS_STORAGE_KEY);
@@ -264,6 +315,7 @@ export function useAutomationLogs() {
 
   // Auto-connect on mount
   useEffect(() => {
+    isMountedRef.current = true;
     connect();
     
     return () => {

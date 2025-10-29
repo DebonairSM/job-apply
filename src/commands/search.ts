@@ -5,6 +5,8 @@ import { rankJob } from '../ai/ranker.js';
 import { randomDelay } from '../lib/resilience.js';
 import { BOOLEAN_SEARCHES } from '../ai/profiles.js';
 import { shouldStop as checkStopSignal, clearStopSignal } from '../lib/stop-signal.js';
+import { searchJobs } from '../services/search.js';
+import { SearchDependencies } from '../services/types.js';
 import crypto from 'crypto';
 
 export interface SearchOptions {
