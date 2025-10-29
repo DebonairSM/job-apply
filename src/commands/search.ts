@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 export interface SearchOptions {
   keywords?: string;
-  profile?: 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract';
+  profile?: 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | 'florida-central';
   location?: string;
   remote?: boolean;
   datePosted?: 'day' | 'week' | 'month';
@@ -715,7 +715,8 @@ function buildSearchUrl(opts: SearchOptions, page: number = 1): string {
   }
   
   // Don't add remote filter if using profile (already included in Boolean search)
-  if (opts.remote && !opts.profile) {
+  // Exception: florida-central doesn't include Remote in its search, so allow remote filter
+  if (opts.remote && (!opts.profile || opts.profile === 'florida-central')) {
     params.set('f_WT', '2'); // Remote filter
   }
   

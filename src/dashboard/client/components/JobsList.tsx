@@ -517,6 +517,9 @@ export function JobsList() {
                     {getSortIcon('company')}
                   </div>
                 </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Profile
+                </th>
                 <th 
                   className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100 select-none"
                   onClick={() => handleSort('status')}
@@ -609,6 +612,15 @@ export function JobsList() {
                       <td className="px-4 py-4 text-sm break-words" data-label="Company">
                         {job.company}
                       </td>
+                      <td className="px-4 py-4 whitespace-nowrap" data-label="Profile">
+                        {job.profile ? (
+                          <span className="px-2 py-1 text-xs font-medium rounded bg-purple-100 text-purple-800">
+                            {job.profile}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-gray-400">—</span>
+                        )}
+                      </td>
                       <td className="px-4 py-4 whitespace-nowrap" data-label="Status">
                         <span className={`px-2 py-1 text-xs font-semibold rounded-full ${statusColors[job.status]}`}>
                           {getStatusDisplay(job)}
@@ -645,7 +657,7 @@ export function JobsList() {
                     </tr>
                     {isExpanded && (
                       <tr key={`${job.id}-details`} className="sm:table-row">
-                        <td colSpan={8} className="p-0 sm:px-6 sm:py-4">
+                        <td colSpan={9} className="p-0 sm:px-6 sm:py-4">
                           <JobDetailsPanel job={job} />
                         </td>
                       </tr>

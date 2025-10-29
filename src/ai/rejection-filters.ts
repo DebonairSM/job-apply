@@ -4,7 +4,9 @@ import {
   RejectionPattern,
   getAllRejectionPatterns,
   getDb,
-  saveRejectionPattern
+  saveRejectionPattern,
+  getProhibitedKeywords,
+  ProhibitedKeyword
 } from '../lib/db.js';
 
 export interface JobFilter {
@@ -128,9 +130,90 @@ class ContractOnlyFilter implements JobFilter {
   }
 }
 
+// Prohibited keywords filter (manual blockers - always active)
+class ProhibitedKeywordsFilter implements JobFilter {
+  private patterns: Array<{
+    keywords: string[];
+    matchMode: string;
+  }>;
+  
+  constructor(keywords: ProhibitedKeyword[]) {
+    this.patterns = keywords.map(k => {
+      const keyword = k.keyword.toLowerCase().trim();
+      const matchMode = k.match_mode || 'sentence';
+      
+      // Parse comma-separated keywords
+      const keywordList = keyword.includes(',') 
+        ? keyword.split(',').map(k => k.trim()).filter(k => k)
+        : [keyword];
+      
+      return {
+        keywords: keywordList,
+        matchMode
+      };
+    });
+  }
+  
+  private splitIntoSentences(text: string): string[] {
+    // Split on sentence endings (. ! ?) followed by space or newline
+    // Uses positive lookbehind to include the punctuation in the split
+    return text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
+  }
+  
+  shouldFilter(job: JobInput): boolean {
+    if (this.patterns.length === 0) return false;
+    
+    const text = `${job.title} ${job.description}`;
+    
+    for (const { keywords, matchMode } of this.patterns) {
+      // Single keyword - use word boundary matching
+      if (keywords.length === 1) {
+        const keyword = keywords[0];
+        const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = matchMode === 'word' 
+          ? new RegExp(`\\b${escaped}\\b`, 'i')
+          : new RegExp(escaped, 'i');
+        if (regex.test(text)) {
+          return true;
+        }
+        continue;
+      }
+      
+      // Multiple keywords - check within same sentence
+      const sentences = this.splitIntoSentences(text);
+      
+      for (const sentence of sentences) {
+        // Check if ALL keywords are present in this sentence
+        const foundKeywords = keywords.filter(keyword => {
+          const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const regex = new RegExp(`\\b${escaped}\\b`, 'i');
+          return regex.test(sentence);
+        });
+        
+        // If ALL keywords found in same sentence, it's a match
+        if (foundKeywords.length === keywords.length) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+  
+  get reason(): string {
+    return 'Job contains prohibited keywords';
+  }
+}
+
 // Build filters from rejection patterns
 export function buildFiltersFromPatterns(profile?: string): JobFilter[] {
   const filters: JobFilter[] = [];
+  
+  // Add manual prohibited keywords filter (always active, checks before other filters)
+  const prohibitedKeywords = getProhibitedKeywords();
+  if (prohibitedKeywords.length > 0) {
+    filters.push(new ProhibitedKeywordsFilter(prohibitedKeywords));
+  }
   
   // Add contract-only filter if using contract profile
   if (profile === 'contract') {

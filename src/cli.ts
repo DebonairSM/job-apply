@@ -32,7 +32,7 @@ yargs(hideBin(process.argv))
         .option('profile', {
           alias: 'p',
           describe: 'Use predefined Boolean search profile',
-          choices: ['core', 'security', 'event-driven', 'performance', 'devops', 'backend', 'core-net', 'legacy-modernization', 'contract'] as const,
+          choices: ['core', 'security', 'event-driven', 'performance', 'devops', 'backend', 'core-net', 'legacy-modernization', 'contract', 'florida-central'] as const,
           type: 'string'
         })
         .option('location', {
@@ -86,7 +86,7 @@ yargs(hideBin(process.argv))
     async (argv) => {
       await searchCommand({
         keywords: argv.keywords,
-        profile: argv.profile as 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | undefined,
+        profile: argv.profile as 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | 'florida-central' | undefined,
         location: argv.location,
         remote: argv.remote,
         datePosted: argv.date as 'day' | 'week' | 'month' | undefined,

@@ -15,7 +15,8 @@ const PROFILE_NAME_MAP: Record<string, string> = {
   'backend': 'coreNet', // Map backend to coreNet for now
   'core-net': 'coreNet',
   'legacy-modernization': 'legacyModernization',
-  'contract': 'coreNet'  // Contract roles use same technical criteria as core .NET
+  'contract': 'coreNet',  // Contract roles use same technical criteria as core .NET
+  'florida-central': 'coreAzure'  // Uses balanced scoring but map to coreAzure technical profile
 };
 
 function getProfileKey(cliProfileName: string): string {

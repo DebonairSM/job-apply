@@ -269,7 +269,9 @@ export const BOOLEAN_SEARCHES: Record<string, string> = {
   
   'legacy-modernization': '("Senior .NET Developer" OR "Legacy Developer" OR "Modernization Engineer" OR "Migration Specialist") AND ((VB.NET OR WebForms OR "ASP.NET MVC" OR Legacy) OR (Modernization OR Migration OR "Cloud Migration")) AND (C# OR ".NET Core" OR ".NET 6" OR ".NET 8") AND (Azure OR Cloud OR "System Migration") AND (Senior OR Lead OR Principal) AND Remote',
   
-  contract: '("Senior .NET Developer" OR "Contract .NET Developer" OR "C# Contractor" OR "Contract Software Engineer") AND (C# OR ".NET Core" OR ".NET 6" OR ".NET 8") AND (Contract OR Contractor OR "Contract to Hire" OR C2H OR "Contract Position") AND (ASP.NET OR "Web API" OR REST) AND (Remote OR "Remote Contract")'
+  contract: '("Senior .NET Developer" OR "Contract .NET Developer" OR "C# Contractor" OR "Contract Software Engineer") AND (C# OR ".NET Core" OR ".NET 6" OR ".NET 8") AND (Contract OR Contractor OR "Contract to Hire" OR C2H OR "Contract Position") AND (ASP.NET OR "Web API" OR REST) AND (Remote OR "Remote Contract")',
+  
+  'florida-central': '("Senior .NET Developer" OR "Senior Software Engineer" OR "Azure Developer" OR "Senior API Engineer" OR ".NET Core Developer" OR "Backend Developer") AND (C# OR VB.NET OR ".NET Core" OR ".NET 6" OR ".NET 8" OR ".NET") AND ((ASP.NET OR MVC OR "Web API" OR "REST API" OR "Web Forms") OR (Azure OR "Microsoft Azure" OR APIM OR "API Management" OR "Azure Functions" OR "App Services")) AND (Senior OR Lead OR Principal)'
 };
 
 // Profile-specific weight distributions
@@ -389,6 +391,19 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
     seniority: 10,
     coreNet: 40,             // Primary focus on .NET skills
     frontendFrameworks: 5,
+    legacyModernization: 5
+  },
+  
+  // Florida Central (Orlando/Tampa) - balanced ASP.NET and Azure API development
+  'florida-central': {
+    coreAzure: 22,           // Balanced Azure Cloud API emphasis
+    security: 10,
+    eventDriven: 12,
+    performance: 10,
+    devops: 0,
+    seniority: 10,           // No remote requirement, so lower weight
+    coreNet: 22,             // Balanced ASP.NET emphasis
+    frontendFrameworks: 9,
     legacyModernization: 5
   }
 };

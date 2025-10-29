@@ -31,6 +31,7 @@ export interface Job {
   missing_keywords?: string;
   posted_date?: string;
   description?: string;
+  profile?: string; // Search profile used to find this job (core, security, event-driven, etc.)
   created_at?: string;
   status_updated_at?: string;
 }

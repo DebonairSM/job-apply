@@ -147,6 +147,17 @@ export function initDb(): void {
     )
   `);
 
+  // Prohibited keywords table (manual blockers - always active)
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS prohibited_keywords (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      keyword TEXT NOT NULL UNIQUE,
+      match_mode TEXT DEFAULT 'sentence',
+      reason TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Answers cache table
   database.exec(`
     CREATE TABLE IF NOT EXISTS answers (
@@ -1129,6 +1140,48 @@ export function getAllRejectionPatterns(): RejectionPattern[] {
     SELECT * FROM rejection_patterns 
     ORDER BY count DESC, last_seen DESC
   `).all() as RejectionPattern[];
+}
+
+export interface ProhibitedKeyword {
+  id: number;
+  keyword: string;
+  match_mode: string;
+  reason: string | null;
+  created_at: string;
+}
+
+export function getProhibitedKeywords(): ProhibitedKeyword[] {
+  const database = getDb();
+  return database.prepare(`
+    SELECT * FROM prohibited_keywords 
+    ORDER BY keyword
+  `).all() as ProhibitedKeyword[];
+}
+
+export function addProhibitedKeyword(
+  keyword: string, 
+  matchMode: string = 'sentence',
+  reason?: string
+): void {
+  const database = getDb();
+  try {
+    database.prepare(`
+      INSERT INTO prohibited_keywords (keyword, match_mode, reason)
+      VALUES (?, ?, ?)
+    `).run(keyword.toLowerCase().trim(), matchMode, reason || null);
+  } catch (error) {
+    if ((error as Error).message.includes('UNIQUE constraint')) {
+      throw new Error(`Keyword "${keyword}" already exists`);
+    }
+    throw error;
+  }
+}
+
+export function removeProhibitedKeyword(keyword: string): void {
+  const database = getDb();
+  database.prepare(`
+    DELETE FROM prohibited_keywords WHERE LOWER(keyword) = LOWER(?)
+  `).run(keyword);
 }
 
 export function getWeightAdjustments(): WeightAdjustment[] {

@@ -195,6 +195,19 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
               </div>
               
               <div>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Search Profile</label>
+                <div className="mt-1 text-sm text-gray-900">
+                  {job.profile ? (
+                    <span className="px-2 py-1 text-xs font-medium rounded bg-purple-100 text-purple-800">
+                      {job.profile}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-400">Not specified</span>
+                  )}
+                </div>
+              </div>
+              
+              <div>
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Posted Date</label>
                 <div className="mt-1 text-sm text-gray-900">
                   {formatDateLocal(job.posted_date)}

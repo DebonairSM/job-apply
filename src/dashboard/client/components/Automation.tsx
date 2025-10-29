@@ -23,6 +23,7 @@ const PROFILE_OPTIONS = [
   { value: 'core-net', label: 'Core .NET' },
   { value: 'legacy-modernization', label: 'Legacy Modernization' },
   { value: 'contract', label: 'Contract' },
+  { value: 'florida-central', label: 'Florida Central (Orlando/Tampa)' },
 ];
 
 const DATE_OPTIONS = [
@@ -106,7 +107,7 @@ export function Automation() {
       }
       
       if (location) searchOptions.location = location;
-      if (remote && !profile) searchOptions.remote = remote;
+      if (remote && (!profile || profile === 'florida-central')) searchOptions.remote = remote;
       if (datePosted) searchOptions.datePosted = datePosted;
       if (minScore !== 70) searchOptions.minScore = minScore;
       if (maxPages !== 5) searchOptions.maxPages = maxPages;
@@ -383,7 +384,7 @@ export function Automation() {
                   type="checkbox"
                   checked={remote}
                   onChange={(e) => setRemote(e.target.checked)}
-                  disabled={!isIdle || !!profile}
+                  disabled={!isIdle || (!!profile && profile !== 'florida-central')}
                   className="text-blue-600 rounded"
                 />
                 <span className="text-sm text-gray-700">Remote only</span>
