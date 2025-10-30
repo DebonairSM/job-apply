@@ -10,7 +10,6 @@ export interface AutomationSettings {
   minScore: number;
   maxPages: number;
   startPage: number;
-  updateDescriptions: boolean;
   
   // Apply settings
   easyOnly: boolean;
@@ -31,7 +30,6 @@ const DEFAULT_SETTINGS: AutomationSettings = {
   minScore: 70,
   maxPages: 5,
   startPage: 1,
-  updateDescriptions: false,
   easyOnly: false,
   externalOnly: false,
   jobId: '',
@@ -95,7 +93,6 @@ export function usePersistedAutomationSettings() {
   const setMinScore = useCallback((minScore: number) => updateSettings({ minScore }), [updateSettings]);
   const setMaxPages = useCallback((maxPages: number) => updateSettings({ maxPages }), [updateSettings]);
   const setStartPage = useCallback((startPage: number) => updateSettings({ startPage }), [updateSettings]);
-  const setUpdateDescriptions = useCallback((updateDescriptions: boolean) => updateSettings({ updateDescriptions }), [updateSettings]);
   const setEasyOnly = useCallback((easyOnly: boolean) => updateSettings({ easyOnly }), [updateSettings]);
   const setExternalOnly = useCallback((externalOnly: boolean) => updateSettings({ externalOnly }), [updateSettings]);
   const setJobId = useCallback((jobId: string) => updateSettings({ jobId }), [updateSettings]);
@@ -120,7 +117,6 @@ export function usePersistedAutomationSettings() {
     setMinScore,
     setMaxPages,
     setStartPage,
-    setUpdateDescriptions,
     setEasyOnly,
     setExternalOnly,
     setJobId,

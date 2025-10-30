@@ -32,13 +32,21 @@ yargs(hideBin(process.argv))
         .option('profile', {
           alias: 'p',
           describe: 'Use predefined Boolean search profile',
-          choices: ['core', 'security', 'event-driven', 'performance', 'devops', 'backend', 'core-net', 'legacy-modernization', 'contract'] as const,
+          choices: ['core', 'security', 'event-driven', 'performance', 'devops', 'backend', 'core-net', 'legacy-modernization', 'contract', 'aspnet-simple', 'csharp-azure-no-frontend'] as const,
           type: 'string'
         })
         .option('location', {
           alias: 'l',
           describe: 'Job location',
           type: 'string'
+        })
+        .option('location-preset', {
+          describe: 'Preset location identifier (e.g., wesley-chapel)',
+          type: 'string'
+        })
+        .option('radius', {
+          describe: 'Desired radius in miles (used only if UI slider exists)',
+          type: 'number'
         })
         .option('remote', {
           alias: 'r',
@@ -70,15 +78,9 @@ yargs(hideBin(process.argv))
           type: 'number',
           default: 1
         })
-        .option('update-descriptions', {
-          alias: 'u',
-          describe: 'Update missing job descriptions for existing jobs',
-          type: 'boolean',
-          default: false
-        })
         .check((argv) => {
-          if (!argv.keywords && !argv.profile && !argv['update-descriptions']) {
-            throw new Error('Either keywords, --profile, or --update-descriptions must be specified');
+          if (!argv.keywords && !argv.profile) {
+            throw new Error('Either keywords or --profile must be specified');
           }
           return true;
         });
@@ -86,14 +88,15 @@ yargs(hideBin(process.argv))
     async (argv) => {
       await searchCommand({
         keywords: argv.keywords,
-        profile: argv.profile as 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | undefined,
+        profile: argv.profile as 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | 'aspnet-simple' | 'csharp-azure-no-frontend' | undefined,
         location: argv.location,
+        locationPreset: argv['location-preset'] as any,
+        radius: argv.radius as number | undefined,
         remote: argv.remote,
         datePosted: argv.date as 'day' | 'week' | 'month' | undefined,
         minScore: argv['min-score'],
         maxPages: argv['max-pages'],
-        startPage: argv['start-page'],
-        updateDescriptions: argv['update-descriptions']
+        startPage: argv['start-page']
       });
     }
   )

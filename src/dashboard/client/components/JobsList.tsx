@@ -3,6 +3,7 @@ import { useJobs } from '../hooks/useJobs';
 import { api } from '../lib/api';
 import { Job } from '../lib/types';
 import { JobDetailsPanel } from './JobDetailsPanel';
+import { SkippedJobsPanel } from './SkippedJobsPanel';
 import { useJobNavigation } from '../contexts/JobNavigationContext';
 import { formatRelativeTime } from '../lib/dateUtils';
 import { formatRank } from '../lib/formatUtils';
@@ -32,6 +33,7 @@ export function JobsList() {
   const [expandedJobIds, setExpandedJobIds] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('date');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [showSkippedPanel, setShowSkippedPanel] = useState<boolean>(false);
   
   const { targetJobId, clearNavigation } = useJobNavigation();
   
@@ -101,6 +103,10 @@ export function JobsList() {
 
   // Client-side filtering and sorting
   const filteredAndSortedJobs = data?.jobs.filter(job => {
+    // Hide skipped by default when no explicit status filter is applied
+    if (!statusFilter && job.status === 'skipped') {
+      return false;
+    }
     // Hide rejected jobs older than 1 day ONLY if no filters are active
     if (!hasActiveFilters && job.status === 'rejected' && job.status_updated_at) {
       const statusUpdateTime = new Date(job.status_updated_at).getTime();
@@ -668,6 +674,26 @@ export function JobsList() {
             </tbody>
             </table>
           </div>
+        )}
+      </div>
+
+      {/* Skipped Jobs Section (collapsible) */}
+      <div className="mt-6">
+        <div className="flex items-center justify-between mb-2">
+          <button
+            onClick={() => setShowSkippedPanel(prev => !prev)}
+            className="px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base border border-gray-300 bg-white hover:bg-gray-50"
+          >
+            {showSkippedPanel ? 'Hide Skipped' : 'Show Skipped'}
+          </button>
+          {!statusFilter && (
+            <span className="text-xs text-gray-500">
+              Skipped are hidden from the main list. Use this toggle or select "Skipped" in Status.
+            </span>
+          )}
+        </div>
+        {showSkippedPanel && (
+          <SkippedJobsPanel isExpanded={true} onToggle={() => setShowSkippedPanel(prev => !prev)} />
         )}
       </div>
 

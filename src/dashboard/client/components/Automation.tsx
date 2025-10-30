@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { TerminalLog } from './TerminalLog';
 import {
   useAutomationStatus,
@@ -9,6 +9,7 @@ import {
   ApplyOptions,
 } from '../hooks/useAutomation';
 import { usePersistedAutomationSettings } from '../hooks/usePersistedAutomationSettings';
+import { SkippedJobsPanel } from './SkippedJobsPanel';
 
 type CommandType = 'search' | 'apply';
 
@@ -39,6 +40,8 @@ const LOCATION_OPTIONS = [
 ];
 
 export function Automation() {
+  const [isSkippedJobsExpanded, setIsSkippedJobsExpanded] = useState(false);
+  
   const {
     // State values
     command,
@@ -50,7 +53,6 @@ export function Automation() {
     minScore,
     maxPages,
     startPage,
-    updateDescriptions,
     easyOnly,
     externalOnly,
     jobId,
@@ -67,7 +69,6 @@ export function Automation() {
     setMinScore,
     setMaxPages,
     setStartPage,
-    setUpdateDescriptions,
     setEasyOnly,
     setExternalOnly,
     setJobId,
@@ -118,7 +119,6 @@ export function Automation() {
       if (minScore !== 70) searchOptions.minScore = minScore;
       if (maxPages !== 5) searchOptions.maxPages = maxPages;
       if (startPage !== 1) searchOptions.startPage = startPage;
-      if (updateDescriptions) searchOptions.updateDescriptions = updateDescriptions;
 
       startMutation.mutate({
         command: 'search',
@@ -400,19 +400,6 @@ export function Automation() {
                 />
               </div>
             </div>
-
-            <div className="flex flex-wrap gap-4 pt-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={updateDescriptions}
-                  onChange={(e) => setUpdateDescriptions(e.target.checked)}
-                  disabled={!isIdle}
-                  className="text-blue-600 rounded"
-                />
-                <span className="text-sm text-gray-700">Update missing descriptions</span>
-              </label>
-            </div>
           </div>
         ) : (
           <div className="space-y-4">
@@ -502,7 +489,7 @@ export function Automation() {
 
         {/* Terminal Display */}
         <div className="xl:col-span-7">
-          <div className="bg-white rounded-lg shadow-md overflow-hidden h-full">
+          <div className="bg-white rounded-lg shadow-md overflow-hidden h-full mb-6">
             <TerminalLog
               logs={logs}
               isConnected={isConnected}
@@ -510,6 +497,12 @@ export function Automation() {
               canClear={isIdle}
             />
           </div>
+          
+          {/* Skipped Jobs Panel */}
+          <SkippedJobsPanel
+            isExpanded={isSkippedJobsExpanded}
+            onToggle={() => setIsSkippedJobsExpanded(!isSkippedJobsExpanded)}
+          />
         </div>
       </div>
     </div>

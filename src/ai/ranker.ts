@@ -16,6 +16,8 @@ const PROFILE_NAME_MAP: Record<string, string> = {
   'core-net': 'coreNet',
   'legacy-modernization': 'legacyModernization',
   'contract': 'coreNet',  // Contract roles use same technical criteria as core .NET
+  'aspnet-simple': 'coreNet',
+  'csharp-azure-no-frontend': 'coreNet',
 };
 
 function getProfileKey(cliProfileName: string): string {
@@ -187,6 +189,26 @@ Return ONLY valid JSON in this exact format with ALL categories. Use double quot
 
   // Override LLM's fitScore with our accurate calculation
   result.fitScore = calculatedFitScore;
+
+  // Derive basic blockers when LLM returns none
+  if (!result.blockers || result.blockers.length === 0) {
+    const derived: string[] = [];
+    // Heavily weighted categories with low scores
+    Object.entries(adjustedWeights).forEach(([key, weight]) => {
+      const categoryWeight = Number(weight);
+      const categoryScore = result.categoryScores[key as keyof typeof result.categoryScores] || 0;
+      if (categoryWeight >= 10 && categoryScore < 40) {
+        derived.push(`Low match: ${key}`);
+      }
+    });
+    // Top missing keywords
+    if (Array.isArray(result.missingKeywords)) {
+      result.missingKeywords.slice(0, 3).forEach(kw => {
+        derived.push(`Missing: ${kw}`);
+      });
+    }
+    result.blockers = derived.slice(0, 5);
+  }
 
   // Validate with Zod
   const validated = RankOutputSchema.parse(result);

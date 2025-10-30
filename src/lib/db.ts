@@ -392,8 +392,8 @@ export function addJobs(jobs: Omit<Job, 'created_at'>[]): AddJobsResult {
   const checkExistingStmt = database.prepare('SELECT id, status FROM jobs WHERE id = ?');
   
   const insertStmt = database.prepare(`
-    INSERT INTO jobs (id, title, company, url, easy_apply, rank, status, fit_reasons, must_haves, blockers, category_scores, missing_keywords, posted_date, description, profile, created_at, status_updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO jobs (id, title, company, url, easy_apply, rank, status, fit_reasons, must_haves, blockers, category_scores, missing_keywords, posted_date, description, profile, created_at, status_updated_at, rejection_reason)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   const updateStmt = database.prepare(`
@@ -474,7 +474,8 @@ export function addJobs(jobs: Omit<Job, 'created_at'>[]): AddJobsResult {
             job.description ?? null,
             job.profile ?? null,
             now,
-            null  // Don't set status_updated_at for new jobs
+            null,  // Don't set status_updated_at for new jobs
+            job.rejection_reason ?? null
           );
           result.inserted++;
         } catch (error) {

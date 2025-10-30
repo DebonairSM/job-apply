@@ -985,7 +985,8 @@ export async function applyCommand(opts: ApplyOptions): Promise<void> {
           log: 'Application completed successfully'
         });
       } else if (!success) {
-        updateJobStatus(job.id, 'skipped');
+        const failReason = 'Automation failed or incomplete';
+        updateJobStatus(job.id, 'skipped', undefined, failReason);
         skipped++;
         logRun({
           job_id: job.id,
@@ -1001,7 +1002,8 @@ export async function applyCommand(opts: ApplyOptions): Promise<void> {
     } catch (error) {
       console.log(`   ❌ Error: ${(error as Error).message}`);
       if (!opts.dryRun) {
-        updateJobStatus(job.id, 'skipped');
+        const errMsg = (error as Error).message?.slice(0, 240);
+        updateJobStatus(job.id, 'skipped', undefined, `Automation error: ${errMsg}`);
       }
       skipped++;
       

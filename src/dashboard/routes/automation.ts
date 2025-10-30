@@ -17,7 +17,6 @@ const SearchOptionsSchema = z.object({
   minScore: z.number().min(0).max(100).optional(),
   maxPages: z.number().min(1).optional(),
   startPage: z.number().min(1).optional(),
-  updateDescriptions: z.boolean().optional(),
 });
 
 const ApplyOptionsSchema = z.object({
@@ -128,9 +127,6 @@ router.post('/start', async (req: Request, res: Response) => {
       }
       if (opts.startPage !== undefined) {
         args.push('--start-page', opts.startPage.toString());
-      }
-      if (opts.updateDescriptions) {
-        args.push('--update-descriptions');
       }
       
       console.log('[Automation API] Search args:', JSON.stringify(args));

@@ -19,7 +19,6 @@ export interface SearchOptions {
   minScore?: number;
   maxPages?: number;
   startPage?: number;
-  updateDescriptions?: boolean;
 }
 
 export interface ApplyOptions {

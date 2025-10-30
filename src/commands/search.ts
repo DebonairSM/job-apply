@@ -11,14 +11,28 @@ import crypto from 'crypto';
 
 export interface SearchOptions {
   keywords?: string;
-  profile?: 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract';
+  profile?: 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | 'aspnet-simple' | 'csharp-azure-no-frontend';
   location?: string;
+  locationPreset?: 'wesley-chapel' | string;
+  radius?: number; // miles; only applied if UI exposes distance control
   remote?: boolean;
   datePosted?: 'day' | 'week' | 'month';
   minScore?: number;
   maxPages?: number;
   startPage?: number;
-  updateDescriptions?: boolean;
+}
+
+// Location presets to keep CLI simple without exposing UI sliders
+const LOCATION_PRESETS: Record<string, { city: string; defaultRadius: number }> = {
+  'wesley-chapel': { city: 'Wesley Chapel, FL', defaultRadius: 25 }
+};
+
+// Map common radius values to visible pill texts used by LinkedIn when available
+function getRadiusLabels(radius: number): string[] {
+  const supported = [5, 10, 25, 50, 100];
+  // choose nearest supported value
+  const nearest = supported.reduce((a, b) => (Math.abs(b - radius) < Math.abs(a - radius) ? b : a));
+  return [`${nearest} mi`, `${nearest} miles`];
 }
 
 async function dismissModals(page: Page, silent = false): Promise<void> {
@@ -31,94 +45,6 @@ async function dismissModals(page: Page, silent = false): Promise<void> {
   } catch (error) {
     // Silently ignore errors in modal dismissal
   }
-}
-
-// Function to update existing jobs with missing descriptions
-async function updateMissingDescriptions(page: Page, limit: number = 10): Promise<number> {
-  console.log('🔍 Checking for jobs with missing descriptions...');
-  
-  const jobsWithoutDesc = getJobsByStatus().filter((job: Job) => !job.description || job.description.trim().length < 30);
-  
-  if (jobsWithoutDesc.length === 0) {
-    console.log('✅ All jobs have descriptions');
-    return 0;
-  }
-  
-  console.log(`📋 Found ${jobsWithoutDesc.length} jobs without descriptions. Updating first ${limit}...`);
-  
-  let updated = 0;
-  for (let i = 0; i < Math.min(limit, jobsWithoutDesc.length); i++) {
-    const job = jobsWithoutDesc[i];
-    console.log(`\n🔄 Updating description for: ${job.title} at ${job.company}`);
-    
-    try {
-      await page.goto(job.url, { waitUntil: 'networkidle', timeout: 30000 });
-      await page.waitForTimeout(2000);
-      
-      // Use the same improved description extraction logic
-      const descSelectors = [
-        '.jobs-description__content',
-        '.jobs-description',
-        '.jobs-box__html-content',
-        'div[id*="job-details"]',
-        'article.jobs-description__container',
-        '.jobs-details__main-content',
-        '[data-test-id="job-description"]',
-        '.job-description',
-        '.description',
-        'div[class*="description"]',
-        'div[class*="content"]',
-        'section[class*="description"]',
-        'main .jobs-description',
-        '.jobs-details',
-        '.job-details',
-        'div[role="main"]',
-        'main',
-        'article'
-      ];
-      
-      let description = '';
-      let descriptionFound = false;
-      
-      for (const selector of descSelectors) {
-        try {
-          const descPane = page.locator(selector).first();
-          const count = await descPane.count();
-          if (count === 0) continue;
-          
-          await descPane.waitFor({ state: 'visible', timeout: 2000 });
-          const text = await descPane.innerText({ timeout: 3000 });
-          
-          if (text && text.trim().length > 30) {
-            description = text.trim();
-            descriptionFound = true;
-            break;
-          }
-        } catch (error) {
-          continue;
-        }
-      }
-      
-      if (descriptionFound) {
-        // Update the job in database
-        const database = getDb();
-        const updateStmt = database.prepare('UPDATE jobs SET description = ? WHERE id = ?');
-        updateStmt.run(description, job.id);
-        updated++;
-        console.log(`   ✅ Updated description`);
-      } else {
-        console.log(`   ⚠️  Could not extract description`);
-      }
-      
-      await randomDelay();
-      
-    } catch (error) {
-      console.log(`   ❌ Error updating job: ${(error as Error).message}`);
-    }
-  }
-  
-  console.log(`\n✅ Updated ${updated} job descriptions`);
-  return updated;
 }
 
 async function processPage(page: Page, minScore: number, config: any, opts: SearchOptions, shouldStopNow: () => boolean = () => false): Promise<{ analyzed: number, queued: number }> {
@@ -656,7 +582,41 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
           console.log(`        ❌ Failed to save: ${(error as Error).message}`);
         }
       } else {
-        console.log(`        ⏭️  Skipped (below threshold)`);
+        // Save skipped job to database (below threshold)
+        const topMissing = (ranking.missingKeywords || []).slice(0, 3);
+        const reasonParts: string[] = [`Below threshold (fit=${ranking.fitScore}, min=${minScore})`];
+        if (topMissing.length > 0) {
+          reasonParts.push(`Missing: ${topMissing.join(', ')}`);
+        }
+        const skippedJob = {
+          id: jobHashId,
+          title,
+          company,
+          url: link,
+          easy_apply: easyApply,
+          rank: ranking.fitScore,
+          status: 'skipped' as const,
+          fit_reasons: JSON.stringify(ranking.reasons),
+          must_haves: JSON.stringify(ranking.mustHaves),
+          blockers: JSON.stringify(ranking.blockers),
+          category_scores: JSON.stringify(ranking.categoryScores),
+          missing_keywords: JSON.stringify(ranking.missingKeywords),
+          rejection_reason: reasonParts.join(' · '),
+          posted_date: postedDate || undefined,
+          description: description || undefined,
+          profile: opts.profile || 'core' // Store the search profile used to find this job
+        };
+
+        try {
+          const result = addJobs([skippedJob]);
+          if (result.inserted > 0) {
+            console.log(`        💾 Saved as skipped (score: ${ranking.fitScore})`);
+          } else {
+            console.log(`        ⏭️  Skipped (already processed)`);
+          }
+        } catch (error) {
+          console.log(`        ⏭️  Skipped (below threshold) - failed to save: ${(error as Error).message}`);
+        }
       }
 
       await randomDelay();
@@ -756,43 +716,15 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
   }
 
   const config = loadConfig();
+  // Resolve location preset (if provided)
+  if (opts.locationPreset && LOCATION_PRESETS[opts.locationPreset]) {
+    const preset = LOCATION_PRESETS[opts.locationPreset];
+    if (!opts.location) opts.location = preset.city;
+    if (opts.radius == null) opts.radius = preset.defaultRadius;
+  }
   const minScore = opts.minScore ?? config.minFitScore;
   const maxPages = opts.maxPages ?? 999;
   const startPage = opts.startPage ?? 1;
-
-  // Handle update descriptions mode
-  if (opts.updateDescriptions) {
-    console.log('🔄 Starting description update mode...');
-    console.log('   This will update job descriptions for existing jobs with missing descriptions');
-    console.log();
-    
-    const browser = await chromium.launch({
-      headless: false,
-      args: [
-        '--disable-extensions',  // Prevent browser extensions from interfering
-        '--no-sandbox',
-        '--disable-setuid-sandbox'
-      ]
-    });
-    
-    try {
-      const context = await browser.newContext({
-        storageState: './storage/storageState.json'
-      });
-      
-      const page = await context.newPage();
-      await page.setViewportSize({ width: 1280, height: 720 });
-      
-      const updated = await updateMissingDescriptions(page, 20); // Update up to 20 jobs
-      
-      console.log(`\n✅ Description update complete. Updated ${updated} jobs.`);
-      
-    } finally {
-      await browser.close();
-    }
-    
-    return;
-  }
 
   console.log('🔍 Starting job search...');
   const startTime = Date.now();
@@ -802,6 +734,7 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
     console.log(`   Keywords: ${opts.keywords}`);
   }
   if (opts.location) console.log(`   Location: ${opts.location}`);
+  if (opts.radius != null) console.log(`   Radius (if available): ${opts.radius} mi`);
   if (opts.remote && !opts.profile) console.log(`   Remote: Yes`);
   if (opts.datePosted) console.log(`   Date Posted: < ${opts.datePosted}`);
   console.log(`   Min Fit Score: ${minScore}`);
@@ -926,6 +859,43 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
             }
           }
           
+          // Try to set radius if UI exposes a distance control
+          if (opts.radius != null) {
+            try {
+              const labels = getRadiusLabels(opts.radius);
+              const labelButton = page.locator(labels.map(t => `button:has-text("${t}")`).join(', ')).first();
+              if (await labelButton.count() > 0) {
+                console.log(`   🎯 Selecting radius pill: ${labels[0]}`);
+                await labelButton.click();
+                await page.waitForTimeout(500);
+              } else {
+                // Fallback: manipulate a slider if present
+                const slider = page.locator('[role="slider"], input[type="range"]').first();
+                if (await slider.count() > 0) {
+                  console.log('   🎚️  Adjusting distance slider');
+                  await slider.evaluate((el: any, miles: number) => {
+                    function nearest(val: number, arr: number[]) { return arr.reduce((a, b) => Math.abs(b - val) < Math.abs(a - val) ? b : a); }
+                    const supported = [5,10,25,50,100];
+                    const target = nearest(miles, supported);
+                    // attempt to set via value for input[type=range]
+                    if (el instanceof HTMLInputElement) {
+                      el.value = String(target);
+                      el.dispatchEvent(new Event('input', { bubbles: true }));
+                      el.dispatchEvent(new Event('change', { bubbles: true }));
+                    } else if (el.setAttribute) {
+                      el.setAttribute('aria-valuenow', String(target));
+                    }
+                  }, opts.radius);
+                  await page.waitForTimeout(500);
+                } else {
+                  console.log('   ℹ️  Distance control not available; continuing without radius change');
+                }
+              }
+            } catch {
+              console.log('   ⚠️ Failed to set radius (non-blocking)');
+            }
+          }
+
           // Close the filter modal by clicking outside or pressing Escape
           await page.keyboard.press('Escape');
           await page.waitForTimeout(500);

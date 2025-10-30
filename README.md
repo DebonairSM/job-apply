@@ -124,6 +124,13 @@ Update statuses as you hear back to help the learning system improve.
 npm run search -- --profile contract           # Contract positions
 npm run search -- --profile core               # Full-time Azure roles
 npm run search -- --min-score 85 --max-pages 3 # Custom threshold
+# New simplified profiles and location options
+npm run search -- --profile aspnet-simple      # Simple ASP.NET keyword
+npm run search -- --profile csharp-azure-no-frontend # C# + Azure, exclude Angular/React
+# Preset location (no UI slider shown). Radius applied only if LinkedIn exposes it
+npm run search -- --profile aspnet-simple --location-preset wesley-chapel
+# Explicit location + desired radius (best-effort if distance control exists)
+npm run search -- --profile csharp-azure-no-frontend --location "Wesley Chapel, FL" --radius 25
 ```
 
 **Apply**
