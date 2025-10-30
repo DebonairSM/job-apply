@@ -26,6 +26,8 @@ const PROFILE_OPTIONS = [
   { value: 'contract', label: 'Contract' },
   { value: 'aspnet-simple', label: 'ASP.NET (simple)' },
   { value: 'csharp-azure-no-frontend', label: 'C# + Azure (no Angular/React)' },
+  { value: 'az204-csharp', label: 'AZ-204 + C#' },
+  { value: 'ai-enhanced-net', label: 'AI-Enhanced .NET' },
 ];
 
 const DATE_OPTIONS = [

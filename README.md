@@ -54,7 +54,7 @@ npm run filters:list                # View active filters
 ## How It Works
 
 **Search Profiles**  
-Choose from 9 pre-configured profiles with tailored Boolean searches and smart scoring.
+Choose from 13 pre-configured profiles with tailored Boolean searches and smart scoring.
 
 Want to create your own profile? See [`docs/PROFILE_CREATION_GUIDE.md`](docs/PROFILE_CREATION_GUIDE.md) for the complete process.
 
@@ -69,6 +69,10 @@ Want to create your own profile? See [`docs/PROFILE_CREATION_GUIDE.md`](docs/PRO
 | `event-driven` | Integration Engineer | Messaging and events |
 | `devops` | DevOps Developer | CI/CD and automation |
 | `legacy-modernization` | Modernization | Legacy system upgrades |
+| `aspnet-simple` | ASP.NET (Simple) | Basic ASP.NET keyword search |
+| `csharp-azure-no-frontend` | C# + Azure | Backend roles without Angular/React |
+| `az204-csharp` | AZ-204 + C# | Azure Developer Associate certification roles |
+| `ai-enhanced-net` | AI-Enhanced .NET | AI-assisted development with Cursor, Copilot, LangChain |
 
 **Smart Scoring**  
 Jobs score differently based on which profile finds them. Security profile emphasizes auth/governance, performance profile focuses on optimization, contract profile targets freelance keywords.

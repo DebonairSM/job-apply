@@ -273,7 +273,13 @@ export const BOOLEAN_SEARCHES: Record<string, string> = {
 
   // Simplified boolean profiles requested
   'aspnet-simple': 'asp.net',
-  'csharp-azure-no-frontend': '(C# AND Azure) NOT (Angular OR React)'
+  'csharp-azure-no-frontend': '(C# AND Azure) NOT (Angular OR React)',
+  
+  // AZ-204 certification focused profile
+  'az204-csharp': 'AZ-204 AND C#',
+  
+  // AI-enhanced .NET development with AI-assisted coding tools
+  'ai-enhanced-net': '("AI Developer" OR "AI Automation" OR "AI Integration" OR "Multi-Agent" OR "Intelligent Systems") AND (".NET" OR "C#" OR "ASP.NET" OR "Azure") AND ("Semantic Kernel" OR "LangChain" OR "multi-agent" OR "autonomous agent" OR "workflow automation" OR "LLM integration" OR "AI orchestration") AND ("Cursor IDE" OR "GitHub Copilot" OR "AI-assisted development" OR "ChatGPT" OR "local LLM" OR "Ollama" OR "Mistral" OR "AI code tools")'
 };
 
 // Profile-specific weight distributions
@@ -394,6 +400,58 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
     coreNet: 40,             // Primary focus on .NET skills
     frontendFrameworks: 5,
     legacyModernization: 5
+  },
+  
+  // Simplified ASP.NET search - basic keyword matching
+  'aspnet-simple': {
+    coreAzure: 5,
+    security: 10,
+    eventDriven: 5,
+    performance: 15,
+    devops: 0,
+    seniority: 15,
+    coreNet: 45,             // Heavy focus on .NET skills
+    frontendFrameworks: 3,
+    legacyModernization: 2
+  },
+  
+  // C# + Azure without frontend frameworks
+  'csharp-azure-no-frontend': {
+    coreAzure: 35,           // Strong Azure focus
+    security: 10,
+    eventDriven: 10,
+    performance: 15,
+    devops: 0,
+    seniority: 10,
+    coreNet: 20,
+    frontendFrameworks: 0,   // Explicitly avoid frontend
+    legacyModernization: 0
+  },
+  
+  // AZ-204 certification focused on Azure Developer Associate skills
+  'az204-csharp': {
+    coreAzure: 40,           // AZ-204 is primarily about Azure services
+    security: 10,
+    eventDriven: 10,
+    performance: 10,
+    devops: 5,
+    seniority: 10,
+    coreNet: 10,             // C# required but secondary to Azure skills
+    frontendFrameworks: 0,   // Backend-focused certification
+    legacyModernization: 5
+  },
+  
+  // AI-enhanced .NET development with modern AI tools and agentic systems
+  'ai-enhanced-net': {
+    coreAzure: 20,           // Azure AI services are important
+    security: 5,
+    eventDriven: 10,
+    performance: 10,
+    devops: 10,              // MLOps and CI/CD for AI systems
+    seniority: 10,
+    coreNet: 30,             // Strong .NET foundation required
+    frontendFrameworks: 5,   // Some frontend work common in AI apps
+    legacyModernization: 0
   }
 };
 

@@ -18,6 +18,8 @@ const PROFILE_NAME_MAP: Record<string, string> = {
   'contract': 'coreNet',  // Contract roles use same technical criteria as core .NET
   'aspnet-simple': 'coreNet',
   'csharp-azure-no-frontend': 'coreNet',
+  'az204-csharp': 'coreAzure',  // AZ-204 focuses on Azure services
+  'ai-enhanced-net': 'coreNet',  // AI-enhanced .NET roles prioritize .NET skills
 };
 
 function getProfileKey(cliProfileName: string): string {

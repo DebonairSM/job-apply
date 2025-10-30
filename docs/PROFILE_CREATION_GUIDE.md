@@ -17,14 +17,14 @@ Use this when you want to search for jobs differently but score them the same wa
 
 **Example**: Contract positions are .NET jobs, just with different employment types. They use the contract Boolean search but coreNet technical scoring.
 
-**Files to Update**: 3 files
+**Files to Update**: 8 files
 
 ### Type B: Completely New Profile (Technical + Search)
 Use this when you need both new search criteria AND new technical scoring categories.
 
 **Example**: Adding a "machine learning" profile would need new keywords for both searching and scoring.
 
-**Files to Update**: 5 files
+**Files to Update**: 8 files (all from Type A plus PROFILES object)
 
 ## Files That Must Be Updated
 
@@ -39,11 +39,25 @@ Use this when you need both new search criteria AND new technical scoring catego
 - **This is the bug we fixed**: Missing this causes "Unknown profile" errors
 
 #### 3. `src/cli.ts`
-- Add to `choices` array (makes profile available in CLI)
-- Add to type assertion for `profile` parameter
+- Add to `choices` array (line ~35, makes profile available in CLI)
+- Add to type assertion for `profile` parameter (line ~91)
 
-#### 4. `README.md` (optional but recommended)
+#### 4. `src/commands/search.ts`
+- Add to `SearchOptions` interface `profile` type (line ~14)
+
+#### 5. `src/dashboard/routes/automation.ts`
+- Add to `SearchOptionsSchema` z.enum() validation (line ~12)
+
+#### 6. `src/dashboard/client/hooks/useAutomation.ts`
+- Add to `SearchOptions` interface `profile` type (line ~14)
+
+#### 7. `src/dashboard/client/components/Automation.tsx`
+- **CRITICAL UI UPDATE**: Add to `PROFILE_OPTIONS` array (line ~16)
+- Format: `{ value: 'profile-name', label: 'Display Name' }`
+
+#### 8. `README.md` (optional but recommended)
 - Add to profiles table
+- Update profile count in "Choose from X pre-configured profiles"
 - Update examples
 
 #### 1. `src/ai/profiles.ts`
@@ -56,12 +70,25 @@ Use this when you need both new search criteria AND new technical scoring catego
 - Add mapping in `PROFILE_NAME_MAP` (usually maps to itself for new technical profiles)
 
 #### 3. `src/cli.ts`
-- Add to `choices` array
-- Add to type assertion for `profile` parameter
+- Add to `choices` array (line ~35)
+- Add to type assertion for `profile` parameter (line ~91)
 
-#### 4. `README.md` (optional but recommended)
+#### 4. `src/commands/search.ts`
+- Add to `SearchOptions` interface `profile` type (line ~14)
+
+#### 5. `src/dashboard/routes/automation.ts`
+- Add to `SearchOptionsSchema` z.enum() validation (line ~12)
+
+#### 6. `src/dashboard/client/hooks/useAutomation.ts`
+- Add to `SearchOptions` interface `profile` type (line ~14)
+
+#### 7. `src/dashboard/client/components/Automation.tsx`
+- **CRITICAL UI UPDATE**: Add to `PROFILE_OPTIONS` array (line ~16)
+- Format: `{ value: 'profile-name', label: 'Display Name' }`
+
+#### 8. `README.md` (optional but recommended)
 - Add to profiles table
-- Update weight descriptions
+- Update profile count in "Choose from X pre-configured profiles"
 - Update examples
 
 ---
@@ -105,15 +132,67 @@ const PROFILE_NAME_MAP: Record<string, string> = {
 #### Step 3: Add to CLI in `src/cli.ts`
 ```typescript
 // Add to choices array (line ~35)
-choices: ['core', 'security', 'event-driven', 'performance', 'devops', 'backend', 'core-net', 'legacy-modernization', 'contract'] as const,
+choices: ['core', 'security', 'event-driven', 'performance', 'devops', 'backend', 'core-net', 'legacy-modernization', 'contract', 'aspnet-simple', 'csharp-azure-no-frontend'] as const,
 
-// Add to type assertion (line ~89)
-profile: argv.profile as 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | undefined,
+// Add to type assertion (line ~91)
+profile: argv.profile as 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | 'aspnet-simple' | 'csharp-azure-no-frontend' | undefined,
 ```
 
 ---
 
-### Example 2: Type B - "frontend" Profile (New Technical Profile)
+### Example 2: Simplified Search Profiles
+
+Profiles like `aspnet-simple` and `csharp-azure-no-frontend` use simplified LinkedIn searches with NOT operators.
+
+#### Step 1: Add to `src/ai/profiles.ts`
+```typescript
+// Add to BOOLEAN_SEARCHES object (line ~275)
+'aspnet-simple': 'asp.net',
+'csharp-azure-no-frontend': '(C# AND Azure) NOT (Angular OR React)'
+
+// Add to PROFILE_WEIGHT_DISTRIBUTIONS object (line ~400)
+'aspnet-simple': {
+  coreAzure: 5,
+  security: 10,
+  eventDriven: 5,
+  performance: 15,
+  devops: 0,
+  seniority: 15,
+  coreNet: 45,             // Heavy focus on .NET skills
+  frontendFrameworks: 3,
+  legacyModernization: 2
+},
+
+'csharp-azure-no-frontend': {
+  coreAzure: 35,           // Strong Azure focus
+  security: 10,
+  eventDriven: 10,
+  performance: 15,
+  devops: 0,
+  seniority: 10,
+  coreNet: 20,
+  frontendFrameworks: 0,   // Explicitly avoid frontend
+  legacyModernization: 0
+}
+```
+
+#### Step 2: Map to existing technical profile in `src/ai/ranker.ts`
+```typescript
+// Add to PROFILE_NAME_MAP (line ~19)
+'aspnet-simple': 'coreNet',
+'csharp-azure-no-frontend': 'coreNet',
+```
+
+#### Step 3: Add to CLI in `src/cli.ts`
+```typescript
+choices: ['core', 'security', 'event-driven', 'performance', 'devops', 'backend', 'core-net', 'legacy-modernization', 'contract', 'aspnet-simple', 'csharp-azure-no-frontend'] as const,
+
+profile: argv.profile as 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | 'aspnet-simple' | 'csharp-azure-no-frontend' | undefined,
+```
+
+---
+
+### Example 3: Type B - "frontend" Profile (New Technical Profile)
 
 This requires new scoring categories for frontend technologies.
 
@@ -163,9 +242,9 @@ frontend: {
 
 #### Step 3: Add to CLI in `src/cli.ts`
 ```typescript
-choices: ['core', 'security', 'event-driven', 'performance', 'devops', 'backend', 'core-net', 'legacy-modernization', 'contract', 'frontend'] as const,
+choices: ['core', 'security', 'event-driven', 'performance', 'devops', 'backend', 'core-net', 'legacy-modernization', 'contract', 'aspnet-simple', 'csharp-azure-no-frontend', 'frontend'] as const,
 
-profile: argv.profile as 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | 'frontend' | undefined,
+profile: argv.profile as 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | 'aspnet-simple' | 'csharp-azure-no-frontend' | 'frontend' | undefined,
 ```
 
 ---
@@ -180,8 +259,13 @@ Use this checklist when creating any new profile to avoid bugs:
 - [ ] **CRITICAL**: Add mapping to `PROFILE_NAME_MAP` in `src/ai/ranker.ts` (maps to existing profile)
 - [ ] Add to `choices` array in `src/cli.ts`
 - [ ] Add to type assertion in `src/cli.ts`
+- [ ] Add to `SearchOptions` interface in `src/commands/search.ts`
+- [ ] Add to `SearchOptionsSchema` z.enum() in `src/dashboard/routes/automation.ts`
+- [ ] Add to `SearchOptions` interface in `src/dashboard/client/hooks/useAutomation.ts`
+- [ ] **CRITICAL UI**: Add to `PROFILE_OPTIONS` array in `src/dashboard/client/components/Automation.tsx`
+- [ ] Verify weights sum to 100%
 - [ ] Test: `npm run search -- --profile <name>`
-- [ ] Optional: Update README.md profiles table
+- [ ] Optional: Update README.md profiles table and count
 
 ### Type B (New Technical + Search Profile)
 - [ ] Add technical profile to `PROFILES` in `src/ai/profiles.ts`
@@ -190,6 +274,10 @@ Use this checklist when creating any new profile to avoid bugs:
 - [ ] Add mapping to `PROFILE_NAME_MAP` in `src/ai/ranker.ts` (maps to itself)
 - [ ] Add to `choices` array in `src/cli.ts`
 - [ ] Add to type assertion in `src/cli.ts`
+- [ ] Add to `SearchOptions` interface in `src/commands/search.ts`
+- [ ] Add to `SearchOptionsSchema` z.enum() in `src/dashboard/routes/automation.ts`
+- [ ] Add to `SearchOptions` interface in `src/dashboard/client/hooks/useAutomation.ts`
+- [ ] **CRITICAL UI**: Add to `PROFILE_OPTIONS` array in `src/dashboard/client/components/Automation.tsx`
 - [ ] Verify PROFILES weights sum to 100%
 - [ ] Test: `npm run search -- --profile <name>`
 - [ ] Optional: Update README.md with new category weights
@@ -210,17 +298,24 @@ This was the bug with the "contract" profile. The system couldn't find the techn
 **Cause**: Missing from `choices` array or type assertions  
 **Fix**: Update both locations in `src/cli.ts`
 
-### 3. Weight Distribution Doesn't Sum to 100%
+### 3. Missing UI Update (CRITICAL BUG)
+**Error**: Profile doesn't appear in dashboard dropdown  
+**Cause**: Missing from `PROFILE_OPTIONS` array in `src/dashboard/client/components/Automation.tsx`  
+**Fix**: Add to `PROFILE_OPTIONS` array with proper format: `{ value: 'profile-name', label: 'Display Name' }`
+
+This is the most common mistake - forgetting to add the profile to the dashboard UI!
+
+### 4. Weight Distribution Doesn't Sum to 100%
 **Error**: Warning message about weights not summing to 100%  
 **Cause**: `PROFILE_WEIGHT_DISTRIBUTIONS` entries must total 100  
 **Fix**: Adjust weights proportionally
 
-### 4. TypeScript Compilation Errors
+### 5. TypeScript Compilation Errors
 **Error**: Type errors when building  
 **Cause**: Profile name not added to union types  
-**Fix**: Add profile to all type assertions in `src/cli.ts`
+**Fix**: Add profile to all type assertions in `src/cli.ts`, `src/commands/search.ts`, `src/dashboard/routes/automation.ts`, `src/dashboard/client/hooks/useAutomation.ts`
 
-### 5. Boolean Search Syntax Errors
+### 6. Boolean Search Syntax Errors
 **Error**: No jobs found or LinkedIn search fails  
 **Cause**: Invalid Boolean operators or missing quotes  
 **Fix**: Test search manually on LinkedIn first
