@@ -105,7 +105,7 @@ router.get('/:id', (req, res) => {
 
 router.put('/:id/status', (req, res) => {
   try {
-    const { status, applied_method, rejection_reason } = req.body;
+    const { status, applied_method, rejection_reason, skip_learning } = req.body;
     
     if (!status) {
       return res.status(400).json({ error: 'Status is required' });
@@ -120,7 +120,7 @@ router.put('/:id/status', (req, res) => {
       return res.status(400).json({ error: 'Invalid applied_method' });
     }
     
-    updateJobStatus(req.params.id, status, applied_method, rejection_reason);
+    updateJobStatus(req.params.id, status, applied_method, rejection_reason, skip_learning);
     
     const updatedJob = getJobById(req.params.id);
     res.json(updatedJob);

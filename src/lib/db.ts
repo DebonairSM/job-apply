@@ -580,13 +580,13 @@ export function hasAppliedToCompanyTitle(company: string, title: string): boolea
   return !!result;
 }
 
-export function updateJobStatus(jobId: string, status: Job['status'], appliedMethod?: 'automatic' | 'manual', rejectionReason?: string): void {
+export function updateJobStatus(jobId: string, status: Job['status'], appliedMethod?: 'automatic' | 'manual', rejectionReason?: string, skipLearning?: boolean): void {
   const database = getDb();
   const stmt = database.prepare('UPDATE jobs SET status = ?, applied_method = ?, rejection_reason = ?, status_updated_at = ? WHERE id = ?');
   stmt.run(status, appliedMethod ?? null, rejectionReason ?? null, new Date().toISOString(), jobId);
   
-  // Trigger learning on rejection (skip in test mode)
-  if (status === 'rejected' && rejectionReason && !isTestMode) {
+  // Trigger learning on rejection (skip in test mode or if skipLearning is true)
+  if (status === 'rejected' && rejectionReason && !isTestMode && !skipLearning) {
     // Use dynamic import to avoid circular dependencies
     analyzeAndLearnFromRejection(jobId, rejectionReason).catch(error => {
       console.error('Error learning from rejection:', error);

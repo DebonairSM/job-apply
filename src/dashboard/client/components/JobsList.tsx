@@ -194,31 +194,33 @@ export function JobsList() {
     setRejectionReason('');
   };
 
-  const handleRejectConfirm = async () => {
+  const handleRejectConfirm = async (skipLearning: boolean = false) => {
     if (!rejectingJobId || !rejectionReason.trim()) {
       alert('Please provide a reason for rejection');
       return;
     }
     
-    // Validate minimum length
-    const minLength = 10;
-    if (rejectionReason.trim().length < minLength) {
-      alert('Please provide a more detailed reason (at least 10 characters) to help improve future searches');
-      return;
-    }
-    
-    // Check for contextual keywords
-    const hasContext = /\b(too|not|lack|missing|wrong|different|require|need|want|prefer)\b/i.test(rejectionReason);
-    if (!hasContext) {
-      const confirmed = confirm(
-        'Your reason seems vague. Adding details like "too junior", "wrong tech stack", or "not remote" helps the system learn better.\n\nContinue anyway?'
-      );
-      if (!confirmed) return;
+    // Validate minimum length (skip validation for silent rejections)
+    if (!skipLearning) {
+      const minLength = 10;
+      if (rejectionReason.trim().length < minLength) {
+        alert('Please provide a more detailed reason (at least 10 characters) to help improve future searches');
+        return;
+      }
+      
+      // Check for contextual keywords
+      const hasContext = /\b(too|not|lack|missing|wrong|different|require|need|want|prefer)\b/i.test(rejectionReason);
+      if (!hasContext) {
+        const confirmed = confirm(
+          'Your reason seems vague. Adding details like "too junior", "wrong tech stack", or "not remote" helps the system learn better.\n\nContinue anyway?'
+        );
+        if (!confirmed) return;
+      }
     }
     
     setUpdatingJobIds(prev => new Set(prev).add(rejectingJobId));
     try {
-      await api.updateJobStatus(rejectingJobId, 'rejected', undefined, rejectionReason);
+      await api.updateJobStatus(rejectingJobId, 'rejected', undefined, rejectionReason, skipLearning);
       await refetch();
       setRejectingJobId(null);
       setRejectionReason('');
@@ -725,11 +727,18 @@ export function JobsList() {
                 Cancel
               </button>
               <button
-                onClick={handleRejectConfirm}
+                onClick={() => handleRejectConfirm(true)}
+                disabled={!rejectionReason.trim()}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white rounded-lg"
+              >
+                Reject without learning
+              </button>
+              <button
+                onClick={() => handleRejectConfirm(false)}
                 disabled={!rejectionReason.trim()}
                 className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white rounded-lg"
               >
-                Confirm Reject
+                Reject
               </button>
             </div>
           </div>

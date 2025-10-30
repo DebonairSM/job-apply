@@ -57,14 +57,15 @@ export const api = {
     jobId: string, 
     status: string, 
     appliedMethod?: 'automatic' | 'manual',
-    rejectionReason?: string
+    rejectionReason?: string,
+    skipLearning?: boolean
   ): Promise<Job> {
     const response = await fetch(`${API_BASE}/jobs/${jobId}/status`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ status, applied_method: appliedMethod, rejection_reason: rejectionReason }),
+      body: JSON.stringify({ status, applied_method: appliedMethod, rejection_reason: rejectionReason, skip_learning: skipLearning }),
     });
 
     if (!response.ok) {
