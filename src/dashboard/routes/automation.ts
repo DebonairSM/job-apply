@@ -9,9 +9,11 @@ const router = Router();
 
 // Validation schemas
 const SearchOptionsSchema = z.object({
-  profile: z.enum(['core', 'security', 'event-driven', 'performance', 'devops', 'backend', 'core-net', 'legacy-modernization', 'contract']).optional(),
+  profile: z.enum(['core', 'security', 'event-driven', 'performance', 'devops', 'backend', 'core-net', 'legacy-modernization', 'contract', 'aspnet-simple', 'csharp-azure-no-frontend']).optional(),
   keywords: z.string().optional(),
   location: z.string().optional(),
+  locationPreset: z.string().optional(),
+  radius: z.number().optional(),
   remote: z.boolean().optional(),
   datePosted: z.enum(['day', 'week', 'month']).optional(),
   minScore: z.number().min(0).max(100).optional(),
@@ -112,6 +114,12 @@ router.post('/start', async (req: Request, res: Response) => {
       
       if (opts.location) {
         args.push('--location', opts.location);
+      }
+      if (opts.locationPreset) {
+        args.push('--location-preset', opts.locationPreset);
+      }
+      if (opts.radius !== undefined) {
+        args.push('--radius', String(opts.radius));
       }
       if (opts.remote) {
         args.push('--remote');

@@ -40,7 +40,8 @@ export function JobsList() {
   const { data, isLoading, refetch } = useJobs({
     status: statusFilter || undefined,
     easyApply: easyApplyFilter === 'true' ? true : easyApplyFilter === 'false' ? false : undefined,
-    limit: 100
+    limit: 100,
+    search: searchQuery || undefined
   });
 
   // Load clicked job ID and expanded state from localStorage on component mount
@@ -122,13 +123,8 @@ export function JobsList() {
       if (appliedMethodFilter === 'automatic' && job.applied_method !== 'automatic') return false;
     }
     
-    // Search filter (title or company)
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      const matchesTitle = job.title.toLowerCase().includes(query);
-      const matchesCompany = job.company.toLowerCase().includes(query);
-      if (!matchesTitle && !matchesCompany) return false;
-    }
+    // Search filter is now handled server-side, so no client-side filtering needed here
+    // (keeping this comment for clarity - search is done in database query)
     
     // Rank filter
     if (minRank > 0 && (job.rank || 0) < minRank) return false;

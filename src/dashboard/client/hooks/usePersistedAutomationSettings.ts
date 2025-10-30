@@ -5,6 +5,8 @@ export interface AutomationSettings {
   profile: string;
   keywords: string;
   location: string;
+  locationPreset?: string;
+  radius?: number;
   remote: boolean;
   datePosted: 'day' | 'week' | 'month';
   minScore: number;
@@ -25,6 +27,8 @@ const DEFAULT_SETTINGS: AutomationSettings = {
   profile: '',
   keywords: '',
   location: '',
+  locationPreset: '',
+  radius: undefined as any,
   remote: false,
   datePosted: 'day',
   minScore: 70,
@@ -88,6 +92,8 @@ export function usePersistedAutomationSettings() {
   const setProfile = useCallback((profile: string) => updateSettings({ profile }), [updateSettings]);
   const setKeywords = useCallback((keywords: string) => updateSettings({ keywords }), [updateSettings]);
   const setLocation = useCallback((location: string) => updateSettings({ location }), [updateSettings]);
+  const setLocationPreset = useCallback((locationPreset: string | undefined) => updateSettings({ locationPreset }), [updateSettings]);
+  const setRadius = useCallback((radius: number | undefined) => updateSettings({ radius }), [updateSettings]);
   const setRemote = useCallback((remote: boolean) => updateSettings({ remote }), [updateSettings]);
   const setDatePosted = useCallback((datePosted: 'day' | 'week' | 'month') => updateSettings({ datePosted }), [updateSettings]);
   const setMinScore = useCallback((minScore: number) => updateSettings({ minScore }), [updateSettings]);
@@ -112,6 +118,8 @@ export function usePersistedAutomationSettings() {
     setProfile,
     setKeywords,
     setLocation,
+    setLocationPreset,
+    setRadius,
     setRemote,
     setDatePosted,
     setMinScore,

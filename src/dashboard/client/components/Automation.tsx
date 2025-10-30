@@ -24,6 +24,8 @@ const PROFILE_OPTIONS = [
   { value: 'core-net', label: 'Core .NET' },
   { value: 'legacy-modernization', label: 'Legacy Modernization' },
   { value: 'contract', label: 'Contract' },
+  { value: 'aspnet-simple', label: 'ASP.NET (simple)' },
+  { value: 'csharp-azure-no-frontend', label: 'C# + Azure (no Angular/React)' },
 ];
 
 const DATE_OPTIONS = [
@@ -37,7 +39,10 @@ const LOCATION_OPTIONS = [
   { value: 'Greater Tampa Bay Area', label: 'Greater Tampa Bay Area' },
   { value: 'Greater Orlando Area', label: 'Greater Orlando Area' },
   { value: 'Greater Roanoke Area', label: 'Greater Roanoke Area' },
+  { value: 'Wesley Chapel, FL', label: 'Wesley Chapel, FL' },
 ];
+
+const RADIUS_STOPS = [5, 10, 25, 50, 100];
 
 export function Automation() {
   const [isSkippedJobsExpanded, setIsSkippedJobsExpanded] = useState(false);
@@ -53,6 +58,8 @@ export function Automation() {
     minScore,
     maxPages,
     startPage,
+    // optional fields
+    radius,
     easyOnly,
     externalOnly,
     jobId,
@@ -69,6 +76,7 @@ export function Automation() {
     setMinScore,
     setMaxPages,
     setStartPage,
+    setRadius,
     setEasyOnly,
     setExternalOnly,
     setJobId,
@@ -114,6 +122,7 @@ export function Automation() {
       }
       
       if (location) searchOptions.location = location;
+      if (radius !== undefined && radius !== null && radius > 0) searchOptions.radius = radius;
       if (remote) searchOptions.remote = remote;
       if (datePosted) searchOptions.datePosted = datePosted;
       if (minScore !== 70) searchOptions.minScore = minScore;
@@ -325,6 +334,37 @@ export function Automation() {
                   ))}
                 </select>
               </div>
+
+              {location === 'Wesley Chapel, FL' && (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Radius (mi) — best effort
+                  </label>
+                  <div className="px-2 py-3 border border-gray-200 rounded-lg">
+                    <input
+                      type="range"
+                      min={0}
+                      max={RADIUS_STOPS.length - 1}
+                      step={1}
+                      value={(() => {
+                        const idx = RADIUS_STOPS.indexOf(radius ?? 25);
+                        return idx >= 0 ? idx : 2; // default to 25mi
+                      })()}
+                      onChange={(e) => {
+                        const idx = parseInt(e.target.value) || 2;
+                        setRadius(RADIUS_STOPS[idx]);
+                      }}
+                      disabled={!isIdle}
+                      className="w-full"
+                    />
+                    <div className="flex justify-between text-xs text-gray-600 mt-2">
+                      {RADIUS_STOPS.map((m) => (
+                        <span key={m}>{m}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="flex items-center gap-2 cursor-pointer">

@@ -11,9 +11,11 @@ export interface AutomationStatus {
 }
 
 export interface SearchOptions {
-  profile?: 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract';
+  profile?: 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | 'aspnet-simple' | 'csharp-azure-no-frontend';
   keywords?: string;
   location?: string;
+  locationPreset?: string;
+  radius?: number;
   remote?: boolean;
   datePosted?: 'day' | 'week' | 'month';
   minScore?: number;

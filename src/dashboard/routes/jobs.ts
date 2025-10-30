@@ -5,13 +5,14 @@ const router = express.Router();
 
 router.get('/', (req, res) => {
   try {
-    const { status, easyApply, limit = '50', offset = '0' } = req.query;
+    const { status, easyApply, limit = '50', offset = '0', search } = req.query;
     
     // Get jobs with optional filtering
     const statusFilter = status ? String(status) : undefined;
     const easyApplyFilter = easyApply === 'true' ? true : easyApply === 'false' ? false : undefined;
+    const searchQuery = search ? String(search) : undefined;
     
-    const allJobs = getJobsByStatus(statusFilter, easyApplyFilter);
+    const allJobs = getJobsByStatus(statusFilter, easyApplyFilter, searchQuery);
     
     // Apply pagination
     const limitNum = parseInt(String(limit), 10);

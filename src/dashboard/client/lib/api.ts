@@ -14,12 +14,14 @@ export const api = {
     easyApply?: boolean;
     limit?: number;
     offset?: number;
+    search?: string;
   }): Promise<JobsResponse> {
     const searchParams = new URLSearchParams();
     if (params?.status) searchParams.set('status', params.status);
     if (params?.easyApply !== undefined) searchParams.set('easyApply', String(params.easyApply));
     if (params?.limit) searchParams.set('limit', String(params.limit));
     if (params?.offset) searchParams.set('offset', String(params.offset));
+    if (params?.search) searchParams.set('search', params.search);
 
     const response = await fetch(`${API_BASE}/jobs?${searchParams}`);
     if (!response.ok) throw new Error('Failed to fetch jobs');

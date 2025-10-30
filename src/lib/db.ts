@@ -501,7 +501,7 @@ export function addJobs(jobs: Omit<Job, 'created_at'>[]): AddJobsResult {
   return result;
 }
 
-export function getJobsByStatus(status?: string, easyApply?: boolean): Job[] {
+export function getJobsByStatus(status?: string, easyApply?: boolean, search?: string): Job[] {
   const database = getDb();
   let query = 'SELECT * FROM jobs WHERE 1=1';
   const params: any[] = [];
@@ -514,6 +514,13 @@ export function getJobsByStatus(status?: string, easyApply?: boolean): Job[] {
   if (easyApply !== undefined) {
     query += ' AND easy_apply = ?';
     params.push(easyApply ? 1 : 0);
+  }
+
+  // Add search filter (searches both title and company)
+  if (search) {
+    query += ' AND (LOWER(title) LIKE ? OR LOWER(company) LIKE ?)';
+    const searchPattern = `%${search.toLowerCase()}%`;
+    params.push(searchPattern, searchPattern);
   }
 
   query += ' ORDER BY rank DESC, created_at DESC';

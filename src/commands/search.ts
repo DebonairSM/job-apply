@@ -811,34 +811,48 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
       const locationFilterButton = page.locator('.jobs-semantic-search-location-filter button, button.artdeco-dropdown__trigger:has(svg[data-test-icon="location-marker-small"])').first();
       
       if (await locationFilterButton.count() > 0) {
-        console.log(`   📍 Clicking location filter button...`);
-        await locationFilterButton.click();
-        await page.waitForTimeout(1000);
+        // First check if location and radius are already correct
+        const buttonText = await locationFilterButton.textContent() || '';
+        const matchesLocation = buttonText.includes(opts.location);
+        let matchesRadius = true;
         
-        // Look for the location input field in the dropdown
-        const locationInput = page.locator('input[aria-label*="City"], input[placeholder*="City"], input[aria-label*="Location"]').first();
+        if (opts.radius != null) {
+          const radiusText = `(${opts.radius} mi)`;
+          matchesRadius = buttonText.includes(radiusText) || buttonText.includes(`(${opts.radius} miles)`);
+        }
         
-        if (await locationInput.count() > 0) {
-          // Clear existing value
-          await locationInput.click();
-          await page.waitForTimeout(300);
-          await page.keyboard.press('Control+A');
-          await page.keyboard.press('Backspace');
-          await page.waitForTimeout(300);
+        if (matchesLocation && matchesRadius) {
+          console.log(`   ✅ Location and radius already set correctly (${opts.location}${opts.radius ? ` ${opts.radius} mi` : ''})`);
+        } else {
+          console.log(`   📍 Current: "${buttonText.trim()}", target: ${opts.location}${opts.radius ? ` ${opts.radius} mi` : ''}`);
+          console.log(`   📍 Clicking location filter button...`);
+          await locationFilterButton.click();
+          await page.waitForTimeout(1000);
           
-          // Type the new location
-          console.log(`   ⌨️  Typing: ${opts.location}`);
-          await page.keyboard.type(opts.location, { delay: 80 });
-          await page.waitForTimeout(1500);
+          // Look for the location input field in the dropdown
+          const locationInput = page.locator('input[aria-label*="City"], input[placeholder*="City"], input[aria-label*="Location"]').first();
           
-          // Look for dropdown suggestions and click the matching one
-          const suggestion = page.locator(`[role="option"]:has-text("${opts.location}")`).first();
-          
-          if (await suggestion.count() > 0) {
-            console.log(`   ✅ Found matching suggestion, clicking...`);
-            await suggestion.click();
-            await page.waitForTimeout(1000);
-          } else {
+          if (await locationInput.count() > 0) {
+            // Clear existing value
+            await locationInput.click();
+            await page.waitForTimeout(300);
+            await page.keyboard.press('Control+A');
+            await page.keyboard.press('Backspace');
+            await page.waitForTimeout(300);
+            
+            // Type the new location
+            console.log(`   ⌨️  Typing: ${opts.location}`);
+            await page.keyboard.type(opts.location, { delay: 80 });
+            await page.waitForTimeout(1500);
+            
+            // Look for dropdown suggestions and click the matching one
+            const suggestion = page.locator(`[role="option"]:has-text("${opts.location}")`).first();
+            
+            if (await suggestion.count() > 0) {
+              console.log(`   ✅ Found matching suggestion, clicking...`);
+              await suggestion.click();
+              await page.waitForTimeout(1000);
+            } else {
             // No exact match found, try USA as fallback
             console.log(`   ⚠️ No match for "${opts.location}", trying USA...`);
             await page.keyboard.press('Control+A');
@@ -901,8 +915,9 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
           await page.waitForTimeout(500);
           
           console.log(`   ✅ Location filter applied`);
-        } else {
-          console.log(`   ⚠️ Could not find location input field in dropdown`);
+          } else {
+            console.log(`   ⚠️ Could not find location input field in dropdown`);
+          }
         }
       } else {
         console.log(`   ⚠️ Could not find location filter button, using URL parameter`);
