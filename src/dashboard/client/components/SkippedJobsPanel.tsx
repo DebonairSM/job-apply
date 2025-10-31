@@ -136,8 +136,17 @@ export function SkippedJobsPanel({ isExpanded, onToggle }: SkippedJobsPanelProps
   const handleRestoreToQueue = async (jobId: string) => {
     setRestoringJobIds(prev => new Set(prev).add(jobId));
     try {
+      // Update status to queued
       await api.updateJobStatus(jobId, 'queued');
+      
+      // Check if job is already curated, and if not, add it to curated list
+      const job = await api.getJob(jobId);
+      if (!job.curated) {
+        await api.toggleJobCurated(jobId);
+      }
+      
       await refetch();
+      showToast('success', 'Job restored to queue and added to curated list');
     } catch (error) {
       console.error('Failed to restore job to queue:', error);
       showToast('error', 'Failed to restore job to queue');
@@ -192,7 +201,7 @@ export function SkippedJobsPanel({ isExpanded, onToggle }: SkippedJobsPanelProps
             stroke="currentColor"
             viewBox="0 0 24 24"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeConfirmed={2} d="M19 9l-7 7-7-7" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </svg>
         </div>
       </div>
