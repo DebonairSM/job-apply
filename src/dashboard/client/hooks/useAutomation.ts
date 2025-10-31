@@ -11,7 +11,7 @@ export interface AutomationStatus {
 }
 
 export interface SearchOptions {
-  profile?: 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | 'aspnet-simple' | 'csharp-azure-no-frontend' | 'az204-csharp' | 'ai-enhanced-net';
+  profile?: 'core' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | 'aspnet-simple' | 'csharp-azure-no-frontend' | 'az204-csharp' | 'ai-enhanced-net';
   keywords?: string;
   location?: string;
   locationPreset?: string;

@@ -5,6 +5,7 @@ export interface JobStats {
   rejected: number;
   skipped: number;
   reported: number;
+  curated: number;
   total: number;
   successRate: number;
   totalManual: number;
@@ -24,6 +25,7 @@ export interface Job {
   status: 'queued' | 'applied' | 'interview' | 'rejected' | 'skipped' | 'reported';
   applied_method?: 'automatic' | 'manual';
   rejection_reason?: string;
+  curated?: boolean; // User-curated flag for favorite jobs
   fit_reasons?: string;
   must_haves?: string;
   blockers?: string;

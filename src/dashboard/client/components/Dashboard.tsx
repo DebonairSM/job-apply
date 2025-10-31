@@ -1,7 +1,6 @@
 import { useStats } from '../hooks/useStats';
 import { useRecentActivity } from '../hooks/useRecentActivity';
 import { StatCard } from './StatCard';
-import { LearningPanel } from './LearningPanel';
 import { formatRelativeTime } from '../lib/dateUtils';
 
 export function Dashboard() {
@@ -119,7 +118,7 @@ export function Dashboard() {
       {/* Additional Stats */}
       <div className="mb-6 sm:mb-8">
         <h2 className="text-lg sm:text-xl font-bold mb-4">Job Status</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           <StatCard 
             title="Interview" 
             value={stats?.interview || 0} 
@@ -138,12 +137,13 @@ export function Dashboard() {
             icon="⏭️"
             color="gray"
           />
+          <StatCard 
+            title="Curated" 
+            value={stats?.curated || 0} 
+            icon="⭐"
+            color="yellow"
+          />
         </div>
-      </div>
-
-      {/* Learning System */}
-      <div className="mb-6 sm:mb-8">
-        <LearningPanel />
       </div>
 
       {/* Recent Activity */}

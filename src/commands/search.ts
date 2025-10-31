@@ -11,7 +11,7 @@ import crypto from 'crypto';
 
 export interface SearchOptions {
   keywords?: string;
-  profile?: 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | 'aspnet-simple' | 'csharp-azure-no-frontend' | 'az204-csharp' | 'ai-enhanced-net';
+  profile?: 'core' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | 'aspnet-simple' | 'csharp-azure-no-frontend' | 'az204-csharp' | 'ai-enhanced-net';
   location?: string;
   locationPreset?: 'wesley-chapel' | string;
   radius?: number; // miles; only applied if UI exposes distance control
@@ -534,9 +534,8 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
 
       console.log(`   ${analyzed}/${count} ${title} at ${company}`);
       console.log(`        Score: ${ranking.fitScore}/100`);
-      console.log(`        Azure: ${ranking.categoryScores.coreAzure} | Security: ${ranking.categoryScores.security} | Events: ${ranking.categoryScores.eventDriven}`);
-      console.log(`        Perf: ${ranking.categoryScores.performance} | DevOps: ${ranking.categoryScores.devops} | Senior: ${ranking.categoryScores.seniority}`);
-      console.log(`        .NET: ${ranking.categoryScores.coreNet} | Frontend: ${ranking.categoryScores.frontendFrameworks} | Legacy: ${ranking.categoryScores.legacyModernization}`);
+      console.log(`        Azure: ${ranking.categoryScores.coreAzure} | Senior: ${ranking.categoryScores.seniority} | .NET: ${ranking.categoryScores.coreNet}`);
+      console.log(`        Frontend: ${ranking.categoryScores.frontendFrameworks} | Legacy: ${ranking.categoryScores.legacyModernization}`);
       
       if (ranking.blockers.length > 0) {
         console.log(`        ⚠️  Blockers: ${ranking.blockers.join(', ')}`);

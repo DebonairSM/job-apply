@@ -9,7 +9,7 @@ const router = Router();
 
 // Validation schemas
 const SearchOptionsSchema = z.object({
-  profile: z.enum(['core', 'security', 'event-driven', 'performance', 'devops', 'backend', 'core-net', 'legacy-modernization', 'contract', 'aspnet-simple', 'csharp-azure-no-frontend', 'az204-csharp', 'ai-enhanced-net']).optional(),
+  profile: z.enum(['core', 'backend', 'core-net', 'legacy-modernization', 'contract', 'aspnet-simple', 'csharp-azure-no-frontend', 'az204-csharp', 'ai-enhanced-net']).optional(),
   keywords: z.string().optional(),
   location: z.string().optional(),
   locationPreset: z.string().optional(),

@@ -3,50 +3,41 @@ import { openDatabase } from './lib/db-safety.js';
 // Profile-specific weight distributions (must match src/ai/profiles.ts)
 const PROFILE_WEIGHT_DISTRIBUTIONS = {
   core: {
-    coreAzure: 25, security: 10, eventDriven: 15, performance: 10,
-    devops: 0, seniority: 10, coreNet: 20, frontendFrameworks: 5, legacyModernization: 5
-  },
-  security: {
-    coreAzure: 15, security: 35, eventDriven: 10, performance: 5,
-    devops: 0, seniority: 15, coreNet: 15, frontendFrameworks: 0, legacyModernization: 5
-  },
-  'event-driven': {
-    coreAzure: 15, security: 10, eventDriven: 30, performance: 15,
-    devops: 0, seniority: 10, coreNet: 15, frontendFrameworks: 0, legacyModernization: 5
-  },
-  performance: {
-    coreAzure: 15, security: 5, eventDriven: 10, performance: 30,
-    devops: 0, seniority: 10, coreNet: 20, frontendFrameworks: 5, legacyModernization: 5
-  },
-  devops: {
-    coreAzure: 20, security: 10, eventDriven: 10, performance: 10,
-    devops: 0, seniority: 10, coreNet: 25, frontendFrameworks: 10, legacyModernization: 5
+    coreAzure: 35, seniority: 15, coreNet: 30, frontendFrameworks: 10, legacyModernization: 10
   },
   backend: {
-    coreAzure: 20, security: 15, eventDriven: 15, performance: 10,
-    devops: 0, seniority: 10, coreNet: 25, frontendFrameworks: 0, legacyModernization: 5
+    coreAzure: 40, seniority: 15, coreNet: 35, frontendFrameworks: 0, legacyModernization: 10
   },
   'core-net': {
-    coreAzure: 10, security: 10, eventDriven: 5, performance: 15,
-    devops: 0, seniority: 10, coreNet: 40, frontendFrameworks: 5, legacyModernization: 5
+    coreAzure: 10, seniority: 15, coreNet: 60, frontendFrameworks: 10, legacyModernization: 5
   },
   'legacy-modernization': {
-    coreAzure: 15, security: 5, eventDriven: 10, performance: 10,
-    devops: 0, seniority: 15, coreNet: 20, frontendFrameworks: 5, legacyModernization: 20
+    coreAzure: 25, seniority: 20, coreNet: 30, frontendFrameworks: 5, legacyModernization: 20
+  },
+  contract: {
+    coreAzure: 10, seniority: 15, coreNet: 60, frontendFrameworks: 10, legacyModernization: 5
+  },
+  'aspnet-simple': {
+    coreAzure: 10, seniority: 20, coreNet: 60, frontendFrameworks: 5, legacyModernization: 5
+  },
+  'csharp-azure-no-frontend': {
+    coreAzure: 50, seniority: 20, coreNet: 30, frontendFrameworks: 0, legacyModernization: 0
+  },
+  'az204-csharp': {
+    coreAzure: 60, seniority: 15, coreNet: 20, frontendFrameworks: 0, legacyModernization: 5
+  },
+  'ai-enhanced-net': {
+    coreAzure: 35, seniority: 15, coreNet: 40, frontendFrameworks: 10, legacyModernization: 0
   }
 };
 
 // Default profile weights (used when job has no profile specified)
 const DEFAULT_PROFILES = {
-  coreAzure: { weight: 20 },
-  security: { weight: 15 },
-  eventDriven: { weight: 10 },
-  performance: { weight: 10 },
-  devops: { weight: 0 },
-  seniority: { weight: 10 },
-  coreNet: { weight: 20 },
+  coreAzure: { weight: 30 },
+  seniority: { weight: 15 },
+  coreNet: { weight: 35 },
   frontendFrameworks: { weight: 10 },
-  legacyModernization: { weight: 5 }
+  legacyModernization: { weight: 10 }
 };
 
 async function recalculateRanks() {

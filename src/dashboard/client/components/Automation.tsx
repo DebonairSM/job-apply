@@ -10,16 +10,13 @@ import {
 } from '../hooks/useAutomation';
 import { usePersistedAutomationSettings } from '../hooks/usePersistedAutomationSettings';
 import { SkippedJobsPanel } from './SkippedJobsPanel';
+import { useToastContext } from '../contexts/ToastContext';
 
 type CommandType = 'search' | 'apply';
 
 const PROFILE_OPTIONS = [
   { value: '', label: 'None (use keywords)' },
   { value: 'core', label: 'Core Azure/Cloud' },
-  { value: 'security', label: 'Security' },
-  { value: 'event-driven', label: 'Event-Driven' },
-  { value: 'performance', label: 'Performance' },
-  { value: 'devops', label: 'DevOps' },
   { value: 'backend', label: 'Backend' },
   { value: 'core-net', label: 'Core .NET' },
   { value: 'legacy-modernization', label: 'Legacy Modernization' },
@@ -48,6 +45,7 @@ const RADIUS_STOPS = [5, 10, 25, 50, 100];
 
 export function Automation() {
   const [isSkippedJobsExpanded, setIsSkippedJobsExpanded] = useState(false);
+  const { showToast } = useToastContext();
   
   const {
     // State values
@@ -111,7 +109,7 @@ export function Automation() {
     if (command === 'search') {
       // Validate search options
       if (!profile && !keywords) {
-        alert('Please select a profile or enter keywords');
+        showToast('warning', 'Please select a profile or enter keywords');
         return;
       }
 
@@ -137,7 +135,7 @@ export function Automation() {
       }, {
         onError: (error: Error) => {
           console.error('[Automation] Search failed:', error.message);
-          alert(`Failed to start search: ${error.message}`);
+          showToast('error', `Failed to start search: ${error.message}`);
         }
       });
     } else {
@@ -149,13 +147,7 @@ export function Automation() {
         console.log('[Automation] BLOCKING - No filter selected!');
         console.log('[Automation] State check: easyOnly=%s, externalOnly=%s, jobId=%s', 
           easyOnly, externalOnly, jobId);
-        alert(
-          '❌ No filter selected\n\n' +
-          'Please select one of:\n' +
-          '• Easy Apply only\n' +
-          '• External ATS only\n' +
-          '• Specific Job ID'
-        );
+        showToast('warning', 'Please select one of: Easy Apply only, External ATS only, or Specific Job ID');
         return;
       }
       
@@ -189,7 +181,7 @@ export function Automation() {
       }, {
         onError: (error: Error) => {
           console.error('[Automation] Start failed:', error.message);
-          alert(`Failed to start: ${error.message}`);
+          showToast('error', `Failed to start: ${error.message}`);
         }
       });
     }

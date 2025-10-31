@@ -1,18 +1,19 @@
 import express from 'express';
-import { getDb, getJobsByStatus, getJobById, updateJobStatus, getAnswers, getRunHistory, getAllMappings, getUnprocessedRejections, markRejectionsAsProcessed } from '../../lib/db.js';
+import { getDb, getJobsByStatus, getJobById, updateJobStatus, toggleJobCurated, getAnswers, getRunHistory, getAllMappings, getUnprocessedRejections, markRejectionsAsProcessed } from '../../lib/db.js';
 
 const router = express.Router();
 
 router.get('/', (req, res) => {
   try {
-    const { status, easyApply, limit = '50', offset = '0', search } = req.query;
+    const { status, easyApply, limit = '50', offset = '0', search, curated } = req.query;
     
     // Get jobs with optional filtering
     const statusFilter = status ? String(status) : undefined;
     const easyApplyFilter = easyApply === 'true' ? true : easyApply === 'false' ? false : undefined;
     const searchQuery = search ? String(search) : undefined;
+    const curatedFilter = curated === 'true' ? true : curated === 'false' ? false : undefined;
     
-    const allJobs = getJobsByStatus(statusFilter, easyApplyFilter, searchQuery);
+    const allJobs = getJobsByStatus(statusFilter, easyApplyFilter, searchQuery, curatedFilter);
     
     // Apply pagination
     const limitNum = parseInt(String(limit), 10);
@@ -105,7 +106,7 @@ router.get('/:id', (req, res) => {
 
 router.put('/:id/status', (req, res) => {
   try {
-    const { status, applied_method, rejection_reason, skip_learning } = req.body;
+    const { status, applied_method, rejection_reason } = req.body;
     
     if (!status) {
       return res.status(400).json({ error: 'Status is required' });
@@ -120,13 +121,24 @@ router.put('/:id/status', (req, res) => {
       return res.status(400).json({ error: 'Invalid applied_method' });
     }
     
-    updateJobStatus(req.params.id, status, applied_method, rejection_reason, skip_learning);
+    updateJobStatus(req.params.id, status, applied_method, rejection_reason);
     
     const updatedJob = getJobById(req.params.id);
     res.json(updatedJob);
   } catch (error) {
     console.error('Error updating job:', error);
     res.status(500).json({ error: 'Failed to update job' });
+  }
+});
+
+router.put('/:id/curated', (req, res) => {
+  try {
+    toggleJobCurated(req.params.id);
+    const updatedJob = getJobById(req.params.id);
+    res.json(updatedJob);
+  } catch (error) {
+    console.error('Error toggling job curated:', error);
+    res.status(500).json({ error: 'Failed to toggle job curated' });
   }
 });
 
@@ -303,7 +315,7 @@ router.get('/rejections/prompt', (req, res) => {
     promptSections.push(`## Section 4: Logic Categories to Review\n`);
     promptSections.push(`Based on the rejections above, review and potentially improve:`);
     promptSections.push(`- **Weight Distributions**: Are the profile weight distributions (`);
-    promptSections.push(`  coreAzure, security, eventDriven, performance, devops, seniority, coreNet, frontendFrameworks, legacyModernization)`);
+    promptSections.push(`  coreAzure, seniority, coreNet, frontendFrameworks, legacyModernization)`);
     promptSections.push(`  appropriate? Do rejected jobs show patterns where certain weights are too high/low?`);
     promptSections.push(`- **Keyword Matching**: Are must-have vs preferred keywords correctly defined?`);
     promptSections.push(`  Do rejected jobs indicate missing keywords that should be added to must-have lists?`);
@@ -320,7 +332,7 @@ router.get('/rejections/prompt', (req, res) => {
     promptSections.push(`   - Missing required skills`);
     promptSections.push(`   - Other recurring issues`);
     promptSections.push(`2. **Identify Profiles to Refine**: Which profiles (`);
-    promptSections.push(`   core, security, event-driven, performance, etc.) need adjustments?`);
+    promptSections.push(`   core, backend, core-net, etc.) need adjustments?`);
     promptSections.push(`3. **Propose Specific Improvements**:`);
     promptSections.push(`   - Adjust weight distributions for affected profiles`);
     promptSections.push(`   - Update keyword lists (must-have vs preferred)`);

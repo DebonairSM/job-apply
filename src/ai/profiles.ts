@@ -19,7 +19,7 @@ export interface TechnicalProfile {
 export const PROFILES: Record<string, TechnicalProfile> = {
   coreAzure: {
     name: 'Azure Platform Development',
-    weight: 20,
+    weight: 30,
     mustHave: [
       'C#',
       'VB.NET',
@@ -46,108 +46,9 @@ export const PROFILES: Record<string, TechnicalProfile> = {
     description: 'Azure platform services and cloud-native development skills'
   },
   
-  security: {
-    name: 'Security & Governance',
-    weight: 15,
-    mustHave: [
-      'C#',
-      'VB.NET',
-      'OAuth 2.0',
-      'OAuth',
-      'JWT',
-      'Entra ID',
-      'Azure AD',
-      'Azure Active Directory'
-    ],
-    preferred: [
-      'APIM Policies',
-      'API Governance',
-      'API Security',
-      'Authentication',
-      'Authorization',
-      'Identity Management'
-    ],
-    description: 'API security, authentication, and governance capabilities'
-  },
-  
-  eventDriven: {
-    name: 'Event-Driven Architecture',
-    weight: 10,
-    mustHave: [
-      'C#',
-      'VB.NET',
-      'Service Bus',
-      'Event Grid',
-      'Event-Driven',
-      'Event Driven',
-      'Message Queue',
-      'Messaging'
-    ],
-    preferred: [
-      'Integration',
-      'Integration Platform',
-      'Microservices',
-      'Event Sourcing',
-      'CQRS',
-      'Pub/Sub'
-    ],
-    description: 'Event-driven patterns and integration architecture'
-  },
-  
-  performance: {
-    name: 'Performance & Reliability',
-    weight: 10,
-    mustHave: [
-      'C#',
-      'VB.NET'
-    ],
-    preferred: [
-      'Load Testing',
-      'Performance Testing',
-      'Azure Load Testing',
-      'Locust',
-      'Redis',
-      'EF Core',
-      'Entity Framework',
-      'SQL Server',
-      'App Insights',
-      'Application Insights',
-      'Serilog',
-      'Splunk',
-      'KQL',
-      'Observability',
-      'Monitoring'
-    ],
-    description: 'Performance optimization, caching, and observability'
-  },
-  
-  devops: {
-    name: 'Development with DevOps Practices',
-    weight: 0,
-    mustHave: [
-      'C#',
-      'VB.NET'
-    ],
-    preferred: [
-      'Azure DevOps',
-      'GitHub Actions',
-      'CI/CD',
-      'CI CD',
-      'Docker',
-      'Containerization',
-      'Deployment',
-      'Automated Testing',
-      'Build Pipeline',
-      'Release Pipeline',
-      'DevOps Practices',
-      'Agile Development'
-    ],
-    description: 'Software development with DevOps practices and CI/CD (overlaps with other categories, weight redistributed)'
-  },
-  
   seniority: {
     name: 'Seniority & Remote Work',
-    weight: 10,
+    weight: 15,
     mustHave: [
       'C#',
       'VB.NET',
@@ -175,7 +76,7 @@ export const PROFILES: Record<string, TechnicalProfile> = {
   
   coreNet: {
     name: '.NET Development',
-    weight: 20,
+    weight: 30,
     mustHave: [
       'C#',
       '.NET Core',
@@ -208,7 +109,7 @@ export const PROFILES: Record<string, TechnicalProfile> = {
   
   frontendFrameworks: {
     name: 'Frontend Framework Preferences',
-    weight: 10,
+    weight: 15,
     mustHave: [],
     preferred: [
       'Blazor',
@@ -226,7 +127,7 @@ export const PROFILES: Record<string, TechnicalProfile> = {
   
   legacyModernization: {
     name: 'Legacy Modernization',
-    weight: 5,
+    weight: 10,
     mustHave: [
       'VB.NET',
       'WebForms',
@@ -255,14 +156,6 @@ export const PROFILES: Record<string, TechnicalProfile> = {
 export const BOOLEAN_SEARCHES: Record<string, string> = {
   core: '("Senior API Engineer" OR "Senior Backend Developer" OR "Azure API Engineer") AND (C# OR VB.NET OR ".NET") AND (Azure OR "Microsoft Azure") AND ("API Management" OR APIM) AND ("Azure Functions" OR "App Services") AND ("Service Bus" OR "Event Grid")',
   
-  security: '("Senior API Engineer" OR "Azure Backend Engineer") AND (C# OR VB.NET OR ".NET") AND (Azure OR "Microsoft Azure") AND ("API Management" OR APIM) AND ("OAuth 2.0" OR JWT OR "Entra ID" OR "Azure AD") AND ("APIM Policies" OR "API Governance") AND ("Service Bus" OR "Functions" OR "App Services")',
-  
-  'event-driven': '("Senior API Engineer" OR "Integration Engineer" OR "Azure Integration Developer") AND (C# OR VB.NET OR ".NET") AND (Azure OR "Microsoft Azure") AND ("Service Bus" OR "Event Grid" OR "Event Driven") AND ("Azure Functions" OR "App Services") AND (APIM OR "API Management")',
-  
-  performance: '("Senior API Engineer" OR "Senior Backend Developer") AND (C# OR VB.NET OR ".NET") AND (Azure OR "Microsoft Azure") AND (APIM OR "API Management") AND ("Azure Load Testing" OR Locust OR "performance testing" OR "load testing") AND (Redis OR "EF Core" OR "SQL Server") AND ("App Insights" OR Serilog OR Splunk OR KQL)',
-  
-  devops: '("Senior Software Developer" OR "Senior Software Engineer" OR "Azure Developer" OR "Full-Stack Developer" OR "Backend Developer") AND (C# OR VB.NET OR ".NET") AND (Azure OR "Microsoft Azure") AND ("Azure DevOps" OR "GitHub Actions" OR "CI/CD" OR Docker OR "DevOps Practices") AND ("Azure Functions" OR "App Services" OR "Web API")',
-  
   backend: '("Senior Backend Engineer" OR "Senior API Engineer" OR "Azure Developer" OR ".NET Core Developer") AND (C# OR VB.NET OR ".NET") AND (Azure OR "Microsoft Azure") AND (REST OR API OR APIM OR "API Management") AND ("Azure Functions" OR "App Services") AND (Redis OR SQL OR "EF Core")',
   
   'core-net': '("Senior .NET Developer" OR "Senior Software Engineer" OR ".NET Developer" OR "C# Developer") AND (C# OR VB.NET OR ".NET Core" OR ".NET 6" OR ".NET 8") AND (ASP.NET OR MVC OR "Web API" OR "REST API") AND (Entity Framework OR "EF Core" OR SQL OR Database) AND (Senior OR Lead OR Principal)',
@@ -287,104 +180,36 @@ export const BOOLEAN_SEARCHES: Record<string, string> = {
 export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>> = {
   // Core Azure API profile - balanced emphasis on Azure platform and .NET
   core: {
-    coreAzure: 25,           // Strong Azure platform focus
-    security: 10,
-    eventDriven: 15,         // Important for API integration
-    performance: 10,
-    devops: 0,
-    seniority: 10,
-    coreNet: 20,             // Core .NET skills
-    frontendFrameworks: 5,
-    legacyModernization: 5
-  },
-  
-  // Security-focused roles - heavy emphasis on auth/governance
-  security: {
-    coreAzure: 15,           // Azure platform for security services
-    security: 35,            // Primary focus on security
-    eventDriven: 10,
-    performance: 5,
-    devops: 0,
-    seniority: 15,           // Senior security roles important
-    coreNet: 15,
-    frontendFrameworks: 0,   // Less relevant for security roles
-    legacyModernization: 5
-  },
-  
-  // Event-driven architecture specialists
-  'event-driven': {
-    coreAzure: 15,
-    security: 10,
-    eventDriven: 30,         // Primary focus on messaging/events
-    performance: 15,         // Performance critical for high-throughput systems
-    devops: 0,
-    seniority: 10,
-    coreNet: 15,
-    frontendFrameworks: 0,
-    legacyModernization: 5
-  },
-  
-  // Performance optimization and reliability focus
-  performance: {
-    coreAzure: 15,
-    security: 5,
-    eventDriven: 10,
-    performance: 30,         // Primary focus on optimization
-    devops: 0,
-    seniority: 10,
-    coreNet: 20,             // Strong .NET skills for optimization
-    frontendFrameworks: 5,
-    legacyModernization: 5
-  },
-  
-  // DevOps-aware development roles
-  devops: {
-    coreAzure: 20,           // Azure DevOps/deployment services
-    security: 10,
-    eventDriven: 10,
-    performance: 10,
-    devops: 0,               // DevOps keywords distributed across categories
-    seniority: 10,
-    coreNet: 25,             // Strong dev skills needed
+    coreAzure: 35,           // Strong Azure platform focus
+    seniority: 15,
+    coreNet: 30,             // Core .NET skills
     frontendFrameworks: 10,
-    legacyModernization: 5
+    legacyModernization: 10
   },
   
   // Backend/API-focused roles (maps to core)
   backend: {
-    coreAzure: 20,
-    security: 15,
-    eventDriven: 15,
-    performance: 10,
-    devops: 0,
-    seniority: 10,
-    coreNet: 25,             // Strong .NET backend focus
+    coreAzure: 40,
+    seniority: 15,
+    coreNet: 35,             // Strong .NET backend focus
     frontendFrameworks: 0,   // Backend only
-    legacyModernization: 5
+    legacyModernization: 10
   },
   
   // Pure .NET development roles
   'core-net': {
     coreAzure: 10,           // Some Azure helpful but not primary
-    security: 10,
-    eventDriven: 5,
-    performance: 15,
-    devops: 0,
-    seniority: 10,
-    coreNet: 40,             // Primary focus on .NET skills
-    frontendFrameworks: 5,
+    seniority: 15,
+    coreNet: 60,             // Primary focus on .NET skills
+    frontendFrameworks: 10,
     legacyModernization: 5
   },
   
   // Legacy modernization specialists
   'legacy-modernization': {
-    coreAzure: 15,           // Cloud migration target
-    security: 5,
-    eventDriven: 10,
-    performance: 10,
-    devops: 0,
-    seniority: 15,           // Senior experience important
-    coreNet: 20,             // Both old and new .NET
+    coreAzure: 25,           // Cloud migration target
+    seniority: 20,           // Senior experience important
+    coreNet: 30,             // Both old and new .NET
     frontendFrameworks: 5,
     legacyModernization: 20  // Primary focus on modernization
   },
@@ -392,65 +217,45 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
   // Contract roles - pure .NET development
   contract: {
     coreAzure: 10,           // Some Azure helpful but not primary
-    security: 10,
-    eventDriven: 5,
-    performance: 15,
-    devops: 0,
-    seniority: 10,
-    coreNet: 40,             // Primary focus on .NET skills
-    frontendFrameworks: 5,
+    seniority: 15,
+    coreNet: 60,             // Primary focus on .NET skills
+    frontendFrameworks: 10,
     legacyModernization: 5
   },
   
   // Simplified ASP.NET search - basic keyword matching
   'aspnet-simple': {
-    coreAzure: 5,
-    security: 10,
-    eventDriven: 5,
-    performance: 15,
-    devops: 0,
-    seniority: 15,
-    coreNet: 45,             // Heavy focus on .NET skills
-    frontendFrameworks: 3,
-    legacyModernization: 2
+    coreAzure: 10,
+    seniority: 20,
+    coreNet: 60,             // Heavy focus on .NET skills
+    frontendFrameworks: 5,
+    legacyModernization: 5
   },
   
   // C# + Azure without frontend frameworks
   'csharp-azure-no-frontend': {
-    coreAzure: 35,           // Strong Azure focus
-    security: 10,
-    eventDriven: 10,
-    performance: 15,
-    devops: 0,
-    seniority: 10,
-    coreNet: 20,
+    coreAzure: 50,           // Strong Azure focus
+    seniority: 20,
+    coreNet: 30,
     frontendFrameworks: 0,   // Explicitly avoid frontend
     legacyModernization: 0
   },
   
   // AZ-204 certification focused on Azure Developer Associate skills
   'az204-csharp': {
-    coreAzure: 40,           // AZ-204 is primarily about Azure services
-    security: 10,
-    eventDriven: 10,
-    performance: 10,
-    devops: 5,
-    seniority: 10,
-    coreNet: 10,             // C# required but secondary to Azure skills
+    coreAzure: 60,           // AZ-204 is primarily about Azure services
+    seniority: 15,
+    coreNet: 20,             // C# required but secondary to Azure skills
     frontendFrameworks: 0,   // Backend-focused certification
     legacyModernization: 5
   },
   
   // AI-enhanced .NET development with modern AI tools and agentic systems
   'ai-enhanced-net': {
-    coreAzure: 20,           // Azure AI services are important
-    security: 5,
-    eventDriven: 10,
-    performance: 10,
-    devops: 10,              // MLOps and CI/CD for AI systems
-    seniority: 10,
-    coreNet: 30,             // Strong .NET foundation required
-    frontendFrameworks: 5,   // Some frontend work common in AI apps
+    coreAzure: 35,           // Azure AI services are important
+    seniority: 15,
+    coreNet: 40,             // Strong .NET foundation required
+    frontendFrameworks: 10,   // Some frontend work common in AI apps
     legacyModernization: 0
   }
 };

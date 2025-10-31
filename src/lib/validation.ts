@@ -146,10 +146,6 @@ export const RankOutputSchema = z.object({
   fitScore: z.number().min(0).max(100).optional(), // LLM may return this but we recalculate it
   categoryScores: z.object({
     coreAzure: z.number().min(0).max(100),
-    security: z.number().min(0).max(100),
-    eventDriven: z.number().min(0).max(100),
-    performance: z.number().min(0).max(100),
-    devops: z.number().min(0).max(100),
     seniority: z.number().min(0).max(100),
     coreNet: z.number().min(0).max(100),
     frontendFrameworks: z.number().min(0).max(100),

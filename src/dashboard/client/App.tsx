@@ -6,6 +6,7 @@ import { ActivityLog } from './components/ActivityLog';
 import { Automation } from './components/Automation';
 import { Settings } from './components/Settings';
 import { JobNavigationProvider, useJobNavigation } from './contexts/JobNavigationContext';
+import { ToastProvider } from './contexts/ToastContext';
 
 const queryClient = new QueryClient();
 
@@ -193,9 +194,11 @@ function AppContent() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <JobNavigationProvider>
-        <AppContent />
-      </JobNavigationProvider>
+      <ToastProvider>
+        <JobNavigationProvider>
+          <AppContent />
+        </JobNavigationProvider>
+      </ToastProvider>
     </QueryClientProvider>
   );
 }

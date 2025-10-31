@@ -7,6 +7,7 @@ import { SkippedJobsPanel } from './SkippedJobsPanel';
 import { useJobNavigation } from '../contexts/JobNavigationContext';
 import { formatRelativeTime } from '../lib/dateUtils';
 import { formatRank } from '../lib/formatUtils';
+import { useToastContext } from '../contexts/ToastContext';
 
 const statusColors = {
   queued: 'bg-yellow-100 text-yellow-800',
@@ -21,10 +22,12 @@ type SortField = 'title' | 'company' | 'rank' | 'status' | 'type' | 'date';
 type SortDirection = 'asc' | 'desc';
 
 export function JobsList() {
+  const { showToast } = useToastContext();
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [easyApplyFilter, setEasyApplyFilter] = useState<string>('');
   const [appliedMethodFilter, setAppliedMethodFilter] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [curatedFilter, setCuratedFilter] = useState<string>('');
   const [minRank, setMinRank] = useState<number>(0);
   const [updatingJobIds, setUpdatingJobIds] = useState<Set<string>>(new Set());
   const [rejectingJobId, setRejectingJobId] = useState<string | null>(null);
@@ -43,6 +46,7 @@ export function JobsList() {
   const { data, isLoading, refetch } = useJobs({
     status: statusFilter || undefined,
     easyApply: easyApplyFilter === 'true' ? true : easyApplyFilter === 'false' ? false : undefined,
+    curated: curatedFilter === 'true' ? true : curatedFilter === 'false' ? false : undefined,
     limit: 100,
     search: searchQuery || undefined
   });
@@ -102,13 +106,15 @@ export function JobsList() {
     easyApplyFilter || 
     appliedMethodFilter || 
     searchQuery || 
+    curatedFilter ||
     minRank > 0
   );
 
   // Client-side filtering and sorting
   const filteredAndSortedJobs = data?.jobs.filter(job => {
-    // Hide skipped by default when no explicit status filter is applied
-    if (!statusFilter && job.status === 'skipped') {
+    // When "All Statuses" is selected (statusFilter is empty), show all statuses EXCEPT skipped
+    // This includes: queued, applied, interview, rejected, reported
+    if (statusFilter === '' && job.status === 'skipped') {
       return false;
     }
     // Hide rejected jobs older than 1 day ONLY if no filters are active
@@ -182,7 +188,24 @@ export function JobsList() {
       }
     } catch (error) {
       console.error('Failed to update job:', error);
-      alert('Failed to mark job as applied');
+      showToast('error', 'Failed to mark job as applied');
+    } finally {
+      setUpdatingJobIds(prev => {
+        const next = new Set(prev);
+        next.delete(jobId);
+        return next;
+      });
+    }
+  };
+
+  const handleToggleCurated = async (jobId: string) => {
+    setUpdatingJobIds(prev => new Set(prev).add(jobId));
+    try {
+      await api.toggleJobCurated(jobId);
+      await refetch();
+    } catch (error) {
+      console.error('Failed to toggle job curated:', error);
+      showToast('error', 'Failed to toggle job curated');
     } finally {
       setUpdatingJobIds(prev => {
         const next = new Set(prev);
@@ -224,7 +247,7 @@ export function JobsList() {
       }
     } catch (error) {
       console.error('Failed to reject job:', error);
-      alert('Failed to reject job');
+      showToast('error', 'Failed to reject job');
     } finally {
       setUpdatingJobIds(prev => {
         const next = new Set(prev);
@@ -241,7 +264,7 @@ export function JobsList() {
       setShowPromptModal(true);
     } catch (error) {
       console.error('Failed to generate prompt:', error);
-      alert('Failed to generate rejection prompt');
+      showToast('error', 'Failed to generate rejection prompt');
     }
   };
 
@@ -251,7 +274,7 @@ export function JobsList() {
       // Try modern Clipboard API first
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(promptData.prompt);
-        alert('Prompt copied to clipboard!');
+        showToast('success', 'Prompt copied to clipboard!');
         return;
       }
       
@@ -269,7 +292,7 @@ export function JobsList() {
         const successful = document.execCommand('copy');
         document.body.removeChild(textArea);
         if (successful) {
-          alert('Prompt copied to clipboard!');
+          showToast('success', 'Prompt copied to clipboard!');
         } else {
           throw new Error('execCommand copy failed');
         }
@@ -279,8 +302,7 @@ export function JobsList() {
       }
     } catch (error) {
       console.error('Failed to copy prompt:', error);
-      // Last resort: show prompt in an alert or prompt box for manual copy
-      alert('Failed to copy to clipboard. Please manually copy the text from the prompt field.');
+      showToast('error', 'Failed to copy to clipboard. Please manually copy the text from the prompt field.');
     }
   };
 
@@ -291,10 +313,10 @@ export function JobsList() {
       setShowPromptModal(false);
       setPromptData(null);
       await refetch();
-      alert(`Marked ${promptData.jobIds.length} rejection(s) as processed`);
+      showToast('success', `Marked ${promptData.jobIds.length} rejection(s) as processed`);
     } catch (error) {
       console.error('Failed to mark rejections as processed:', error);
-      alert('Failed to mark rejections as processed');
+      showToast('error', 'Failed to mark rejections as processed');
     }
   };
 
@@ -487,8 +509,8 @@ export function JobsList() {
             </div>
           </div>
 
-          {/* Secondary Filter Row - Type and Application Method */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Secondary Filter Row - Type, Application Method, and Curated */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium mb-2">Job Type</label>
               <select
@@ -512,6 +534,19 @@ export function JobsList() {
                 <option value="">All Methods</option>
                 <option value="manual">Manual</option>
                 <option value="automatic">Automatic</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Curated</label>
+              <select
+                value={curatedFilter}
+                onChange={(e) => setCuratedFilter(e.target.value)}
+                className="border border-gray-300 rounded-lg px-4 py-2.5 w-full text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All</option>
+                <option value="true">Curated Only</option>
+                <option value="false">Not Curated</option>
               </select>
             </div>
 
@@ -679,9 +714,10 @@ export function JobsList() {
                           href={job.url} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 font-medium text-sm break-words"
+                          className="text-blue-600 hover:text-blue-800 font-medium text-sm break-words inline-flex items-center gap-1"
                           onClick={() => handleJobClick(job.id)}
                         >
+                          {job.curated && <span className="text-yellow-500 text-lg">⭐</span>}
                           {job.title}
                         </a>
                       </td>
@@ -712,6 +748,13 @@ export function JobsList() {
                         <div className="flex flex-col gap-1.5">
                           {(job.status === 'queued' || job.status === 'reported') && (
                             <>
+                              <button
+                                onClick={() => handleToggleCurated(job.id)}
+                                disabled={updatingJobIds.has(job.id)}
+                                className="bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-400 text-white px-3 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap"
+                              >
+                                {updatingJobIds.has(job.id) ? '...' : job.curated ? 'Unlike' : 'I Like It!'}
+                              </button>
                               <button
                                 onClick={() => handleMarkAsApplied(job.id)}
                                 disabled={updatingJobIds.has(job.id)}

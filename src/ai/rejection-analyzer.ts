@@ -86,25 +86,25 @@ const TECH_CATEGORY_MAP: Record<string, string> = {
   'vue': 'coreAzure',
   'node.js': 'coreAzure',
   'node': 'coreAzure',
-  'kubernetes': 'devops',
-  'docker': 'devops',
-  'terraform': 'devops',
-  'ansible': 'devops',
-  'jenkins': 'devops',
-  'github actions': 'devops',
-  'azure devops': 'devops',
-  'redis': 'performance',
-  'elasticsearch': 'performance',
-  'memcached': 'performance',
-  'kafka': 'eventDriven',
-  'rabbitmq': 'eventDriven',
-  'service bus': 'eventDriven',
-  'event grid': 'eventDriven',
-  'oauth': 'security',
-  'jwt': 'security',
-  'saml': 'security',
-  'entra': 'security',
-  'active directory': 'security',
+  'kubernetes': 'coreAzure',
+  'docker': 'coreAzure',
+  'terraform': 'coreAzure',
+  'ansible': 'coreAzure',
+  'jenkins': 'coreAzure',
+  'github actions': 'coreAzure',
+  'azure devops': 'coreAzure',
+  'redis': 'coreAzure',
+  'elasticsearch': 'coreAzure',
+  'memcached': 'coreAzure',
+  'kafka': 'coreAzure',
+  'rabbitmq': 'coreAzure',
+  'service bus': 'coreAzure',
+  'event grid': 'coreAzure',
+  'oauth': 'coreAzure',
+  'jwt': 'coreAzure',
+  'saml': 'coreAzure',
+  'entra': 'coreAzure',
+  'active directory': 'coreAzure',
   '.net': 'coreNet',
   'c#': 'coreNet',
   'asp.net': 'coreNet',
@@ -253,7 +253,7 @@ Identify patterns and suggest adjustments:
    - company: Cultural fit or company-specific issues
 
 2. ADJUSTMENTS: Suggest weight adjustments for profile categories
-   Available categories: coreAzure, security, eventDriven, performance, devops, seniority, coreNet, frontendFrameworks, legacyModernization
+   Available categories: coreAzure, seniority, coreNet, frontendFrameworks, legacyModernization
    Adjustment range: -5 to +5 percentage points
    
    CORRECT LOGIC:

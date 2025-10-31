@@ -15,6 +15,7 @@ export const api = {
     limit?: number;
     offset?: number;
     search?: string;
+    curated?: boolean;
   }): Promise<JobsResponse> {
     const searchParams = new URLSearchParams();
     if (params?.status) searchParams.set('status', params.status);
@@ -22,6 +23,7 @@ export const api = {
     if (params?.limit) searchParams.set('limit', String(params.limit));
     if (params?.offset) searchParams.set('offset', String(params.offset));
     if (params?.search) searchParams.set('search', params.search);
+    if (params?.curated !== undefined) searchParams.set('curated', String(params.curated));
 
     const response = await fetch(`${API_BASE}/jobs?${searchParams}`);
     if (!response.ok) throw new Error('Failed to fetch jobs');
@@ -57,15 +59,14 @@ export const api = {
     jobId: string, 
     status: string, 
     appliedMethod?: 'automatic' | 'manual',
-    rejectionReason?: string,
-    skipLearning?: boolean
+    rejectionReason?: string
   ): Promise<Job> {
     const response = await fetch(`${API_BASE}/jobs/${jobId}/status`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ status, applied_method: appliedMethod, rejection_reason: rejectionReason, skip_learning: skipLearning }),
+      body: JSON.stringify({ status, applied_method: appliedMethod, rejection_reason: rejectionReason }),
     });
 
     if (!response.ok) {
@@ -120,6 +121,17 @@ export const api = {
       body: JSON.stringify({ jobIds }),
     });
     if (!response.ok) throw new Error('Failed to mark rejections as processed');
+    return response.json();
+  },
+
+  async toggleJobCurated(jobId: string): Promise<Job> {
+    const response = await fetch(`${API_BASE}/jobs/${jobId}/curated`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!response.ok) throw new Error('Failed to toggle job curated');
     return response.json();
   }
 };

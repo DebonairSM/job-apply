@@ -126,6 +126,12 @@ export function initDb(): void {
     // Column already exists, ignore
   }
 
+  try {
+    database.exec(`ALTER TABLE jobs ADD COLUMN curated INTEGER DEFAULT 0`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+
   // Rejection patterns table
   database.exec(`
     CREATE TABLE IF NOT EXISTS rejection_patterns (
@@ -374,6 +380,7 @@ export interface Job {
   applied_method?: 'automatic' | 'manual';
   rejection_reason?: string;
   rejection_processed?: number; // 0 = unprocessed, 1 = processed (acts as boolean)
+  curated?: boolean; // User-curated flag for favorite jobs
   fit_reasons?: string;
   must_haves?: string;
   blockers?: string;
@@ -508,7 +515,7 @@ export function addJobs(jobs: Omit<Job, 'created_at'>[]): AddJobsResult {
   return result;
 }
 
-export function getJobsByStatus(status?: string, easyApply?: boolean, search?: string): Job[] {
+export function getJobsByStatus(status?: string, easyApply?: boolean, search?: string, curated?: boolean): Job[] {
   const database = getDb();
   let query = 'SELECT * FROM jobs WHERE 1=1';
   const params: any[] = [];
@@ -530,6 +537,12 @@ export function getJobsByStatus(status?: string, easyApply?: boolean, search?: s
     params.push(searchPattern, searchPattern);
   }
 
+  // Add curated filter
+  if (curated !== undefined) {
+    query += ' AND curated = ?';
+    params.push(curated ? 1 : 0);
+  }
+
   query += ' ORDER BY rank DESC, created_at DESC';
 
   const stmt = database.prepare(query);
@@ -537,7 +550,8 @@ export function getJobsByStatus(status?: string, easyApply?: boolean, search?: s
 
   return rows.map(row => ({
     ...row,
-    easy_apply: row.easy_apply === 1
+    easy_apply: row.easy_apply === 1,
+    curated: row.curated === 1
   }));
 }
 
@@ -557,7 +571,8 @@ export function getUnprocessedRejections(): Job[] {
   
   return rows.map(row => ({
     ...row,
-    easy_apply: row.easy_apply === 1
+    easy_apply: row.easy_apply === 1,
+    curated: row.curated === 1
   }));
 }
 
@@ -587,7 +602,8 @@ export function getJobByUrl(url: string): Job | null {
   
   return {
     ...row,
-    easy_apply: row.easy_apply === 1
+    easy_apply: row.easy_apply === 1,
+    curated: row.curated === 1
   };
 }
 
@@ -600,7 +616,8 @@ export function getJobById(id: string): Job | null {
   
   return {
     ...row,
-    easy_apply: row.easy_apply === 1
+    easy_apply: row.easy_apply === 1,
+    curated: row.curated === 1
   };
 }
 
@@ -617,7 +634,7 @@ export function hasAppliedToCompanyTitle(company: string, title: string): boolea
   return !!result;
 }
 
-export function updateJobStatus(jobId: string, status: Job['status'], appliedMethod?: 'automatic' | 'manual', rejectionReason?: string, skipLearning?: boolean): void {
+export function updateJobStatus(jobId: string, status: Job['status'], appliedMethod?: 'automatic' | 'manual', rejectionReason?: string): void {
   const database = getDb();
   const stmt = database.prepare('UPDATE jobs SET status = ?, applied_method = ?, rejection_reason = ?, status_updated_at = ? WHERE id = ?');
   stmt.run(status, appliedMethod ?? null, rejectionReason ?? null, new Date().toISOString(), jobId);
@@ -626,58 +643,17 @@ export function updateJobStatus(jobId: string, status: Job['status'], appliedMet
   // Learning trigger removed - users generate prompts and refine profiles/logic manually
 }
 
-// Analyze rejection and apply learning
-async function analyzeAndLearnFromRejection(jobId: string, rejectionReason: string): Promise<void> {
-  try {
-    const job = getJobById(jobId);
-    if (!job) {
-      console.error(`Job ${jobId} not found for rejection analysis`);
-      return;
-    }
-    
-    // Dynamic import to avoid circular dependencies
-    const { analyzeRejectionWithLLM } = await import('../ai/rejection-analyzer.js');
-    const { applyWeightAdjustment } = await import('../ai/weight-manager.js');
-    const { saveRejectionPattern } = await import('../lib/db.js');
-    
-    // Analyze rejection
-    const analysis = await analyzeRejectionWithLLM(rejectionReason, job);
-    
-    // Save patterns
-    for (const pattern of analysis.patterns) {
-      saveRejectionPattern({
-        type: pattern.type,
-        value: pattern.value,
-        confidence: pattern.confidence,
-        profileCategory: undefined,
-        weightAdjustment: 0
-      });
-    }
-    
-    // Apply weight adjustments immediately
-    for (const adjustment of analysis.suggestedAdjustments) {
-      applyWeightAdjustment(
-        adjustment.category,
-        adjustment.adjustment,
-        adjustment.reason,
-        jobId
-      );
-    }
-    
-    // Log learning summary
-    if (analysis.patterns.length > 0 || analysis.suggestedAdjustments.length > 0) {
-      console.log(`📚 Learning from rejection: ${job.title} at ${job.company}`);
-      console.log(`   Patterns found: ${analysis.patterns.length}`);
-      console.log(`   Weight adjustments: ${analysis.suggestedAdjustments.length}`);
-      
-      for (const adjustment of analysis.suggestedAdjustments) {
-        console.log(`   📊 Adjusted ${adjustment.category} by ${adjustment.adjustment > 0 ? '+' : ''}${adjustment.adjustment}% - ${adjustment.reason}`);
-      }
-    }
-    
-  } catch (error) {
-    console.error('Error in rejection learning analysis:', error);
+export function toggleJobCurated(jobId: string): void {
+  const database = getDb();
+  // Get current curated status
+  const job = getJobById(jobId);
+  if (!job) {
+    throw new Error(`Job ${jobId} not found`);
   }
+  // Toggle curated status
+  const newCuratedValue = job.curated ? 0 : 1;
+  const stmt = database.prepare('UPDATE jobs SET curated = ? WHERE id = ?');
+  stmt.run(newCuratedValue, jobId);
 }
 
 export interface JobStats {
@@ -687,6 +663,7 @@ export interface JobStats {
   rejected: number;
   skipped: number;
   reported: number;
+  curated: number;
   total: number;
 }
 
@@ -706,6 +683,7 @@ export function getJobStats(): JobStats {
     rejected: 0,
     skipped: 0,
     reported: 0,
+    curated: 0,
     total: 0
   };
 
@@ -713,6 +691,15 @@ export function getJobStats(): JobStats {
     stats[row.status as keyof JobStats] = row.count;
     stats.total += row.count;
   }
+
+  // Get curated count separately
+  const curatedStmt = database.prepare(`
+    SELECT COUNT(*) as count
+    FROM jobs
+    WHERE curated = 1
+  `);
+  const curatedResult = curatedStmt.get() as { count: number };
+  stats.curated = curatedResult.count;
 
   return stats;
 }
@@ -1156,7 +1143,7 @@ export function saveRejectionPattern(pattern: {
   const existing = database.prepare(`
     SELECT id, count FROM rejection_patterns 
     WHERE pattern_type = ? AND pattern_value = ?
-  `).get(pattern.type, pattern.value);
+  `).get(pattern.type, pattern.value) as { id: number; count: number } | undefined;
   
   if (existing) {
     // Update existing pattern
@@ -1807,13 +1794,16 @@ export interface Profile {
 export function getProfile(profileKey: string): Profile | null {
   const database = getDb();
   const stmt = database.prepare('SELECT * FROM profiles WHERE profile_key = ?');
-  const result = stmt.get(profileKey) as Profile | undefined;
+  const result = stmt.get(profileKey) as any;
   
   if (!result) return null;
   
   return {
-    ...result,
-    remote: result.remote === 1
+    profile_key: result.profile_key,
+    location: result.location,
+    remote: result.remote === 1,
+    created_at: result.created_at,
+    updated_at: result.updated_at
   };
 }
 
@@ -1829,11 +1819,14 @@ export function saveProfile(profile: Profile): void {
 export function getAllProfiles(): Profile[] {
   const database = getDb();
   const stmt = database.prepare('SELECT * FROM profiles');
-  const results = stmt.all() as Profile[];
+  const results = stmt.all() as any[];
   
   return results.map(r => ({
-    ...r,
-    remote: r.remote === 1
+    profile_key: r.profile_key,
+    location: r.location,
+    remote: r.remote === 1,
+    created_at: r.created_at,
+    updated_at: r.updated_at
   }));
 }
 

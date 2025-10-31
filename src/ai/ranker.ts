@@ -8,10 +8,6 @@ import { PROFILES } from './profiles.js';
 // Missing entry = "Unknown profile: <name>" error
 const PROFILE_NAME_MAP: Record<string, string> = {
   'core': 'coreAzure',
-  'security': 'security',
-  'event-driven': 'eventDriven',
-  'performance': 'performance',
-  'devops': 'devops',
   'backend': 'coreNet', // Map backend to coreNet for now
   'core-net': 'coreNet',
   'legacy-modernization': 'legacyModernization',
@@ -122,10 +118,6 @@ Return ONLY valid JSON in this exact format with ALL categories. Use double quot
 {
   "categoryScores": {
     "coreAzure": 0,
-    "security": 0,
-    "eventDriven": 0,
-    "performance": 0,
-    "devops": 0,
     "seniority": 0,
     "coreNet": 0,
     "frontendFrameworks": 0,
@@ -167,7 +159,7 @@ Return ONLY valid JSON in this exact format with ALL categories. Use double quot
   }
 
   // Ensure all required category scores exist
-  const requiredCategories = ['coreAzure', 'security', 'eventDriven', 'performance', 'devops', 'seniority', 'coreNet', 'frontendFrameworks', 'legacyModernization'];
+  const requiredCategories = ['coreAzure', 'seniority', 'coreNet', 'frontendFrameworks', 'legacyModernization'];
   for (const category of requiredCategories) {
     if (!(category in result.categoryScores)) {
       result.categoryScores[category as keyof typeof result.categoryScores] = 0;

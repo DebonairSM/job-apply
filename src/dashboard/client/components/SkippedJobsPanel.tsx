@@ -5,6 +5,7 @@ import { Job } from '../lib/types';
 import { formatRank } from '../lib/formatUtils';
 import { formatRelativeTime } from '../lib/dateUtils';
 import { JobDetailsPanel } from './JobDetailsPanel';
+import { useToastContext } from '../contexts/ToastContext';
 
 type SortField = 'rank' | 'title' | 'company' | 'date';
 type SortDirection = 'asc' | 'desc';
@@ -15,6 +16,7 @@ interface SkippedJobsPanelProps {
 }
 
 export function SkippedJobsPanel({ isExpanded, onToggle }: SkippedJobsPanelProps) {
+  const { showToast } = useToastContext();
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [profileFilter, setProfileFilter] = useState<string>('');
   const [sortField, setSortField] = useState<SortField>('date');
@@ -138,7 +140,7 @@ export function SkippedJobsPanel({ isExpanded, onToggle }: SkippedJobsPanelProps
       await refetch();
     } catch (error) {
       console.error('Failed to restore job to queue:', error);
-      alert('Failed to restore job to queue');
+      showToast('error', 'Failed to restore job to queue');
     } finally {
       setRestoringJobIds(prev => {
         const next = new Set(prev);

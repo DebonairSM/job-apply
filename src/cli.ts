@@ -32,7 +32,7 @@ yargs(hideBin(process.argv))
         .option('profile', {
           alias: 'p',
           describe: 'Use predefined Boolean search profile',
-          choices: ['core', 'security', 'event-driven', 'performance', 'devops', 'backend', 'core-net', 'legacy-modernization', 'contract', 'aspnet-simple', 'csharp-azure-no-frontend', 'az204-csharp', 'ai-enhanced-net'] as const,
+          choices: ['core', 'backend', 'core-net', 'legacy-modernization', 'contract', 'aspnet-simple', 'csharp-azure-no-frontend', 'az204-csharp', 'ai-enhanced-net'] as const,
           type: 'string'
         })
         .option('location', {
@@ -88,7 +88,7 @@ yargs(hideBin(process.argv))
     async (argv) => {
       await searchCommand({
         keywords: argv.keywords,
-        profile: argv.profile as 'core' | 'security' | 'event-driven' | 'performance' | 'devops' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | 'aspnet-simple' | 'csharp-azure-no-frontend' | 'az204-csharp' | 'ai-enhanced-net' | undefined,
+        profile: argv.profile as 'core' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | 'aspnet-simple' | 'csharp-azure-no-frontend' | 'az204-csharp' | 'ai-enhanced-net' | undefined,
         location: argv.location,
         locationPreset: argv['location-preset'] as any,
         radius: argv.radius as number | undefined,
@@ -183,9 +183,8 @@ yargs(hideBin(process.argv))
         if (job.category_scores) {
           try {
             const scores = JSON.parse(job.category_scores);
-            console.log(`   Azure: ${scores.coreAzure} | Security: ${scores.security} | Events: ${scores.eventDriven}`);
-            console.log(`   Perf: ${scores.performance} | DevOps: ${scores.devops} | Senior: ${scores.seniority}`);
-            console.log(`   .NET: ${scores.coreNet} | Legacy: ${scores.legacyModernization}`);
+            console.log(`   Azure: ${scores.coreAzure} | Senior: ${scores.seniority} | .NET: ${scores.coreNet}`);
+            console.log(`   Frontend: ${scores.frontendFrameworks} | Legacy: ${scores.legacyModernization}`);
           } catch (error) {
             // Ignore parse errors
           }

@@ -7,6 +7,7 @@ export function useJobs(params?: {
   limit?: number;
   offset?: number;
   search?: string;
+  curated?: boolean;
 }) {
   return useQuery({
     queryKey: ['jobs', params],

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { ConfirmModal } from './ConfirmModal';
+import { useToastContext } from '../contexts/ToastContext';
 
 interface ResumeDataSummary {
   resumeCount: number;
@@ -20,9 +22,10 @@ interface SyncResponse {
 
 export function ResumeSync() {
   const queryClient = useQueryClient();
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { showToast } = useToastContext();
   const [backupPath, setBackupPath] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingClearExisting, setPendingClearExisting] = useState(false);
 
   // Fetch resume data summary
   const { data: summary, isLoading } = useQuery<ResumeDataSummary>({
@@ -54,33 +57,40 @@ export function ResumeSync() {
       setBackupPath(data.backupPath);
       
       if (data.errors && data.errors.length > 0) {
-        setErrorMessage(`Synced ${data.syncedCount}/${data.totalFiles} resumes. ${data.errors.length} failed.`);
+        showToast('warning', `Synced ${data.syncedCount}/${data.totalFiles} resumes. ${data.errors.length} failed.`);
       } else {
-        setSuccessMessage(data.message);
+        showToast('success', data.message);
       }
       
-      setErrorMessage(null);
       setTimeout(() => {
-        setSuccessMessage(null);
         setBackupPath(null);
       }, 10000);
     },
     onError: (error: Error) => {
-      setErrorMessage(error.message);
-      setSuccessMessage(null);
+      showToast('error', error.message);
       setBackupPath(null);
     }
   });
 
   const handleSync = (clearExisting: boolean) => {
     if (clearExisting) {
-      const confirmed = window.confirm(
-        'This will clear all existing resume data from the database and re-sync from files. Continue?'
-      );
-      if (!confirmed) return;
+      setPendingClearExisting(true);
+      setShowConfirmModal(true);
+      return;
     }
     
     syncMutation.mutate(clearExisting);
+  };
+
+  const handleConfirmSync = () => {
+    setShowConfirmModal(false);
+    syncMutation.mutate(pendingClearExisting);
+    setPendingClearExisting(false);
+  };
+
+  const handleCancelSync = () => {
+    setShowConfirmModal(false);
+    setPendingClearExisting(false);
   };
 
   if (isLoading) {
@@ -100,33 +110,21 @@ export function ResumeSync() {
   const hasData = summary && (summary.skillCount > 0 || summary.experienceCount > 0);
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h3 className="text-xl font-semibold text-gray-800 mb-4">Resume Database Sync</h3>
-      
-      <p className="text-sm text-gray-600 mb-6">
-        Sync your resume files to the database for faster form filling. The database will be backed up automatically before any changes.
-      </p>
+    <>
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h3 className="text-xl font-semibold text-gray-800 mb-4">Resume Database Sync</h3>
+        
+        <p className="text-sm text-gray-600 mb-6">
+          Sync your resume files to the database for faster form filling. The database will be backed up automatically before any changes.
+        </p>
 
-      {/* Success/Error Messages */}
-      {successMessage && (
-        <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-4">
-          <p className="text-green-800">{successMessage}</p>
-        </div>
-      )}
-
-      {errorMessage && (
-        <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
-          <p className="text-red-800">{errorMessage}</p>
-        </div>
-      )}
-
-      {backupPath && (
-        <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-blue-800 text-sm">
-            <span className="font-medium">Backup created:</span> {backupPath}
-          </p>
-        </div>
-      )}
+        {backupPath && (
+          <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-blue-800 text-sm">
+              <span className="font-medium">Backup created:</span> {backupPath}
+            </p>
+          </div>
+        )}
 
       {/* Current Database State */}
       <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
@@ -194,7 +192,19 @@ export function ResumeSync() {
           <span className="font-medium">Note:</span> A database backup will be created automatically before any changes are made.
         </p>
       </div>
-    </div>
+      </div>
+
+      <ConfirmModal
+        isOpen={showConfirmModal}
+        title="Clear Resume Database"
+        message="This will clear all existing resume data from the database and re-sync from files. Continue?"
+        confirmText="Clear & Re-sync"
+        cancelText="Cancel"
+        onConfirm={handleConfirmSync}
+        onCancel={handleCancelSync}
+        variant="warning"
+      />
+    </>
   );
 }
 
