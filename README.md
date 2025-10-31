@@ -23,8 +23,8 @@ Fills application forms intelligently across different job boards (LinkedIn, Gre
 **📊 Live Dashboard**  
 Monitor everything in real-time with statistics, job lists, activity logs, and learning insights that update automatically.
 
-**🔄 Continuous Learning**  
-System learns from every rejection, automatically adjusting weights and building filters to avoid similar jobs in the future.
+**🔄 Manual Learning & Refinement**  
+Generate Cursor AI prompts from rejection reasons to manually refine profiles and scoring logic. Mark rejections as processed after review.
 
 ---
 
@@ -77,11 +77,13 @@ Want to create your own profile? See [`docs/PROFILE_CREATION_GUIDE.md`](docs/PRO
 **Smart Scoring**  
 Jobs score differently based on which profile finds them. Security profile emphasizes auth/governance, performance profile focuses on optimization, contract profile targets freelance keywords.
 
-**Learns From Rejections**  
-- "Too junior" → filters entry-level jobs
-- "Wrong tech" → blocks similar technologies  
-- Multiple rejections → blocklists company
-- Location mismatch → filters non-remote
+**Rejection Analysis**  
+When you reject jobs and provide reasons:
+- Generate Cursor AI prompts from unprocessed rejections
+- Prompts identify which profiles need refinement
+- Analyze scoring weights, keywords, and filters that could improve
+- Mark rejections as processed after generating prompts
+- Select frequent rejection reasons from dropdown when rejecting
 
 **Auto-Apply**  
 Generates personalized responses using your resume. Handles LinkedIn Easy Apply, Greenhouse, Lever, and Workday forms with intelligent field mapping.
@@ -97,7 +99,7 @@ Access at **https://localhost:3000**
 - **AI Content** - Generate headlines and cover letters per job
 - **Analytics** - Timeline, company performance, score distributions
 - **Automation** - Run search/apply commands with live logs
-- **Learning Monitor** - Watch AI adjust from rejection patterns
+- **Rejection Prompts** - Generate Cursor AI prompts from rejections for manual system refinement
 
 ---
 

@@ -97,6 +97,30 @@ export const api = {
     const response = await fetch(`${API_BASE}/jobs/${jobId}/complete-data`);
     if (!response.ok) throw new Error('Failed to fetch complete job data');
     return response.json();
+  },
+
+  async getRejectionPrompt(): Promise<{ prompt: string; jobIds: string[]; count: number }> {
+    const response = await fetch(`${API_BASE}/jobs/rejections/prompt`);
+    if (!response.ok) throw new Error('Failed to fetch rejection prompt');
+    return response.json();
+  },
+
+  async getRejectionSuggestions(): Promise<{ reason: string; count: number }[]> {
+    const response = await fetch(`${API_BASE}/jobs/rejections/suggestions`);
+    if (!response.ok) throw new Error('Failed to fetch rejection suggestions');
+    return response.json();
+  },
+
+  async markRejectionsProcessed(jobIds: string[]): Promise<{ success: boolean; count: number }> {
+    const response = await fetch(`${API_BASE}/jobs/rejections/mark-processed`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ jobIds }),
+    });
+    if (!response.ok) throw new Error('Failed to mark rejections as processed');
+    return response.json();
   }
 };
 

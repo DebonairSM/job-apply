@@ -120,6 +120,12 @@ export function initDb(): void {
     // Column already exists, ignore
   }
 
+  try {
+    database.exec(`ALTER TABLE jobs ADD COLUMN rejection_processed INTEGER DEFAULT 0`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+
   // Rejection patterns table
   database.exec(`
     CREATE TABLE IF NOT EXISTS rejection_patterns (
@@ -367,6 +373,7 @@ export interface Job {
   status: 'queued' | 'applied' | 'interview' | 'rejected' | 'skipped' | 'reported';
   applied_method?: 'automatic' | 'manual';
   rejection_reason?: string;
+  rejection_processed?: number; // 0 = unprocessed, 1 = processed (acts as boolean)
   fit_reasons?: string;
   must_haves?: string;
   blockers?: string;
@@ -534,6 +541,36 @@ export function getJobsByStatus(status?: string, easyApply?: boolean, search?: s
   }));
 }
 
+export function getUnprocessedRejections(): Job[] {
+  const database = getDb();
+  const query = `
+    SELECT * FROM jobs 
+    WHERE status = 'rejected' 
+    AND rejection_reason IS NOT NULL 
+    AND rejection_reason != ''
+    AND (rejection_processed = 0 OR rejection_processed IS NULL)
+    ORDER BY status_updated_at DESC
+  `;
+  
+  const stmt = database.prepare(query);
+  const rows = stmt.all() as any[];
+  
+  return rows.map(row => ({
+    ...row,
+    easy_apply: row.easy_apply === 1
+  }));
+}
+
+export function markRejectionsAsProcessed(jobIds: string[]): void {
+  const database = getDb();
+  if (jobIds.length === 0) return;
+  
+  const placeholders = jobIds.map(() => '?').join(',');
+  const query = `UPDATE jobs SET rejection_processed = 1 WHERE id IN (${placeholders})`;
+  const stmt = database.prepare(query);
+  stmt.run(...jobIds);
+}
+
 export function jobExistsByUrl(url: string): boolean {
   const database = getDb();
   const stmt = database.prepare('SELECT 1 FROM jobs WHERE url = ? LIMIT 1');
@@ -585,13 +622,8 @@ export function updateJobStatus(jobId: string, status: Job['status'], appliedMet
   const stmt = database.prepare('UPDATE jobs SET status = ?, applied_method = ?, rejection_reason = ?, status_updated_at = ? WHERE id = ?');
   stmt.run(status, appliedMethod ?? null, rejectionReason ?? null, new Date().toISOString(), jobId);
   
-  // Trigger learning on rejection (skip in test mode or if skipLearning is true)
-  if (status === 'rejected' && rejectionReason && !isTestMode && !skipLearning) {
-    // Use dynamic import to avoid circular dependencies
-    analyzeAndLearnFromRejection(jobId, rejectionReason).catch(error => {
-      console.error('Error learning from rejection:', error);
-    });
-  }
+  // Automatic learning disabled - rejection reasons are now processed manually via prompt generator
+  // Learning trigger removed - users generate prompts and refine profiles/logic manually
 }
 
 // Analyze rejection and apply learning

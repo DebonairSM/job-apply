@@ -29,6 +29,9 @@ export function JobsList() {
   const [updatingJobIds, setUpdatingJobIds] = useState<Set<string>>(new Set());
   const [rejectingJobId, setRejectingJobId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string>('');
+  const [rejectionSuggestions, setRejectionSuggestions] = useState<{ reason: string; count: number }[]>([]);
+  const [showPromptModal, setShowPromptModal] = useState<boolean>(false);
+  const [promptData, setPromptData] = useState<{ prompt: string; jobIds: string[]; count: number } | null>(null);
   const [clickedJobId, setClickedJobId] = useState<string | null>(null);
   const [expandedJobIds, setExpandedJobIds] = useState<Set<string>>(new Set());
   const [sortField, setSortField] = useState<SortField>('date');
@@ -189,41 +192,32 @@ export function JobsList() {
     }
   };
 
-  const handleRejectClick = (jobId: string) => {
+  const handleRejectClick = async (jobId: string) => {
     setRejectingJobId(jobId);
     setRejectionReason('');
+    // Load rejection suggestions for dropdown
+    try {
+      const suggestions = await api.getRejectionSuggestions();
+      setRejectionSuggestions(suggestions);
+    } catch (error) {
+      console.error('Failed to load rejection suggestions:', error);
+      setRejectionSuggestions([]);
+    }
   };
 
-  const handleRejectConfirm = async (skipLearning: boolean = false) => {
-    if (!rejectingJobId || !rejectionReason.trim()) {
-      alert('Please provide a reason for rejection');
+  const handleRejectConfirm = async () => {
+    if (!rejectingJobId) {
       return;
-    }
-    
-    // Validate minimum length (skip validation for silent rejections)
-    if (!skipLearning) {
-      const minLength = 10;
-      if (rejectionReason.trim().length < minLength) {
-        alert('Please provide a more detailed reason (at least 10 characters) to help improve future searches');
-        return;
-      }
-      
-      // Check for contextual keywords
-      const hasContext = /\b(too|not|lack|missing|wrong|different|require|need|want|prefer)\b/i.test(rejectionReason);
-      if (!hasContext) {
-        const confirmed = confirm(
-          'Your reason seems vague. Adding details like "too junior", "wrong tech stack", or "not remote" helps the system learn better.\n\nContinue anyway?'
-        );
-        if (!confirmed) return;
-      }
     }
     
     setUpdatingJobIds(prev => new Set(prev).add(rejectingJobId));
     try {
-      await api.updateJobStatus(rejectingJobId, 'rejected', undefined, rejectionReason, skipLearning);
+      // Rejection reason is optional - pass empty string if not provided
+      await api.updateJobStatus(rejectingJobId, 'rejected', undefined, rejectionReason.trim() || undefined);
       await refetch();
       setRejectingJobId(null);
       setRejectionReason('');
+      setRejectionSuggestions([]);
       // Clear highlight if this was the highlighted job
       if (clickedJobId === rejectingJobId) {
         clearHighlight();
@@ -237,6 +231,70 @@ export function JobsList() {
         next.delete(rejectingJobId);
         return next;
       });
+    }
+  };
+
+  const handleGeneratePrompt = async () => {
+    try {
+      const data = await api.getRejectionPrompt();
+      setPromptData(data);
+      setShowPromptModal(true);
+    } catch (error) {
+      console.error('Failed to generate prompt:', error);
+      alert('Failed to generate rejection prompt');
+    }
+  };
+
+  const handleCopyPrompt = async () => {
+    if (!promptData) return;
+    try {
+      // Try modern Clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(promptData.prompt);
+        alert('Prompt copied to clipboard!');
+        return;
+      }
+      
+      // Fallback: use old execCommand method
+      const textArea = document.createElement('textarea');
+      textArea.value = promptData.prompt;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      
+      try {
+        const successful = document.execCommand('copy');
+        document.body.removeChild(textArea);
+        if (successful) {
+          alert('Prompt copied to clipboard!');
+        } else {
+          throw new Error('execCommand copy failed');
+        }
+      } catch (err) {
+        document.body.removeChild(textArea);
+        throw err;
+      }
+    } catch (error) {
+      console.error('Failed to copy prompt:', error);
+      // Last resort: show prompt in an alert or prompt box for manual copy
+      alert('Failed to copy to clipboard. Please manually copy the text from the prompt field.');
+    }
+  };
+
+  const handleMarkAsProcessed = async () => {
+    if (!promptData || promptData.jobIds.length === 0) return;
+    try {
+      await api.markRejectionsProcessed(promptData.jobIds);
+      setShowPromptModal(false);
+      setPromptData(null);
+      await refetch();
+      alert(`Marked ${promptData.jobIds.length} rejection(s) as processed`);
+    } catch (error) {
+      console.error('Failed to mark rejections as processed:', error);
+      alert('Failed to mark rejections as processed');
     }
   };
 
@@ -383,6 +441,14 @@ export function JobsList() {
             <span>📥</span>
             <span className="hidden sm:inline">Export CSV</span>
             <span className="sm:hidden">Export</span>
+          </button>
+          <button
+            onClick={handleGeneratePrompt}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
+          >
+            <span>📝</span>
+            <span className="hidden sm:inline">Generate Rejection Prompt</span>
+            <span className="sm:hidden">Prompt</span>
           </button>
         </div>
       </div>
@@ -562,21 +628,27 @@ export function JobsList() {
                 return (
                   <React.Fragment key={job.id}>
                     <tr 
-                      className={`hover:bg-gray-50 transition-all duration-200 ${
+                      onClick={() => toggleJobExpansion(job.id)}
+                      className={`hover:bg-gray-50 transition-all duration-200 cursor-pointer ${
                         clickedJobId === job.id 
                           ? 'bg-gradient-to-r from-cyan-50 to-blue-50 border-2 border-cyan-400 shadow-lg shadow-cyan-200 ring-2 ring-cyan-200' 
                           : ''
                       }`}
+                      title={isExpanded ? 'Click to collapse details' : 'Click to expand details'}
                     >
-                      <td className="px-3 py-4 whitespace-nowrap text-center">
+                      <td className="px-3 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                         <button
-                          onClick={() => toggleJobExpansion(job.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleJobExpansion(job.id);
+                          }}
                           className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors mx-auto ${
                             clickedJobId === job.id 
                               ? 'bg-cyan-200 hover:bg-cyan-300' 
                               : 'hover:bg-gray-200'
                           }`}
                           title={isExpanded ? 'Collapse details' : 'Expand details'}
+                          aria-label={isExpanded ? 'Collapse details' : 'Expand details'}
                         >
                           <svg
                             className={`w-4 h-4 transition-transform duration-200 ${
@@ -602,7 +674,7 @@ export function JobsList() {
                           </span>
                         </div>
                       </td>
-                      <td className="px-4 py-4" data-label="Title">
+                      <td className="px-4 py-4" data-label="Title" onClick={(e) => e.stopPropagation()}>
                         <a 
                           href={job.url} 
                           target="_blank" 
@@ -636,7 +708,7 @@ export function JobsList() {
                       <td className="px-4 py-4 whitespace-nowrap text-xs text-gray-500" data-label="Date">
                         {formatRelativeTime(job.created_at)}
                       </td>
-                      <td className="px-4 py-4 text-center">
+                      <td className="px-4 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                         <div className="flex flex-col gap-1.5">
                           {(job.status === 'queued' || job.status === 'reported') && (
                             <>
@@ -709,10 +781,30 @@ export function JobsList() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-bold mb-4">Reason for Rejection</h3>
+            {rejectionSuggestions.length > 0 && (
+              <div className="mb-3">
+                <label className="block text-sm font-medium mb-2">Frequent Reasons:</label>
+                <select
+                  onChange={(e) => {
+                    if (e.target.value) {
+                      setRejectionReason(e.target.value);
+                    }
+                  }}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">Select a frequent reason (optional)</option>
+                  {rejectionSuggestions.map((suggestion, idx) => (
+                    <option key={idx} value={suggestion.reason}>
+                      {suggestion.reason} ({suggestion.count}x)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <textarea
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
-              placeholder="Enter reason (e.g., 'Too junior', 'Wrong tech stack', 'No remote option')"
+              placeholder="Enter reason (optional, e.g., 'Too junior', 'Wrong tech stack', 'No remote option')"
               className="w-full border border-gray-300 rounded-lg p-3 mb-4 h-32 resize-none"
               autoFocus
             />
@@ -721,24 +813,58 @@ export function JobsList() {
                 onClick={() => {
                   setRejectingJobId(null);
                   setRejectionReason('');
+                  setRejectionSuggestions([]);
                 }}
                 className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
               >
                 Cancel
               </button>
               <button
-                onClick={() => handleRejectConfirm(true)}
-                disabled={!rejectionReason.trim()}
-                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white rounded-lg"
-              >
-                Reject without learning
-              </button>
-              <button
-                onClick={() => handleRejectConfirm(false)}
-                disabled={!rejectionReason.trim()}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white rounded-lg"
+                onClick={handleRejectConfirm}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
               >
                 Reject
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rejection Prompt Modal */}
+      {showPromptModal && promptData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] flex flex-col">
+            <h3 className="text-lg font-bold mb-2">Rejection Analysis Prompt</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              {promptData.count} unprocessed rejection(s) included
+            </p>
+            <textarea
+              value={promptData.prompt}
+              readOnly
+              onClick={(e) => (e.target as HTMLTextAreaElement).select()}
+              className="w-full border border-gray-300 rounded-lg p-3 mb-4 resize-none flex-1 font-mono text-sm cursor-text"
+            />
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowPromptModal(false);
+                  setPromptData(null);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Close
+              </button>
+              <button
+                onClick={handleCopyPrompt}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
+              >
+                Copy to Clipboard
+              </button>
+              <button
+                onClick={handleMarkAsProcessed}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
+              >
+                Mark as Processed
               </button>
             </div>
           </div>
