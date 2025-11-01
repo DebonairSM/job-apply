@@ -523,6 +523,11 @@ export function getJobsByStatus(status?: string, easyApply?: boolean, search?: s
   if (status) {
     query += ' AND status = ?';
     params.push(status);
+  } else {
+    // When no status filter is provided, exclude skipped jobs by default
+    // This matches the frontend behavior and reduces unnecessary data transfer
+    query += ' AND status != ?';
+    params.push('skipped');
   }
 
   if (easyApply !== undefined) {

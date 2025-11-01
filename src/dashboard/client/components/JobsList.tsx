@@ -48,7 +48,7 @@ export function JobsList() {
     status: statusFilter || undefined,
     easyApply: easyApplyFilter === 'true' ? true : easyApplyFilter === 'false' ? false : undefined,
     curated: curatedFilter === 'true' ? true : curatedFilter === 'false' ? false : undefined,
-    limit: 100,
+    limit: 1000,
     search: searchQuery || undefined
   });
 
