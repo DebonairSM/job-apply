@@ -149,7 +149,8 @@ export const RankOutputSchema = z.object({
     seniority: z.number().min(0).max(100),
     coreNet: z.number().min(0).max(100),
     frontendFrameworks: z.number().min(0).max(100),
-    legacyModernization: z.number().min(0).max(100)
+    legacyModernization: z.number().min(0).max(100),
+    legacyWeb: z.number().min(0).max(100).optional()
   }),
   reasons: z.array(z.string()),
   mustHaves: z.array(z.string()),

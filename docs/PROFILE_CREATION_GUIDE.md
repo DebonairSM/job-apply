@@ -249,6 +249,141 @@ profile: argv.profile as 'core' | 'security' | 'event-driven' | 'performance' | 
 
 ---
 
+### Example 4: Type B - "legacy-web" Profile (Complete with New Category)
+
+This example shows ALL steps required when adding a completely new technical category.
+
+#### Step 1: Add to `src/ai/profiles.ts`
+```typescript
+// Add to PROFILES object - adjust existing weights to maintain 100% total
+// Changed coreAzure: 30→25, seniority: 15→12, coreNet: 30→25, frontendFrameworks: 15→13
+legacyWeb: {
+  name: 'Legacy Web Development',
+  weight: 15,  // New category with 15% weight
+  mustHave: [
+    '.NET Framework 4.5',
+    '.NET Framework 4.8',
+    'WebForms',
+    'ASP.NET MVC',
+    'C#',
+    'VB.NET'
+  ],
+  preferred: [
+    'jQuery',
+    'Kendo UI',
+    '.NET Framework 4.x',
+    'Classic ASP',
+    'Visual Studio',
+    'MVC 5'
+  ],
+  description: 'Legacy Microsoft web development technologies'
+}
+
+// Add to BOOLEAN_SEARCHES
+'legacy-web': '("WebForms" OR "Web Forms" OR "ASP.NET MVC" OR ".NET Framework" OR "VB.NET" OR "jQuery" OR "Kendo UI" OR ".NET 4.5" OR ".NET 4.8") AND (C# OR VB.NET OR ".NET") NOT (React OR Angular OR Vue)'
+
+// Add to PROFILE_WEIGHT_DISTRIBUTIONS
+'legacy-web': {
+  coreAzure: 5,
+  seniority: 15,
+  coreNet: 20,
+  frontendFrameworks: 5,
+  legacyModernization: 10,
+  legacyWeb: 45  // Primary focus
+}
+
+// IMPORTANT: Add legacyWeb field to ALL existing profiles in PROFILE_WEIGHT_DISTRIBUTIONS
+core: {
+  coreAzure: 35,
+  seniority: 15,
+  coreNet: 30,
+  frontendFrameworks: 10,
+  legacyModernization: 10,
+  legacyWeb: 0  // Add this line to existing profile
+}
+// Repeat for: backend, core-net, legacy-modernization, contract, aspnet-simple, etc.
+```
+
+#### Step 2: Update Validation Schema in `src/lib/validation.ts`
+```typescript
+export const RankOutputSchema = z.object({
+  fitScore: z.number().min(0).max(100).optional(),
+  categoryScores: z.object({
+    coreAzure: z.number().min(0).max(100),
+    seniority: z.number().min(0).max(100),
+    coreNet: z.number().min(0).max(100),
+    frontendFrameworks: z.number().min(0).max(100),
+    legacyModernization: z.number().min(0).max(100),
+    legacyWeb: z.number().min(0).max(100).optional()  // Add this line
+  }),
+  // ... rest of schema
+});
+```
+
+#### Step 3: Update Ranker in `src/ai/ranker.ts`
+```typescript
+// Add to PROFILE_NAME_MAP
+'legacy-web': 'legacyWeb'
+
+// Add to requiredCategories array (line ~164)
+const requiredCategories = ['coreAzure', 'seniority', 'coreNet', 'frontendFrameworks', 'legacyModernization', 'legacyWeb'];
+
+// Add to JSON example in prompt template (line ~120)
+{
+  "categoryScores": {
+    "coreAzure": 0,
+    "seniority": 0,
+    "coreNet": 0,
+    "frontendFrameworks": 0,
+    "legacyModernization": 0,
+    "legacyWeb": 0  // Add this line
+  },
+  // ... rest of example
+}
+```
+
+#### Step 4: Update Display Output
+```typescript
+// In src/commands/search.ts (line ~538)
+console.log(`        Frontend: ${ranking.categoryScores.frontendFrameworks} | Legacy Mod: ${ranking.categoryScores.legacyModernization} | Legacy Web: ${ranking.categoryScores.legacyWeb || 0}`);
+
+// In src/cli.ts (line ~187)
+console.log(`   Frontend: ${scores.frontendFrameworks} | Legacy Mod: ${scores.legacyModernization} | Legacy Web: ${scores.legacyWeb || 0}`);
+
+// In src/dashboard/routes/jobs.ts (line ~318)
+promptSections.push(`  coreAzure, seniority, coreNet, frontendFrameworks, legacyModernization, legacyWeb)`);
+
+// In src/ai/rejection-analyzer.ts (line ~256)
+// Available categories: coreAzure, seniority, coreNet, frontendFrameworks, legacyModernization, legacyWeb
+```
+
+#### Step 5: Standard CLI/Dashboard Updates
+```typescript
+// src/cli.ts - Add to choices array
+choices: ['core', 'backend', 'core-net', 'legacy-modernization', 'contract', 'aspnet-simple', 'csharp-azure-no-frontend', 'az204-csharp', 'ai-enhanced-net', 'legacy-web'] as const
+
+// src/commands/search.ts - Add to SearchOptions type
+profile?: 'core' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | 'aspnet-simple' | 'csharp-azure-no-frontend' | 'az204-csharp' | 'ai-enhanced-net' | 'legacy-web';
+
+// src/dashboard/routes/automation.ts - Add to validation schema
+profile: z.enum(['core', 'backend', 'core-net', 'legacy-modernization', 'contract', 'aspnet-simple', 'csharp-azure-no-frontend', 'az204-csharp', 'ai-enhanced-net', 'legacy-web']).optional()
+
+// src/dashboard/client/components/Automation.tsx - Add to PROFILE_OPTIONS
+{ value: 'legacy-web', label: 'Legacy Web (.NET Framework, WebForms, jQuery)' }
+```
+
+#### Step 6: Update README.md
+```markdown
+Choose from 14 pre-configured profiles...
+
+| `legacy-web` | Legacy Web Development | WebForms, classic MVC, jQuery, .NET Framework 4.x |
+```
+
+**Why This Example Matters:**
+This shows the complete flow including validation schema, ranker updates, and display output that are ONLY needed when adding a new technical category (not when adding a search-only profile).
+
+---
+
 ## Critical Checklist
 
 Use this checklist when creating any new profile to avoid bugs:
@@ -268,18 +403,40 @@ Use this checklist when creating any new profile to avoid bugs:
 - [ ] Optional: Update README.md profiles table and count
 
 ### Type B (New Technical + Search Profile)
+
+**Core Profile Setup:**
 - [ ] Add technical profile to `PROFILES` in `src/ai/profiles.ts`
 - [ ] Add Boolean search to `BOOLEAN_SEARCHES` in `src/ai/profiles.ts`
 - [ ] Add weight distribution to `PROFILE_WEIGHT_DISTRIBUTIONS` in `src/ai/profiles.ts`
+- [ ] Add new category field to ALL existing `PROFILE_WEIGHT_DISTRIBUTIONS` entries (set to 0 if not relevant)
 - [ ] Add mapping to `PROFILE_NAME_MAP` in `src/ai/ranker.ts` (maps to itself)
+- [ ] Verify PROFILES weights sum to 100%
+
+**CLI Integration:**
 - [ ] Add to `choices` array in `src/cli.ts`
 - [ ] Add to type assertion in `src/cli.ts`
 - [ ] Add to `SearchOptions` interface in `src/commands/search.ts`
+
+**Dashboard Integration:**
 - [ ] Add to `SearchOptionsSchema` z.enum() in `src/dashboard/routes/automation.ts`
 - [ ] Add to `SearchOptions` interface in `src/dashboard/client/hooks/useAutomation.ts`
 - [ ] **CRITICAL UI**: Add to `PROFILE_OPTIONS` array in `src/dashboard/client/components/Automation.tsx`
-- [ ] Verify PROFILES weights sum to 100%
+
+**Validation & Ranker (NEW TECHNICAL CATEGORY ONLY):**
+- [ ] Add category to `RankOutputSchema.categoryScores` in `src/lib/validation.ts` (as optional field)
+- [ ] Add category to `requiredCategories` array in `src/ai/ranker.ts`
+- [ ] Add category to JSON example in ranker prompt template in `src/ai/ranker.ts`
+
+**Display Output (NEW TECHNICAL CATEGORY ONLY):**
+- [ ] Update console.log output in `src/commands/search.ts` (line ~538) to show new category score
+- [ ] Update console.log output in `src/cli.ts` (line ~187) to show new category score
+- [ ] Add category to list in `src/dashboard/routes/jobs.ts` (rejection prompt generation, line ~318)
+- [ ] Add category to list in `src/ai/rejection-analyzer.ts` (available categories, line ~256)
+- [ ] **CRITICAL**: Add profile keywords to `MICROSOFT_KEYWORDS` array in `src/dashboard/client/lib/highlightKeywords.ts` (for green highlighting in job descriptions)
+
+**Testing & Documentation:**
 - [ ] Test: `npm run search -- --profile <name>`
+- [ ] Verify no TypeScript compilation errors
 - [ ] Optional: Update README.md with new category weights
 
 ---
@@ -305,17 +462,45 @@ This was the bug with the "contract" profile. The system couldn't find the techn
 
 This is the most common mistake - forgetting to add the profile to the dashboard UI!
 
-### 4. Weight Distribution Doesn't Sum to 100%
+### 4. Missing Validation Schema Update (NEW CATEGORY BUG)
+**Error**: Zod validation fails or category score is always 0  
+**Cause**: New technical category not added to `RankOutputSchema` in `src/lib/validation.ts`  
+**Fix**: Add category to `categoryScores` object as optional field  
+
+This happened with `legacyWeb` - the validation schema didn't know about the new category.
+
+### 5. Missing Ranker Updates (NEW CATEGORY BUG)
+**Error**: Category not scored by LLM or validation fails  
+**Cause**: New category not in `requiredCategories` array or JSON prompt template  
+**Fix**: Add to both `requiredCategories` array and JSON example in `src/ai/ranker.ts`
+
+The LLM needs to see the category in the example JSON format to include it in responses.
+
+### 6. Irrelevant Blockers Shown (NEW CATEGORY DISPLAY ISSUE)
+**Error**: Low-weight categories show as blockers  
+**Cause**: Blocker threshold too low in ranker  
+**Solution**: Current threshold is 15% - only categories with ≥15% weight show as blockers
+
+For example, `legacy-web` has Azure at 5% weight, so Azure deficiencies won't appear as blockers.
+
+### 7. Forgetting to Add Category to All Weight Distributions
+**Error**: Validation warnings about missing fields or undefined scores  
+**Cause**: New category added to PROFILES but not to all existing PROFILE_WEIGHT_DISTRIBUTIONS  
+**Fix**: Add the new category field to EVERY profile in PROFILE_WEIGHT_DISTRIBUTIONS (set to 0 if not relevant)
+
+When adding `legacyWeb`, had to add `legacyWeb: 0` to core, backend, core-net, etc.
+
+### 8. Weight Distribution Doesn't Sum to 100%
 **Error**: Warning message about weights not summing to 100%  
 **Cause**: `PROFILE_WEIGHT_DISTRIBUTIONS` entries must total 100  
 **Fix**: Adjust weights proportionally
 
-### 5. TypeScript Compilation Errors
+### 9. TypeScript Compilation Errors
 **Error**: Type errors when building  
 **Cause**: Profile name not added to union types  
 **Fix**: Add profile to all type assertions in `src/cli.ts`, `src/commands/search.ts`, `src/dashboard/routes/automation.ts`, `src/dashboard/client/hooks/useAutomation.ts`
 
-### 6. Boolean Search Syntax Errors
+### 10. Boolean Search Syntax Errors
 **Error**: No jobs found or LinkedIn search fails  
 **Cause**: Invalid Boolean operators or missing quotes  
 **Fix**: Test search manually on LinkedIn first

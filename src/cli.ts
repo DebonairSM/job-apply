@@ -32,7 +32,7 @@ yargs(hideBin(process.argv))
         .option('profile', {
           alias: 'p',
           describe: 'Use predefined Boolean search profile',
-          choices: ['core', 'backend', 'core-net', 'legacy-modernization', 'contract', 'aspnet-simple', 'csharp-azure-no-frontend', 'az204-csharp', 'ai-enhanced-net'] as const,
+          choices: ['core', 'backend', 'core-net', 'legacy-modernization', 'contract', 'aspnet-simple', 'csharp-azure-no-frontend', 'az204-csharp', 'ai-enhanced-net', 'legacy-web'] as const,
           type: 'string'
         })
         .option('location', {
@@ -88,7 +88,7 @@ yargs(hideBin(process.argv))
     async (argv) => {
       await searchCommand({
         keywords: argv.keywords,
-        profile: argv.profile as 'core' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | 'aspnet-simple' | 'csharp-azure-no-frontend' | 'az204-csharp' | 'ai-enhanced-net' | undefined,
+        profile: argv.profile as 'core' | 'backend' | 'core-net' | 'legacy-modernization' | 'contract' | 'aspnet-simple' | 'csharp-azure-no-frontend' | 'az204-csharp' | 'ai-enhanced-net' | 'legacy-web' | undefined,
         location: argv.location,
         locationPreset: argv['location-preset'] as any,
         radius: argv.radius as number | undefined,
@@ -184,7 +184,7 @@ yargs(hideBin(process.argv))
           try {
             const scores = JSON.parse(job.category_scores);
             console.log(`   Azure: ${scores.coreAzure} | Senior: ${scores.seniority} | .NET: ${scores.coreNet}`);
-            console.log(`   Frontend: ${scores.frontendFrameworks} | Legacy: ${scores.legacyModernization}`);
+            console.log(`   Frontend: ${scores.frontendFrameworks} | Legacy Mod: ${scores.legacyModernization} | Legacy Web: ${scores.legacyWeb || 0}`);
           } catch (error) {
             // Ignore parse errors
           }

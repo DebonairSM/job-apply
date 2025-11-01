@@ -315,7 +315,7 @@ router.get('/rejections/prompt', (req, res) => {
     promptSections.push(`## Section 4: Logic Categories to Review\n`);
     promptSections.push(`Based on the rejections above, review and potentially improve:`);
     promptSections.push(`- **Weight Distributions**: Are the profile weight distributions (`);
-    promptSections.push(`  coreAzure, seniority, coreNet, frontendFrameworks, legacyModernization)`);
+    promptSections.push(`  coreAzure, seniority, coreNet, frontendFrameworks, legacyModernization, legacyWeb)`);
     promptSections.push(`  appropriate? Do rejected jobs show patterns where certain weights are too high/low?`);
     promptSections.push(`- **Keyword Matching**: Are must-have vs preferred keywords correctly defined?`);
     promptSections.push(`  Do rejected jobs indicate missing keywords that should be added to must-have lists?`);

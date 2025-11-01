@@ -19,7 +19,7 @@ export interface TechnicalProfile {
 export const PROFILES: Record<string, TechnicalProfile> = {
   coreAzure: {
     name: 'Azure Platform Development',
-    weight: 30,
+    weight: 25,
     mustHave: [
       'C#',
       'VB.NET',
@@ -48,7 +48,7 @@ export const PROFILES: Record<string, TechnicalProfile> = {
   
   seniority: {
     name: 'Seniority & Remote Work',
-    weight: 15,
+    weight: 12,
     mustHave: [
       'C#',
       'VB.NET',
@@ -76,7 +76,7 @@ export const PROFILES: Record<string, TechnicalProfile> = {
   
   coreNet: {
     name: '.NET Development',
-    weight: 30,
+    weight: 25,
     mustHave: [
       'C#',
       '.NET Core',
@@ -109,7 +109,7 @@ export const PROFILES: Record<string, TechnicalProfile> = {
   
   frontendFrameworks: {
     name: 'Frontend Framework Preferences',
-    weight: 15,
+    weight: 13,
     mustHave: [],
     preferred: [
       'Blazor',
@@ -149,6 +149,37 @@ export const PROFILES: Record<string, TechnicalProfile> = {
       'System Migration'
     ],
     description: 'Legacy system modernization and migration capabilities'
+  },
+  
+  legacyWeb: {
+    name: 'Legacy Web Development',
+    weight: 15,
+    mustHave: [
+      '.NET Framework 4.5',
+      '.NET Framework 4.8',
+      '.NET Framework 4.7',
+      'WebForms',
+      'Web Forms',
+      'ASP.NET MVC',
+      'C#',
+      'VB.NET'
+    ],
+    preferred: [
+      'jQuery',
+      'Kendo UI',
+      '.NET Framework 4.x',
+      '.NET Framework',
+      'Classic ASP',
+      'Visual Studio',
+      '.NET 4.5',
+      '.NET 4.8',
+      '.NET 4.7',
+      'ASP.NET Web Forms',
+      'MVC 5',
+      'ASP.NET MVC 4',
+      'ASP.NET MVC 5'
+    ],
+    description: 'Legacy Microsoft web development technologies including WebForms, classic ASP.NET MVC, jQuery, and .NET Framework 4.x'
   }
 };
 
@@ -172,7 +203,10 @@ export const BOOLEAN_SEARCHES: Record<string, string> = {
   'az204-csharp': 'AZ-204 AND C#',
   
   // AI-enhanced .NET development with AI-assisted coding tools
-  'ai-enhanced-net': '("AI Developer" OR "AI Automation" OR "AI Integration" OR "Multi-Agent" OR "Intelligent Systems") AND (".NET" OR "C#" OR "ASP.NET" OR "Azure") AND ("Semantic Kernel" OR "LangChain" OR "multi-agent" OR "autonomous agent" OR "workflow automation" OR "LLM integration" OR "AI orchestration") AND ("Cursor IDE" OR "GitHub Copilot" OR "AI-assisted development" OR "ChatGPT" OR "local LLM" OR "Ollama" OR "Mistral" OR "AI code tools")'
+  'ai-enhanced-net': '("AI Developer" OR "AI Automation" OR "AI Integration" OR "Multi-Agent" OR "Intelligent Systems") AND (".NET" OR "C#" OR "ASP.NET" OR "Azure") AND ("Semantic Kernel" OR "LangChain" OR "multi-agent" OR "autonomous agent" OR "workflow automation" OR "LLM integration" OR "AI orchestration") AND ("Cursor IDE" OR "GitHub Copilot" OR "AI-assisted development" OR "ChatGPT" OR "local LLM" OR "Ollama" OR "Mistral" OR "AI code tools")',
+  
+  // Legacy web development - WebForms, MVC, jQuery, Kendo UI, .NET Framework 4.x (Blazor allowed, but not React/Angular/Vue)
+  'legacy-web': '("WebForms" OR "Web Forms" OR "ASP.NET MVC" OR ".NET Framework" OR "VB.NET" OR "jQuery" OR "Kendo UI" OR ".NET 4.5" OR ".NET 4.8") AND (C# OR VB.NET OR ".NET") NOT (React OR Angular OR Vue)'
 };
 
 // Profile-specific weight distributions
@@ -184,7 +218,8 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
     seniority: 15,
     coreNet: 30,             // Core .NET skills
     frontendFrameworks: 10,
-    legacyModernization: 10
+    legacyModernization: 10,
+    legacyWeb: 0
   },
   
   // Backend/API-focused roles (maps to core)
@@ -193,7 +228,8 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
     seniority: 15,
     coreNet: 35,             // Strong .NET backend focus
     frontendFrameworks: 0,   // Backend only
-    legacyModernization: 10
+    legacyModernization: 10,
+    legacyWeb: 0
   },
   
   // Pure .NET development roles
@@ -202,7 +238,8 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
     seniority: 15,
     coreNet: 60,             // Primary focus on .NET skills
     frontendFrameworks: 10,
-    legacyModernization: 5
+    legacyModernization: 5,
+    legacyWeb: 0
   },
   
   // Legacy modernization specialists
@@ -211,7 +248,8 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
     seniority: 20,           // Senior experience important
     coreNet: 30,             // Both old and new .NET
     frontendFrameworks: 5,
-    legacyModernization: 20  // Primary focus on modernization
+    legacyModernization: 20, // Primary focus on modernization
+    legacyWeb: 0
   },
   
   // Contract roles - pure .NET development
@@ -220,7 +258,8 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
     seniority: 15,
     coreNet: 60,             // Primary focus on .NET skills
     frontendFrameworks: 10,
-    legacyModernization: 5
+    legacyModernization: 5,
+    legacyWeb: 0
   },
   
   // Simplified ASP.NET search - basic keyword matching
@@ -229,7 +268,8 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
     seniority: 20,
     coreNet: 60,             // Heavy focus on .NET skills
     frontendFrameworks: 5,
-    legacyModernization: 5
+    legacyModernization: 5,
+    legacyWeb: 0
   },
   
   // C# + Azure without frontend frameworks
@@ -238,7 +278,8 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
     seniority: 20,
     coreNet: 30,
     frontendFrameworks: 0,   // Explicitly avoid frontend
-    legacyModernization: 0
+    legacyModernization: 0,
+    legacyWeb: 0
   },
   
   // AZ-204 certification focused on Azure Developer Associate skills
@@ -247,7 +288,8 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
     seniority: 15,
     coreNet: 20,             // C# required but secondary to Azure skills
     frontendFrameworks: 0,   // Backend-focused certification
-    legacyModernization: 5
+    legacyModernization: 5,
+    legacyWeb: 0
   },
   
   // AI-enhanced .NET development with modern AI tools and agentic systems
@@ -256,7 +298,18 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
     seniority: 15,
     coreNet: 40,             // Strong .NET foundation required
     frontendFrameworks: 10,   // Some frontend work common in AI apps
-    legacyModernization: 0
+    legacyModernization: 0,
+    legacyWeb: 0
+  },
+  
+  // Legacy web development - WebForms, classic MVC, jQuery, Kendo UI, .NET Framework 4.x
+  'legacy-web': {
+    coreAzure: 5,            // Minimal Azure (legacy is often on-prem)
+    seniority: 15,
+    coreNet: 20,             // Some modern .NET helpful
+    frontendFrameworks: 5,   // Blazor acceptable
+    legacyModernization: 10, // Some modernization context
+    legacyWeb: 45            // Primary focus on legacy web tech
   }
 };
 

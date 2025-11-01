@@ -33,6 +33,13 @@ const MICROSOFT_KEYWORDS = [
   'Blazor', 'Razor Pages', 'SignalR', 'WebSockets',
   'Minimal APIs', 'gRPC', 'Web API', 'REST API',
   
+  // Legacy .NET Framework versions
+  '.NET 4.5', '.NET 4.7', '.NET 4.8', '.NET Framework 4.5', '.NET Framework 4.7', '.NET Framework 4.8',
+  'ASP.NET MVC 4', 'ASP.NET MVC 5', 'MVC 5', 'Classic ASP',
+  
+  // Legacy UI frameworks
+  'jQuery', 'Kendo UI', 'Telerik',
+  
   // Azure (Microsoft-specific)
   'Azure', 'Microsoft Azure',
   'API Management', 'APIM', 'Azure Functions', 'App Services',

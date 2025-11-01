@@ -16,6 +16,7 @@ const PROFILE_NAME_MAP: Record<string, string> = {
   'csharp-azure-no-frontend': 'coreNet',
   'az204-csharp': 'coreAzure',  // AZ-204 focuses on Azure services
   'ai-enhanced-net': 'coreNet',  // AI-enhanced .NET roles prioritize .NET skills
+  'legacy-web': 'legacyWeb',  // Maps to itself (new technical profile)
 };
 
 function getProfileKey(cliProfileName: string): string {
@@ -112,7 +113,7 @@ DESCRIPTION: ${desc}
 Rate fit 0-100 for each area (parenthesis shows weight for final score):
 ${scoring.criteria}
 
-IMPORTANT: Score each category independently based on how well the job matches that specific area. Consider the actual job requirements, not generic assumptions.
+IMPORTANT: Score each category independently based on how well the job matches that specific area. Consider the actual job requirements, not generic assumptions. Focus your analysis on categories with higher weights - they matter more for this profile.
 
 Return ONLY valid JSON in this exact format with ALL categories. Use double quotes for all property names and string values:
 {
@@ -121,7 +122,8 @@ Return ONLY valid JSON in this exact format with ALL categories. Use double quot
     "seniority": 0,
     "coreNet": 0,
     "frontendFrameworks": 0,
-    "legacyModernization": 0
+    "legacyModernization": 0,
+    "legacyWeb": 0
   },
   "reasons": ["Strong match", "Good fit"],
   "mustHaves": ["Required skill"],
@@ -159,7 +161,7 @@ Return ONLY valid JSON in this exact format with ALL categories. Use double quot
   }
 
   // Ensure all required category scores exist
-  const requiredCategories = ['coreAzure', 'seniority', 'coreNet', 'frontendFrameworks', 'legacyModernization'];
+  const requiredCategories = ['coreAzure', 'seniority', 'coreNet', 'frontendFrameworks', 'legacyModernization', 'legacyWeb'];
   for (const category of requiredCategories) {
     if (!(category in result.categoryScores)) {
       result.categoryScores[category as keyof typeof result.categoryScores] = 0;
@@ -187,20 +189,49 @@ Return ONLY valid JSON in this exact format with ALL categories. Use double quot
   // Derive basic blockers when LLM returns none
   if (!result.blockers || result.blockers.length === 0) {
     const derived: string[] = [];
-    // Heavily weighted categories with low scores
+    
+    // Only show low matches for significantly weighted categories (>= 15%)
+    // This prevents low-weight categories (like 5% Azure in legacy-web) from appearing as blockers
     Object.entries(adjustedWeights).forEach(([key, weight]) => {
       const categoryWeight = Number(weight);
       const categoryScore = result.categoryScores[key as keyof typeof result.categoryScores] || 0;
-      if (categoryWeight >= 10 && categoryScore < 40) {
+      if (categoryWeight >= 15 && categoryScore < 40) {
         derived.push(`Low match: ${key}`);
       }
     });
-    // Top missing keywords
+    
+    // Only show missing keywords if they relate to high-weight categories
+    // Get keywords from categories with weight >= 15%
+    const relevantKeywords = new Set<string>();
+    Object.entries(adjustedWeights).forEach(([key, weight]) => {
+      const categoryWeight = Number(weight);
+      if (categoryWeight >= 15) {
+        const prof = PROFILES[key];
+        if (prof) {
+          prof.mustHave.forEach(kw => relevantKeywords.add(kw.toLowerCase()));
+          prof.preferred.forEach(kw => relevantKeywords.add(kw.toLowerCase()));
+        }
+      }
+    });
+    
+    // Filter missing keywords to only those relevant to high-weight categories
     if (Array.isArray(result.missingKeywords)) {
-      result.missingKeywords.slice(0, 3).forEach(kw => {
+      const filtered = result.missingKeywords.filter(kw => {
+        const kwLower = kw.toLowerCase();
+        // Check if keyword matches any relevant category keyword
+        for (const relevant of relevantKeywords) {
+          if (kwLower.includes(relevant.toLowerCase()) || relevant.toLowerCase().includes(kwLower)) {
+            return true;
+          }
+        }
+        return false;
+      });
+      
+      filtered.slice(0, 3).forEach(kw => {
         derived.push(`Missing: ${kw}`);
       });
     }
+    
     result.blockers = derived.slice(0, 5);
   }
 

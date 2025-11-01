@@ -54,7 +54,7 @@ npm run filters:list                # View active filters
 ## How It Works
 
 **Search Profiles**  
-Choose from 13 pre-configured profiles with tailored Boolean searches and smart scoring.
+Choose from 14 pre-configured profiles with tailored Boolean searches and smart scoring.
 
 Want to create your own profile? See [`docs/PROFILE_CREATION_GUIDE.md`](docs/PROFILE_CREATION_GUIDE.md) for the complete process.
 
@@ -73,6 +73,7 @@ Want to create your own profile? See [`docs/PROFILE_CREATION_GUIDE.md`](docs/PRO
 | `csharp-azure-no-frontend` | C# + Azure | Backend roles without Angular/React |
 | `az204-csharp` | AZ-204 + C# | Azure Developer Associate certification roles |
 | `ai-enhanced-net` | AI-Enhanced .NET | AI-assisted development with Cursor, Copilot, LangChain |
+| `legacy-web` | Legacy Web Development | WebForms, classic MVC, jQuery, .NET Framework 4.x |
 
 **Smart Scoring**  
 Jobs score differently based on which profile finds them. Security profile emphasizes auth/governance, performance profile focuses on optimization, contract profile targets freelance keywords.
@@ -133,6 +134,7 @@ npm run search -- --min-score 85 --max-pages 3 # Custom threshold
 # New simplified profiles and location options
 npm run search -- --profile aspnet-simple      # Simple ASP.NET keyword
 npm run search -- --profile csharp-azure-no-frontend # C# + Azure, exclude Angular/React
+npm run search -- --profile legacy-web         # Legacy WebForms, MVC, jQuery, .NET Framework
 # Preset location (no UI slider shown). Radius applied only if LinkedIn exposes it
 npm run search -- --profile aspnet-simple --location-preset wesley-chapel
 # Explicit location + desired radius (best-effort if distance control exists)

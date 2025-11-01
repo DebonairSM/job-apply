@@ -25,6 +25,7 @@ const PROFILE_OPTIONS = [
   { value: 'csharp-azure-no-frontend', label: 'C# + Azure (no Angular/React)' },
   { value: 'az204-csharp', label: 'AZ-204 + C#' },
   { value: 'ai-enhanced-net', label: 'AI-Enhanced .NET' },
+  { value: 'legacy-web', label: 'Legacy Web (.NET Framework, WebForms, jQuery)' },
 ];
 
 const DATE_OPTIONS = [

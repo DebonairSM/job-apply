@@ -15,6 +15,7 @@ export default defineConfig({
     host: true,
     port: 3000,
     strictPort: true,
+    allowedHosts: ['job.home'],
     // Only use HTTPS if certificates exist, otherwise fall back to HTTP
     ...(fs.existsSync(resolve(__dirname, 'localhost+2-key.pem')) && fs.existsSync(resolve(__dirname, 'localhost+2.pem')) ? {
       https: {

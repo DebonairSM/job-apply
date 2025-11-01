@@ -33,6 +33,7 @@ export function JobsList() {
   const [rejectingJobId, setRejectingJobId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string>('');
   const [rejectionSuggestions, setRejectionSuggestions] = useState<{ reason: string; count: number }[]>([]);
+  const [suggestionSearch, setSuggestionSearch] = useState<string>('');
   const [showPromptModal, setShowPromptModal] = useState<boolean>(false);
   const [promptData, setPromptData] = useState<{ prompt: string; jobIds: string[]; count: number } | null>(null);
   const [clickedJobId, setClickedJobId] = useState<string | null>(null);
@@ -241,6 +242,7 @@ export function JobsList() {
       setRejectingJobId(null);
       setRejectionReason('');
       setRejectionSuggestions([]);
+      setSuggestionSearch('');
       // Clear highlight if this was the highlighted job
       if (clickedJobId === rejectingJobId) {
         clearHighlight();
@@ -827,21 +829,37 @@ export function JobsList() {
             {rejectionSuggestions.length > 0 && (
               <div className="mb-3">
                 <label className="block text-sm font-medium mb-2">Frequent Reasons:</label>
-                <select
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      setRejectionReason(e.target.value);
-                    }
-                  }}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Select a frequent reason (optional)</option>
-                  {rejectionSuggestions.map((suggestion, idx) => (
-                    <option key={idx} value={suggestion.reason}>
-                      {suggestion.reason} ({suggestion.count}x)
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={suggestionSearch}
+                    onChange={(e) => setSuggestionSearch(e.target.value)}
+                    placeholder="Search frequent reasons..."
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  {suggestionSearch && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {rejectionSuggestions
+                        .filter(s => s.reason.toLowerCase().includes(suggestionSearch.toLowerCase()))
+                        .map((suggestion, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              setRejectionReason(suggestion.reason);
+                              setSuggestionSearch('');
+                            }}
+                            className="w-full text-left px-3 py-2 hover:bg-blue-50 text-sm border-b border-gray-100 last:border-b-0"
+                          >
+                            {suggestion.reason} <span className="text-gray-500">({suggestion.count}x)</span>
+                          </button>
+                        ))}
+                      {rejectionSuggestions.filter(s => s.reason.toLowerCase().includes(suggestionSearch.toLowerCase())).length === 0 && (
+                        <div className="px-3 py-2 text-sm text-gray-500">No matching reasons found</div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
             <textarea
@@ -857,6 +875,7 @@ export function JobsList() {
                   setRejectingJobId(null);
                   setRejectionReason('');
                   setRejectionSuggestions([]);
+                  setSuggestionSearch('');
                 }}
                 className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
               >

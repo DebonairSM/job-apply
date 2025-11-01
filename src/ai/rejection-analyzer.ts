@@ -253,7 +253,7 @@ Identify patterns and suggest adjustments:
    - company: Cultural fit or company-specific issues
 
 2. ADJUSTMENTS: Suggest weight adjustments for profile categories
-   Available categories: coreAzure, seniority, coreNet, frontendFrameworks, legacyModernization
+   Available categories: coreAzure, seniority, coreNet, frontendFrameworks, legacyModernization, legacyWeb
    Adjustment range: -5 to +5 percentage points
    
    CORRECT LOGIC:
