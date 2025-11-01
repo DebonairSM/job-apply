@@ -357,6 +357,27 @@ promptSections.push(`  coreAzure, seniority, coreNet, frontendFrameworks, legacy
 // Available categories: coreAzure, seniority, coreNet, frontendFrameworks, legacyModernization, legacyWeb
 ```
 
+#### Step 4.5: Update Keyword Highlighting (CRITICAL FOR NEW CATEGORY)
+```typescript
+// In src/dashboard/client/lib/highlightKeywords.ts
+// Add profile keywords to MICROSOFT_KEYWORDS array for green highlighting
+
+const MICROSOFT_KEYWORDS = [
+  // ... existing keywords ...
+  
+  // Legacy .NET Framework versions
+  '.NET 4.5', '.NET 4.7', '.NET 4.8', '.NET Framework 4.5', '.NET Framework 4.7', '.NET Framework 4.8',
+  'ASP.NET MVC 4', 'ASP.NET MVC 5', 'MVC 5', 'Classic ASP',
+  
+  // Legacy UI frameworks
+  'jQuery', 'Kendo UI', 'Telerik',
+  
+  // ... rest of keywords ...
+];
+```
+
+**Why this matters**: Keywords are highlighted in job descriptions on the dashboard. Green = Microsoft Ecosystem (14 matches shown in your example), Yellow = Acceptable Tech, Red = Prohibitive. Adding your profile's keywords ensures they're highlighted correctly when viewing jobs.
+
 #### Step 5: Standard CLI/Dashboard Updates
 ```typescript
 // src/cli.ts - Add to choices array
@@ -490,17 +511,24 @@ For example, `legacy-web` has Azure at 5% weight, so Azure deficiencies won't ap
 
 When adding `legacyWeb`, had to add `legacyWeb: 0` to core, backend, core-net, etc.
 
-### 8. Weight Distribution Doesn't Sum to 100%
+### 8. Missing Keyword Highlighting Update (NEW CATEGORY DISPLAY ISSUE)
+**Error**: Profile keywords not highlighted in job descriptions on dashboard  
+**Cause**: Keywords not added to `MICROSOFT_KEYWORDS` in `src/dashboard/client/lib/highlightKeywords.ts`  
+**Fix**: Add profile keywords to appropriate array (GREEN for Microsoft, YELLOW for acceptable, RED for prohibitive)  
+
+For `legacy-web`, added jQuery, Kendo UI, .NET 4.5/4.7/4.8, Classic ASP, etc. to MICROSOFT_KEYWORDS for green highlighting.
+
+### 9. Weight Distribution Doesn't Sum to 100%
 **Error**: Warning message about weights not summing to 100%  
 **Cause**: `PROFILE_WEIGHT_DISTRIBUTIONS` entries must total 100  
 **Fix**: Adjust weights proportionally
 
-### 9. TypeScript Compilation Errors
+### 10. TypeScript Compilation Errors
 **Error**: Type errors when building  
 **Cause**: Profile name not added to union types  
 **Fix**: Add profile to all type assertions in `src/cli.ts`, `src/commands/search.ts`, `src/dashboard/routes/automation.ts`, `src/dashboard/client/hooks/useAutomation.ts`
 
-### 10. Boolean Search Syntax Errors
+### 11. Boolean Search Syntax Errors
 **Error**: No jobs found or LinkedIn search fails  
 **Cause**: Invalid Boolean operators or missing quotes  
 **Fix**: Test search manually on LinkedIn first

@@ -126,9 +126,9 @@ export function Automation() {
       if (radius !== undefined && radius !== null && radius > 0) searchOptions.radius = radius;
       if (remote) searchOptions.remote = remote;
       if (datePosted) searchOptions.datePosted = datePosted;
-      if (minScore !== 70) searchOptions.minScore = minScore;
-      if (maxPages !== 5) searchOptions.maxPages = maxPages;
-      if (startPage !== 1) searchOptions.startPage = startPage;
+      searchOptions.minScore = minScore;
+      searchOptions.maxPages = maxPages;
+      searchOptions.startPage = startPage;
 
       startMutation.mutate({
         command: 'search',
