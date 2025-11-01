@@ -1,23 +1,27 @@
 #!/usr/bin/env node
 
 /**
- * Restore database from databackup folder
+ * Restore database from latest backup in data/backups/ folder
  * 
  * This script:
- * 1. Creates a backup of current database
- * 2. Checks schema compatibility
- * 3. Restores data from backup (handles schema changes)
- * 4. Verifies restoration
+ * 1. Finds the latest backup file
+ * 2. Creates a backup of current database
+ * 3. Checks schema compatibility
+ * 4. Restores data from backup (handles schema changes)
+ * 5. Verifies restoration
+ * 
+ * Note: This script works with multiple database files (current, backup, temp)
+ * so it uses direct Database connections. The main app.db uses centralized getDb().
  */
 
 import Database from 'better-sqlite3';
-import { copyFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
+import { copyFileSync, existsSync, mkdirSync, unlinkSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 
 const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 
 async function restore() {
-console.log('\n🔄 Database Restoration from databackup/\n');
+console.log('\n🔄 Database Restoration from Latest Backup\n');
 console.log('='.repeat(60));
 
 // Step 1: Create backup of current database
@@ -47,17 +51,36 @@ try {
   process.exit(1);
 }
 
-// Step 2: Check if backup exists
-console.log('\n📂 STEP 2: Checking backup source...');
+// Step 2: Find latest backup
+console.log('\n📂 STEP 2: Finding latest backup...');
 
-const backupDbPath = 'databackup/app.db';
-const backupWalPath = 'databackup/app.db-wal';
-const backupShmPath = 'databackup/app.db-shm';
-
-if (!existsSync(backupDbPath)) {
-  console.error('❌ Backup database not found at databackup/app.db');
+const backupsDir = 'data/backups';
+if (!existsSync(backupsDir)) {
+  console.error('❌ No backups directory found at data/backups');
   process.exit(1);
 }
+
+const backups = readdirSync(backupsDir)
+  .filter(file => file.startsWith('app.db.backup-') || file.startsWith('app.db.auto-backup-'))
+  .map(file => ({
+    name: file,
+    path: `${backupsDir}/${file}`,
+    time: statSync(`${backupsDir}/${file}`).mtime.getTime()
+  }))
+  .sort((a, b) => b.time - a.time);
+
+if (backups.length === 0) {
+  console.error('❌ No backup files found in data/backups/');
+  process.exit(1);
+}
+
+const latest = backups[0];
+console.log(`✅ Found latest backup: ${latest.name}`);
+console.log(`   Created: ${new Date(latest.time).toLocaleString()}`);
+
+const backupDbPath = latest.path;
+const backupWalPath = backupDbPath + '-wal';
+const backupShmPath = backupDbPath + '-shm';
 
 console.log(`✅ Found backup database: ${backupDbPath}`);
 if (existsSync(backupWalPath)) {
@@ -256,7 +279,7 @@ try {
   console.log('✅ RESTORATION COMPLETE!\n');
   console.log('📝 Summary:');
   console.log(`   • Backup created: ${currentBackupPath}`);
-  console.log(`   • Restored ${finalStats.total} jobs from databackup/`);
+  console.log(`   • Restored ${finalStats.total} jobs from ${latest.name}`);
   console.log(`   • Schema updated to current version`);
   console.log('\n💡 Next steps:');
   console.log('   • Run: npm run status');

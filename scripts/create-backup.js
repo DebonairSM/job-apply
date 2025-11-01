@@ -1,14 +1,14 @@
-import Database from 'better-sqlite3';
+import { getDb } from '../src/lib/db.js';
 import { copyFileSync } from 'fs';
 import { join } from 'path';
 
 const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-const backupPath = `data/app.db.backup-${timestamp}`;
+const backupPath = `data/backups/app.db.backup-${timestamp}`;
 
 console.log('\n💾 Creating database backup...\n');
 
 // Force checkpoint first to ensure WAL is merged
-const db = new Database('data/app.db');
+const db = getDb();
 db.pragma('wal_checkpoint(TRUNCATE)');
 
 // Get stats before backup
@@ -29,9 +29,7 @@ console.log(`   Applied:    ${stats.applied || 0}`);
 console.log(`   Rejected:   ${stats.rejected || 0}`);
 console.log(`   Skipped:    ${stats.skipped || 0}\n`);
 
-db.close();
-
-// Create backup
+// Create backup (connection stays open for singleton pattern)
 copyFileSync('data/app.db', backupPath);
 
 console.log(`✅ Backup created: ${backupPath}\n`);

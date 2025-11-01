@@ -3,17 +3,11 @@
  * Remove technology filters to allow previously blocked tech stacks
  */
 
-import Database from 'better-sqlite3';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const dbPath = join(__dirname, '../data/app.db');
+import { getDb } from '../src/lib/db.js';
 
 console.log('🔧 Removing technology filters...\n');
 
-const db = new Database(dbPath);
+const db = getDb();
 
 try {
   // Show current filters before removal
@@ -45,7 +39,6 @@ try {
 } catch (error) {
   console.error('❌ Error removing filters:', error);
   process.exit(1);
-} finally {
-  db.close();
 }
+// Note: Database connection managed by getDb() singleton
 

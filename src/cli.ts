@@ -2,9 +2,9 @@
 
 import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
-import { loginCommand } from './commands/login.js';
-import { searchCommand, SearchOptions } from './commands/search.js';
-import { applyCommand } from './commands/apply.js';
+import { loginCommand } from './cli/login.js';
+import { searchCommand, SearchOptions } from './cli/search.js';
+import { applyCommand } from './cli/apply.js';
 import { getJobsByStatus, getJobStats, clearAnswersCache, clearLabelMappings, clearAllCaches, getJobById } from './lib/db.js';
 import { rankJob } from './ai/ranker.js';
 import { loadConfig } from './lib/session.js';

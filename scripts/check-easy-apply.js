@@ -1,6 +1,6 @@
-import Database from 'better-sqlite3';
+import { getDb } from '../src/lib/db.js';
 
-const db = new Database('data/app.db');
+const db = getDb();
 
 console.log('📊 Easy Apply Jobs Status:');
 const stats = db.prepare(`
@@ -32,6 +32,5 @@ if (queued.count > 0) {
     console.log(`      ID: ${j.id}, easy_apply: ${j.easy_apply}`);
   });
 }
-
-db.close();
+// Note: Database connection managed by getDb() singleton
 

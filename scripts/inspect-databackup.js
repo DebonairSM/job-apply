@@ -1,27 +1,48 @@
 #!/usr/bin/env node
 
 /**
- * Inspect the databackup folder to see what data it contains
+ * Inspect the latest backup file to see what data it contains
  * This is a read-only operation - safe to run anytime
+ * 
+ * Note: This script works with backup files in data/backups/ directory,
+ * not the main production database, so direct Database connections are needed.
  */
 
 import Database from 'better-sqlite3';
-import { copyFileSync, existsSync, mkdirSync, unlinkSync } from 'fs';
-import { statSync } from 'fs';
+import { copyFileSync, existsSync, mkdirSync, unlinkSync, readdirSync, statSync } from 'fs';
 
 async function inspect() {
-console.log('\n🔍 Inspecting databackup/\n');
+console.log('\n🔍 Inspecting latest backup\n');
 console.log('='.repeat(60));
 
-// Check backup files
-const backupDbPath = 'databackup/app.db';
-const backupWalPath = 'databackup/app.db-wal';
-const backupShmPath = 'databackup/app.db-shm';
-
-if (!existsSync(backupDbPath)) {
-  console.error('❌ No backup database found at databackup/app.db');
+// Find latest backup file
+const backupsDir = 'data/backups';
+if (!existsSync(backupsDir)) {
+  console.error('❌ No backups directory found at data/backups');
   process.exit(1);
 }
+
+const backups = readdirSync(backupsDir)
+  .filter(file => file.startsWith('app.db.') && !file.includes('archive'))
+  .map(file => ({
+    name: file,
+    path: `${backupsDir}/${file}`,
+    time: statSync(`${backupsDir}/${file}`).mtime.getTime()
+  }))
+  .sort((a, b) => b.time - a.time);
+
+if (backups.length === 0) {
+  console.error('❌ No backup files found in data/backups/');
+  process.exit(1);
+}
+
+const latest = backups[0];
+console.log(`📂 Latest backup: ${latest.name}`);
+console.log(`   Created: ${new Date(latest.time).toLocaleString()}\n`);
+
+const backupDbPath = latest.path;
+const backupWalPath = backupDbPath + '-wal';
+const backupShmPath = backupDbPath + '-shm';
 
 console.log('\n📂 Backup Files:');
 const dbStats = statSync(backupDbPath);
@@ -165,12 +186,11 @@ try {
   }
   
   console.log('\n' + '='.repeat(60));
-  console.log('\n💡 To restore this backup, run:');
-  console.log('   npm run backup:restore\n');
-  console.log('⚠️  This will:');
-  console.log('   1. Backup your current database first');
-  console.log('   2. Replace it with this backup');
-  console.log(`   3. Restore ${stats.total} jobs\n`);
+  console.log('\n💡 To restore this backup manually:');
+  console.log(`   1. Stop the dashboard and any running processes`);
+  console.log(`   2. Copy ${latest.path} to data/app.db`);
+  console.log(`   3. Restart your application\n`);
+  console.log(`⚠️  This backup contains ${stats.total} jobs\n`);
   console.log('='.repeat(60) + '\n');
   
 } catch (error) {

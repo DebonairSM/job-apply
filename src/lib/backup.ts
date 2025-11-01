@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+import { getDb } from './db.js';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 
@@ -34,9 +34,9 @@ export function createBackup(): BackupResult {
     const backupPath = join(backupsDir, `app.db.backup-${timestamp}`);
 
     // Force checkpoint first to ensure WAL is merged
-    const db = new Database(dbPath);
+    const db = getDb();
     db.pragma('wal_checkpoint(TRUNCATE)');
-    db.close();
+    // Note: Database connection managed by getDb() singleton
 
     // Create backup
     copyFileSync(dbPath, backupPath);

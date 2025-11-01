@@ -1,12 +1,6 @@
-import Database from 'better-sqlite3';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { getDb } from '../src/lib/db.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const DB_PATH = join(__dirname, '../data/app.db');
-
-const db = new Database(DB_PATH);
+const db = getDb();
 
 console.log('\n📊 Rank Verification Report\n');
 
@@ -56,6 +50,6 @@ Object.entries(distribution).forEach(([range, count]) => {
   console.log(`  ${range.padEnd(8)} ${String(count).padStart(3)} jobs (${String(percentage).padStart(5)}%) ${bar}`);
 });
 
-db.close();
+// Note: Database connection managed by getDb() singleton
 console.log('\n✅ Verification complete!\n');
 

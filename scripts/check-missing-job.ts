@@ -1,10 +1,5 @@
 import crypto from 'crypto';
-import Database from 'better-sqlite3';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { getDb } from '../src/lib/db.js';
 
 const url = 'https://www.linkedin.com/jobs/view/4319600209';
 const jobId = crypto.createHash('md5').update(url).digest('hex');
@@ -15,11 +10,8 @@ console.log('='.repeat(80));
 console.log(`\nTarget URL: ${url}`);
 console.log(`Expected Job ID (MD5 hash): ${jobId}\n`);
 
-const dbPath = path.join(__dirname, '..', 'data', 'app.db');
-console.log(`Database path: ${dbPath}`);
-
 try {
-  const db = Database(dbPath);
+  const db = getDb();
   
   // Check 1: Look for job by ID
   console.log('\n' + '-'.repeat(80));
@@ -174,7 +166,7 @@ try {
     console.log(`   ${row.status}: ${row.count}`);
   });
   
-  db.close();
+  // Note: Database connection managed by getDb() singleton
   
   console.log('\n' + '='.repeat(80));
   console.log('DIAGNOSTIC COMPLETE');

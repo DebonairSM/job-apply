@@ -8,6 +8,10 @@
  * - Creating automatic backups before state changes
  * - Requiring confirmation for destructive operations
  * - Ensuring tests use separate test database
+ * 
+ * Note: This safety module manages temporary databases and backups,
+ * so it uses direct Database connections for those operations.
+ * The main app database should use getDb() from src/lib/db.js.
  */
 
 import Database from 'better-sqlite3';

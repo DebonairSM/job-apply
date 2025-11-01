@@ -1,4 +1,4 @@
-import { SearchOptions } from '../commands/search.js';
+import { SearchOptions } from '../cli/search.js';
 import { SearchResult, SearchDependencies } from './types.js';
 
 export async function searchJobs(

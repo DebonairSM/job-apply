@@ -11,29 +11,38 @@ const { join } = require('path');
 
 const testSuites = [
   {
-    name: 'Core System Tests',
+    name: 'Unit Tests',
     files: [
-      'integration.test.ts',
-      'login.test.ts', 
-      'mapper.test.ts',
-      'ranker.test.ts',
-      'search.test.ts'
+      'unit/mapper.test.ts',
+      'unit/ranker.test.ts',
+      'unit/resume-parsing.test.ts',
+      'unit/profile-scoring.test.ts',
+      'unit/category-separation.test.ts'
     ]
   },
   {
-    name: 'Selector Learning System Tests',
+    name: 'Integration Tests',
     files: [
-      'learning-system/selector-learning.test.ts',
-      'learning-system/form-filling-learning.test.ts',
-      'learning-system/selector-learning-integration.test.ts'
+      'integration/rejection-learning.test.ts',
+      'integration/rejection-learning-integration.test.ts',
+      'integration/rejection-logic-fix.test.ts',
+      'integration/dashboard-category-formatting.test.ts'
     ]
   },
   {
-    name: 'Rejection Learning System Tests',
+    name: 'End-to-End Tests',
     files: [
-      'rejection-learning.test.ts',
-      'rejection-learning-integration.test.ts',
-      'rejection-logic-fix.test.ts'
+      'e2e/login.test.ts',
+      'e2e/search.test.ts',
+      'e2e/integration.test.ts'
+    ]
+  },
+  {
+    name: 'Learning System Tests',
+    files: [
+      'learning/selector-learning.test.ts',
+      'learning/form-filling-learning.test.ts',
+      'learning/selector-learning-integration.test.ts'
     ]
   }
 ];
@@ -121,15 +130,10 @@ async function runAllTests() {
   if (passed === total) {
     console.log('\n🎉 All tests passed! The job apply system is working correctly.');
     console.log('\n✨ Test Coverage:');
-    console.log('   • Core system functionality');
-    console.log('   • Login and authentication');
-    console.log('   • Job search and mapping');
-    console.log('   • Selector learning system');
-    console.log('   • Form filling integration');
-    console.log('   • Rejection learning system');
-    console.log('   • Weight adjustment and filtering');
-    console.log('   • Rejection logic validation');
-    console.log('   • End-to-end workflows');
+    console.log('   • Unit Tests: Pure logic and data transformations');
+    console.log('   • Integration Tests: Multi-component interactions');
+    console.log('   • E2E Tests: Full user workflows');
+    console.log('   • Learning System: Selector and form learning');
   } else {
     console.log('\n⚠️  Some tests failed. Please review the output above.');
     process.exit(1);

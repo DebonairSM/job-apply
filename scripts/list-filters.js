@@ -3,15 +3,9 @@
  * List all active rejection filters
  */
 
-import Database from 'better-sqlite3';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { getDb } from '../src/lib/db.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const dbPath = join(__dirname, '../data/app.db');
-
-const db = new Database(dbPath);
+const db = getDb();
 
 try {
   console.log('📋 Active Rejection Filters\n');
@@ -57,7 +51,6 @@ try {
 } catch (error) {
   console.error('❌ Error listing filters:', error);
   process.exit(1);
-} finally {
-  db.close();
 }
+// Note: Database connection managed by getDb() singleton
 

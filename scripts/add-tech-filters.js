@@ -4,17 +4,11 @@
  * This will filter out jobs containing Go, Java, and other non-Microsoft technologies
  */
 
-import Database from 'better-sqlite3';
-import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const dbPath = join(__dirname, '../data/app.db');
+import { getDb } from '../src/lib/db.js';
 
 console.log('🔧 Adding technology filters...\n');
 
-const db = new Database(dbPath);
+const db = getDb();
 
 // Technology filters to add
 const unwantedTech = [
@@ -75,7 +69,6 @@ try {
   db.prepare('ROLLBACK').run();
   console.error('❌ Error adding filters:', error);
   process.exit(1);
-} finally {
-  db.close();
 }
+// Note: Database connection managed by getDb() singleton
 

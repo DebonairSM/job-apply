@@ -1,4 +1,4 @@
-import { ApplyOptions } from '../commands/apply.js';
+import { ApplyOptions } from '../cli/apply.js';
 import { ApplyResult, ApplyDependencies, Job } from './types.js';
 
 export async function applyToJob(

@@ -1,6 +1,8 @@
 import Database from 'better-sqlite3';
 
-const db = new Database('data/app-backup.db');
+// Note: This script checks a backup file, not the main database
+// Using direct Database connection for the backup file is correct
+const db = new Database('data/backups/app-backup.db');
 
 const stats = db.prepare(`
   SELECT 

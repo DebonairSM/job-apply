@@ -1,5 +1,5 @@
-import { SearchOptions } from '../commands/search.js';
-import { ApplyOptions } from '../commands/apply.js';
+import { SearchOptions } from '../cli/search.js';
+import { ApplyOptions } from '../cli/apply.js';
 
 // Search service types
 export interface SearchResult {

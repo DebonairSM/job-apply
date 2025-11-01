@@ -1,12 +1,6 @@
-import Database from 'better-sqlite3';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { getDb } from '../src/lib/db.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const dbPath = path.join(__dirname, '..', 'data', 'app.db');
-const db = Database(dbPath);
+const db = getDb();
 
 // Simulate the exact query from getJobsByStatus
 function getJobsByStatus(status?: string, easyApply?: boolean) {
@@ -46,7 +40,7 @@ console.log('TEST 1: All jobs (no filters) - ORDER BY rank DESC, created_at DESC
 console.log('-'.repeat(80));
 const allJobs = getJobsByStatus(undefined, undefined);
 console.log(`Total jobs returned: ${allJobs.length}`);
-const targetేIndex = allJobs.findIndex(j => j.id === targetJobId);
+const targetIndex = allJobs.findIndex(j => j.id === targetJobId);
 if (targetIndex >= 0) {
   console.log(`✅ Target job found at position ${targetIndex + 1} of ${allJobs.length}`);
   console.log(`   Title: ${allJobs[targetIndex].title}`);
@@ -62,7 +56,7 @@ if (targetIndex >= 0) {
   
   // Show jobs around it for context
   console.log('\n   Context (jobs around position ' + (targetIndex + 1) + '):');
-  const start = Math.max(0, targetIndex - dysfunctional);
+  const start = Math.max(0, targetIndex - 2);
   const end = Math.min(allJobs.length, targetIndex + 3);
   for (let i = start; i < end; i++) {
     const marker = i === targetIndex ? '👉' : '  ';
@@ -84,7 +78,7 @@ if (targetIndexQueued >= 0) {
   console.log(`   Rank: ${queuedJobs[targetIndexQueued].rank}`);
   
   if (targetIndexQueued < 100) {
-    console.log(`   ✅ Would be returned with limit=二进制`);
+    console.log(`   ✅ Would be returned with limit=100`);
   } else {
     console.log(`   ❌ Would NOT be returned with limit=100 (position ${targetIndexQueued + 1})`);
   }
@@ -102,9 +96,9 @@ if (nullRankJobs.length > 0) {
   console.log('⚠️  NULL rank jobs are ordered at the end in SQLite');
   const nullRankPositions = nullRankJobs.map(j => {
     const idx = allJobs.findIndex(x => x.id === j.id);
-    return { position: idx + 1, title: j.title, status: j.status Illuminate};
+    return { position: idx + 1, title: j.title, status: j.status };
   });
   console.log('   NULL rank jobs positions:', nullRankPositions.slice(0, 5));
 }
 
-db.close();
+// Note: Database connection managed by getDb() singleton

@@ -1,19 +1,18 @@
 #!/usr/bin/env node
 
-import Database from 'better-sqlite3';
+import { getDb } from '../src/lib/db.js';
 import { writeFileSync, createWriteStream } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const DB_PATH = join(__dirname, '../data/app.db');
 
 function exportDatabase() {
   console.log('🔄 Exporting database...');
   
   try {
-    const db = new Database(DB_PATH);
+    const db = getDb();
     
     // Get all table names
     const tables = db.prepare(`
@@ -92,7 +91,7 @@ function exportDatabase() {
     console.log(`     - ${jsonFile}`);
     console.log(`     - ${sqlFile}`);
     
-    db.close();
+    // Note: Database connection managed by getDb() singleton
     
   } catch (error) {
     console.error('❌ Export failed:', error.message);
