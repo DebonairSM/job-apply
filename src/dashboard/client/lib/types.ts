@@ -91,3 +91,20 @@ export interface ActivityEntry {
   duration_ms?: number;
 }
 
+export interface ProfileAnalytic {
+  profile_key: string;
+  profile_name: string;
+  total_jobs: number;
+  queued: number;
+  applied: number;
+  rejected: number;
+  interviews: number;
+  avg_fit_score: number;
+  net_success_rate: number;
+  application_rate: number;
+}
+
+export interface ProfileAnalyticsResponse {
+  profiles: ProfileAnalytic[];
+}
+

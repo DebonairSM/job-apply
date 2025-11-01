@@ -1,30 +1,74 @@
+import { Icon } from './Icon';
+
 interface StatCardProps {
   title: string;
   value: number | string;
   icon?: string;
-  color?: 'blue' | 'green' | 'yellow' | 'red' | 'gray' | 'purple';
+  color?: 'blue' | 'green' | 'amber' | 'red' | 'gray' | 'purple';
 }
 
 const colorClasses = {
-  blue: 'bg-blue-50 border-blue-200 text-blue-700',
-  green: 'bg-green-50 border-green-200 text-green-700',
-  yellow: 'bg-yellow-50 border-yellow-200 text-yellow-700',
-  red: 'bg-red-50 border-red-200 text-red-700',
-  gray: 'bg-gray-50 border-gray-200 text-gray-700',
-  purple: 'bg-purple-50 border-purple-200 text-purple-700'
+  blue: {
+    bg: 'bg-gradient-to-br from-blue-500 to-blue-600',
+    cardBg: 'bg-white',
+    border: 'border-blue-100',
+    text: 'text-blue-700',
+    iconBg: 'bg-blue-100'
+  },
+  green: {
+    bg: 'bg-gradient-to-br from-green-500 to-green-600',
+    cardBg: 'bg-white',
+    border: 'border-green-100',
+    text: 'text-green-700',
+    iconBg: 'bg-green-100'
+  },
+  amber: {
+    bg: 'bg-gradient-to-br from-amber-500 to-amber-600',
+    cardBg: 'bg-white',
+    border: 'border-amber-100',
+    text: 'text-amber-700',
+    iconBg: 'bg-amber-100'
+  },
+  red: {
+    bg: 'bg-gradient-to-br from-red-500 to-red-600',
+    cardBg: 'bg-white',
+    border: 'border-red-100',
+    text: 'text-red-700',
+    iconBg: 'bg-red-100'
+  },
+  gray: {
+    bg: 'bg-gradient-to-br from-gray-500 to-gray-600',
+    cardBg: 'bg-white',
+    border: 'border-gray-100',
+    text: 'text-gray-700',
+    iconBg: 'bg-gray-100'
+  },
+  purple: {
+    bg: 'bg-gradient-to-br from-purple-500 to-purple-600',
+    cardBg: 'bg-white',
+    border: 'border-purple-100',
+    text: 'text-purple-700',
+    iconBg: 'bg-purple-100'
+  }
 };
 
 export function StatCard({ title, value, icon, color = 'blue' }: StatCardProps) {
+  const colors = colorClasses[color];
+  
   return (
-    <div className={`border-2 rounded-lg p-4 sm:p-6 ${colorClasses[color]}`}>
-      <div className="flex items-center justify-between">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs sm:text-sm font-medium opacity-75 truncate">{title}</p>
-          <p className="text-2xl sm:text-3xl font-bold mt-1 sm:mt-2">{value}</p>
+    <div className={`${colors.cardBg} rounded-xl shadow-sm border ${colors.border} overflow-hidden transition-all hover:shadow-md`}>
+      <div className="p-6">
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-600 mb-2">{title}</p>
+            <p className={`text-3xl font-bold ${colors.text}`}>{value}</p>
+          </div>
+          {icon && (
+            <div className={`w-12 h-12 ${colors.bg} rounded-xl flex items-center justify-center flex-shrink-0 ml-4 shadow-sm`}>
+              <Icon icon={icon} size={28} className="text-white" />
+            </div>
+          )}
         </div>
-        {icon && (
-          <div className="text-2xl sm:text-4xl opacity-50 flex-shrink-0 ml-2">{icon}</div>
-        )}
       </div>
     </div>
   );

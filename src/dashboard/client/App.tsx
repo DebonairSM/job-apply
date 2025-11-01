@@ -7,14 +7,29 @@ import { Automation } from './components/Automation';
 import { Settings } from './components/Settings';
 import { JobNavigationProvider, useJobNavigation } from './contexts/JobNavigationContext';
 import { ToastProvider } from './contexts/ToastContext';
+import { Icon } from './components/Icon';
 
 const queryClient = new QueryClient();
 
 type View = 'dashboard' | 'jobs' | 'activity' | 'automation' | 'settings';
 
+interface NavItem {
+  id: View;
+  label: string;
+  icon: string;
+}
+
+const navItems: NavItem[] = [
+  { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
+  { id: 'jobs', label: 'Jobs', icon: 'work' },
+  { id: 'activity', label: 'Activity', icon: 'list-alt' },
+  { id: 'automation', label: 'Automation', icon: 'precision-manufacturing' },
+  { id: 'settings', label: 'Settings', icon: 'settings' },
+];
+
 function AppContent() {
   const [currentView, setCurrentView] = useState<View>('dashboard');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const { targetJobId, clearNavigation } = useJobNavigation();
 
   // Auto-navigate to jobs view when a job is targeted
@@ -25,167 +40,101 @@ function AppContent() {
   }, [targetJobId, currentView]);
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      {/* Navigation */}
-      <nav className="bg-white border-b-2 border-gray-200">
-        <div className="px-4 sm:px-8 py-4">
-          <div className="flex items-center justify-between">
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-800">
-              🤖 Job Automation
-            </h1>
-            
-            {/* Mobile menu button */}
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="md:hidden p-2 rounded-lg hover:bg-gray-100 transition-colors"
-              aria-label="Toggle mobile menu"
-            >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                {isMobileMenuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                )}
-              </svg>
-            </button>
-
-            {/* Desktop navigation */}
-            <div className="hidden md:flex gap-2">
-              <button
-                onClick={() => setCurrentView('dashboard')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  currentView === 'dashboard'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Dashboard
-              </button>
-              <button
-                onClick={() => setCurrentView('jobs')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  currentView === 'jobs'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Jobs
-              </button>
-              <button
-                onClick={() => setCurrentView('activity')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  currentView === 'activity'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Activity
-              </button>
-              <button
-                onClick={() => setCurrentView('automation')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  currentView === 'automation'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Automation
-              </button>
-              <button
-                onClick={() => setCurrentView('settings')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  currentView === 'settings'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                Settings
-              </button>
-            </div>
-          </div>
-
-          {/* Mobile navigation menu */}
-          {isMobileMenuOpen && (
-            <div className="md:hidden mt-4 pb-4 border-t border-gray-200 pt-4">
-              <div className="flex flex-col gap-2">
-                <button
-                  onClick={() => {
-                    setCurrentView('dashboard');
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className={`px-4 py-3 rounded-lg font-medium transition-colors text-left ${
-                    currentView === 'dashboard'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  Dashboard
-                </button>
-                <button
-                  onClick={() => {
-                    setCurrentView('jobs');
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className={`px-4 py-3 rounded-lg font-medium transition-colors text-left ${
-                    currentView === 'jobs'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  Jobs
-                </button>
-                <button
-                  onClick={() => {
-                    setCurrentView('activity');
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className={`px-4 py-3 rounded-lg font-medium transition-colors text-left ${
-                    currentView === 'activity'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  Activity
-                </button>
-                <button
-                  onClick={() => {
-                    setCurrentView('automation');
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className={`px-4 py-3 rounded-lg font-medium transition-colors text-left ${
-                    currentView === 'automation'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  Automation
-                </button>
-                <button
-                  onClick={() => {
-                    setCurrentView('settings');
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className={`px-4 py-3 rounded-lg font-medium transition-colors text-left ${
-                    currentView === 'settings'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  Settings
-                </button>
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Sidebar Navigation */}
+      <aside 
+        className={`fixed md:sticky top-0 left-0 h-screen bg-white shadow-lg z-40 transition-all duration-300 ${
+          isSidebarOpen ? 'w-64' : 'w-20'
+        }`}
+      >
+        {/* Sidebar Header */}
+        <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
+          {isSidebarOpen && (
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                <Icon icon="work" className="text-white" size={20} />
               </div>
+              <h1 className="text-lg font-semibold text-gray-800">Job Automation</h1>
             </div>
           )}
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            aria-label="Toggle sidebar"
+          >
+            <Icon icon={isSidebarOpen ? 'menu-open' : 'menu'} size={24} className="text-gray-600" />
+          </button>
         </div>
-      </nav>
+
+        {/* Navigation Items */}
+        <nav className="mt-4 px-2">
+          <ul className="space-y-1">
+            {navItems.map((item) => (
+              <li key={item.id}>
+                <button
+                  onClick={() => setCurrentView(item.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                    currentView === item.id
+                      ? 'bg-blue-50 text-blue-600 shadow-sm'
+                      : 'text-gray-700 hover:bg-gray-50'
+                  }`}
+                  title={!isSidebarOpen ? item.label : undefined}
+                >
+                  <Icon 
+                    icon={item.icon} 
+                    size={24} 
+                    className={currentView === item.id ? 'text-blue-600' : 'text-gray-600'} 
+                  />
+                  {isSidebarOpen && (
+                    <span className="font-medium">{item.label}</span>
+                  )}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </nav>
+
+        {/* Sidebar Footer */}
+        {isSidebarOpen && (
+          <div className="absolute bottom-4 left-0 right-0 px-4">
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-100">
+              <div className="flex items-start gap-2">
+                <Icon icon="info" size={20} className="text-blue-600 mt-0.5" />
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-800">Pro Tip</h3>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Use the Activity log to track automation progress
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </aside>
 
       {/* Main Content */}
-      <main>
-        {currentView === 'dashboard' && <Dashboard />}
-        {currentView === 'jobs' && <JobsList />}
-        {currentView === 'activity' && <ActivityLog />}
-        {currentView === 'automation' && <Automation />}
-        {currentView === 'settings' && <Settings />}
+      <main className="flex-1 overflow-auto">
+        {/* Top Bar */}
+        <div className="bg-white shadow-sm border-b border-gray-200 h-16 flex items-center justify-between px-6">
+          <h2 className="text-xl font-semibold text-gray-800 capitalize">{currentView}</h2>
+          <div className="flex items-center gap-4">
+            <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors" title="Notifications">
+              <Icon icon="notifications" size={24} className="text-gray-600" />
+            </button>
+            <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors" title="Help">
+              <Icon icon="help" size={24} className="text-gray-600" />
+            </button>
+          </div>
+        </div>
+
+        {/* Content Area */}
+        <div className="p-6">
+          {currentView === 'dashboard' && <Dashboard />}
+          {currentView === 'jobs' && <JobsList />}
+          {currentView === 'activity' && <ActivityLog />}
+          {currentView === 'automation' && <Automation />}
+          {currentView === 'settings' && <Settings />}
+        </div>
       </main>
     </div>
   );

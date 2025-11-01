@@ -153,5 +153,87 @@ router.get('/ranks', (req, res) => {
   }
 });
 
+// Profile key to friendly name mapping
+const PROFILE_NAMES: Record<string, string> = {
+  'core': 'Core Azure API',
+  'backend': 'Backend/API',
+  'core-net': '.NET Development',
+  'legacy-modernization': 'Legacy Modernization',
+  'contract': 'Contract Roles',
+  'aspnet-simple': 'ASP.NET Simple',
+  'csharp-azure-no-frontend': 'C# Azure (No Frontend)',
+  'az204-csharp': 'AZ-204 C#',
+  'ai-enhanced-net': 'AI-Enhanced .NET',
+  'legacy-web': 'Legacy Web'
+};
+
+// GET /api/analytics/profiles - Profile performance metrics
+router.get('/profiles', (req, res) => {
+  try {
+    const database = getDb();
+    const stmt = database.prepare(`
+      SELECT 
+        COALESCE(profile, 'unknown') as profile_key,
+        COUNT(*) as total_jobs,
+        SUM(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) as queued,
+        SUM(CASE WHEN status = 'applied' THEN 1 ELSE 0 END) as applied,
+        SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected,
+        SUM(CASE WHEN status = 'interview' THEN 1 ELSE 0 END) as interviews,
+        AVG(rank) as avg_fit_score
+      FROM jobs
+      WHERE profile IS NOT NULL
+      GROUP BY profile_key
+      HAVING total_jobs > 0
+      ORDER BY total_jobs DESC
+    `);
+
+    const rows = stmt.all() as Array<{
+      profile_key: string;
+      total_jobs: number;
+      queued: number;
+      applied: number;
+      rejected: number;
+      interviews: number;
+      avg_fit_score: number | null;
+    }>;
+
+    // Calculate derived metrics for each profile
+    const profiles = rows.map(row => {
+      const totalJobs = row.total_jobs || 1; // Avoid division by zero
+      const applied = row.applied || 0;
+      const rejected = row.rejected || 0;
+      const interviews = row.interviews || 0;
+      
+      // Net success rate: ((applied - rejected + (interviews * 2)) / total_jobs) * 100
+      // Rejections subtract from success, interviews count double
+      const netSuccessRate = ((applied - rejected + (interviews * 2)) / totalJobs) * 100;
+      
+      // Application rate: percentage of jobs that were applied to
+      const applicationRate = (applied / totalJobs) * 100;
+      
+      return {
+        profile_key: row.profile_key,
+        profile_name: PROFILE_NAMES[row.profile_key] || row.profile_key,
+        total_jobs: row.total_jobs,
+        queued: row.queued,
+        applied: row.applied,
+        rejected: row.rejected,
+        interviews: row.interviews,
+        avg_fit_score: row.avg_fit_score ? Math.round(row.avg_fit_score * 10) / 10 : 0,
+        net_success_rate: Math.round(netSuccessRate * 10) / 10,
+        application_rate: Math.round(applicationRate * 10) / 10
+      };
+    });
+
+    // Sort by net success rate (best performers first)
+    profiles.sort((a, b) => b.net_success_rate - a.net_success_rate);
+
+    res.json({ profiles });
+  } catch (error) {
+    console.error('Error fetching profile analytics:', error);
+    res.status(500).json({ error: 'Failed to fetch profile analytics' });
+  }
+});
+
 export default router;
 

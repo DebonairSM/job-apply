@@ -3,6 +3,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { useActivity } from '../hooks/useActivity';
 import { ActivityEntry } from '../lib/types';
 import { useJobNavigation } from '../contexts/JobNavigationContext';
+import { Icon } from './Icon';
 
 export function ActivityLog() {
   const [limit, setLimit] = useState(100);
@@ -36,15 +37,15 @@ export function ActivityLog() {
   const getActivityIcon = (type: ActivityEntry['type'], success?: boolean) => {
     switch (type) {
       case 'job_created':
-        return '🆕';
+        return 'add-circle';
       case 'job_updated':
-        return '📝';
+        return 'edit-note';
       case 'run_success':
-        return '✅';
+        return 'check-circle';
       case 'run_error':
-        return '❌';
+        return 'error';
       default:
-        return success ? '✅' : '❌';
+        return success ? 'check-circle' : 'error';
     }
   };
 
@@ -231,8 +232,8 @@ export function ActivityLog() {
               >
                 <div className="flex items-start gap-3 sm:gap-4">
                   {/* Icon */}
-                  <div className={`flex-shrink-0 w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-sm sm:text-lg ${getActivityColor(activity.type, activity.success)}`}>
-                    {getActivityIcon(activity.type, activity.success)}
+                  <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${getActivityColor(activity.type, activity.success)}`}>
+                    <Icon icon={getActivityIcon(activity.type, activity.success)} size={20} />
                   </div>
 
                   {/* Content */}

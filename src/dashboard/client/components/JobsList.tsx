@@ -8,6 +8,7 @@ import { useJobNavigation } from '../contexts/JobNavigationContext';
 import { formatRelativeTime } from '../lib/dateUtils';
 import { formatRank } from '../lib/formatUtils';
 import { useToastContext } from '../contexts/ToastContext';
+import { Icon } from './Icon';
 
 const statusColors = {
   queued: 'bg-yellow-100 text-yellow-800',
@@ -325,10 +326,25 @@ export function JobsList() {
   const getStatusDisplay = (job: Job) => {
     if (job.status === 'applied' && job.applied_method) {
       return job.applied_method === 'manual' 
-        ? '✅ Applied (Manual)' 
-        : '🤖 Applied (Auto)';
+        ? 'Applied (Manual)' 
+        : 'Applied (Auto)';
     }
     return job.status;
+  };
+
+  const getStatusIcon = (job: Job) => {
+    if (job.status === 'applied' && job.applied_method === 'manual') {
+      return 'check-circle';
+    }
+    if (job.status === 'applied' && job.applied_method === 'automatic') {
+      return 'smart-toy';
+    }
+    if (job.status === 'queued') return 'schedule';
+    if (job.status === 'rejected') return 'cancel';
+    if (job.status === 'interview') return 'event-available';
+    if (job.status === 'skipped') return 'skip-next';
+    if (job.status === 'reported') return 'flag';
+    return 'help';
   };
 
   const handleExport = () => {
@@ -397,21 +413,13 @@ export function JobsList() {
 
   const getSortIcon = (field: SortField) => {
     if (sortField !== field) {
-      return (
-        <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-        </svg>
-      );
+      return <Icon icon="swap-vert" size={18} className="text-gray-400" />;
     }
     
     return sortDirection === 'asc' ? (
-      <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-      </svg>
+      <Icon icon="arrow-upward" size={18} className="text-blue-600" />
     ) : (
-      <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-      </svg>
+      <Icon icon="arrow-downward" size={18} className="text-blue-600" />
     );
   };
 
@@ -430,9 +438,9 @@ export function JobsList() {
           {clickedJobId && (
             <button
               onClick={clearHighlight}
-              className="bg-gray-500 hover:bg-gray-600 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
+              className="bg-gray-500 hover:bg-gray-600 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base shadow-sm"
             >
-              <span>✨</span>
+              <Icon icon="highlight-off" size={20} />
               <span className="hidden sm:inline">Clear Highlight</span>
               <span className="sm:hidden">Clear</span>
             </button>
@@ -444,33 +452,26 @@ export function JobsList() {
                 hasAnyExpanded 
                   ? 'bg-orange-600 hover:bg-orange-700' 
                   : 'bg-green-600 hover:bg-green-700'
-              } text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm sm:text-base`}
+              } text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 text-sm sm:text-base shadow-sm`}
             >
-              <svg
-                className={`w-4 h-4 transition-transform duration-200 ${hasAnyExpanded ? 'rotate-180' : ''}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
+              <Icon icon={hasAnyExpanded ? 'unfold-less' : 'unfold-more'} size={20} />
               <span className="hidden sm:inline">{hasAnyExpanded ? 'Collapse All' : 'Expand All'}</span>
               <span className="sm:hidden">{hasAnyExpanded ? 'Collapse' : 'Expand'}</span>
             </button>
           )}
           <button
             onClick={handleExport}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base shadow-sm"
           >
-            <span>📥</span>
+            <Icon icon="download" size={20} />
             <span className="hidden sm:inline">Export CSV</span>
             <span className="sm:hidden">Export</span>
           </button>
           <button
             onClick={handleGeneratePrompt}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base"
+            className="bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base shadow-sm"
           >
-            <span>📝</span>
+            <Icon icon="psychology" size={20} />
             <span className="hidden sm:inline">Generate Rejection Prompt</span>
             <span className="sm:hidden">Prompt</span>
           </button>
@@ -478,19 +479,29 @@ export function JobsList() {
       </div>
 
       {/* Filters */}
-      <div className="mb-6 bg-white border border-gray-200 rounded-lg p-4">
+      <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Icon icon="filter-list" size={24} className="text-gray-600" />
+          <h3 className="text-lg font-semibold text-gray-800">Filters</h3>
+        </div>
         <div className="space-y-4">
           {/* Primary Filter Row - Search and Status */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium mb-2">Search Jobs</label>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by title or company..."
-                className="border border-gray-300 rounded-lg px-4 py-2.5 w-full text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                <Icon icon="search" size={18} className="text-gray-500" />
+                Search Jobs
+              </label>
+              <div className="relative">
+                <Icon icon="search" size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search by title or company..."
+                  className="border border-gray-300 rounded-lg pl-10 pr-4 py-2.5 w-full text-sm sm:text-base focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                />
+              </div>
             </div>
 
             <div>

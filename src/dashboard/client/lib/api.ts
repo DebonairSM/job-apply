@@ -1,4 +1,4 @@
-import { JobStats, JobsResponse, RunsResponse, Job, JobActivity, ActivityEntry } from './types';
+import { JobStats, JobsResponse, RunsResponse, Job, JobActivity, ActivityEntry, ProfileAnalyticsResponse } from './types';
 
 const API_BASE = '/api';
 
@@ -132,6 +132,12 @@ export const api = {
       },
     });
     if (!response.ok) throw new Error('Failed to toggle job curated');
+    return response.json();
+  },
+
+  async getProfileAnalytics(): Promise<ProfileAnalyticsResponse> {
+    const response = await fetch(`${API_BASE}/analytics/profiles`);
+    if (!response.ok) throw new Error('Failed to fetch profile analytics');
     return response.json();
   }
 };

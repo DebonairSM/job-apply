@@ -28,6 +28,11 @@ This directory contains documentation for the Job Application Automation system.
 - **[RESUME_PROCESSING_SYSTEM.md](RESUME_PROCESSING_SYSTEM.md)** - Resume parsing and processing
 - **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Testing framework and best practices
 
+## Dashboard and UI
+
+- **[DASHBOARD_MODERNIZATION_COMPLETE.md](DASHBOARD_MODERNIZATION_COMPLETE.md)** - Material Design dashboard redesign
+- **[DASHBOARD_VISUAL_GUIDE.md](DASHBOARD_VISUAL_GUIDE.md)** - Visual reference for icons and components
+
 ## Archived Documentation
 
 Historical documentation and implementation notes have been moved to the `archive/` subdirectory. These include:

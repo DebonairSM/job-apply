@@ -1,212 +1,301 @@
 import { useStats } from '../hooks/useStats';
 import { useRecentActivity } from '../hooks/useRecentActivity';
+import { useProfileAnalytics } from '../hooks/useProfileAnalytics';
 import { StatCard } from './StatCard';
+import { ProfilePerformanceChart } from './ProfilePerformanceChart';
 import { formatRelativeTime } from '../lib/dateUtils';
+import { Icon } from './Icon';
 
 export function Dashboard() {
   const { data: stats, isLoading: statsLoading } = useStats();
   const { data: activity, isLoading: activityLoading } = useRecentActivity(10);
+  const { data: profileAnalytics, isLoading: profileAnalyticsLoading } = useProfileAnalytics();
 
   if (statsLoading) {
-    return <div className="p-8">Loading statistics...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="flex items-center gap-3">
+          <Icon icon="progress-activity" size={32} className="text-blue-600 animate-spin" />
+          <span className="text-lg text-gray-600">Loading statistics...</span>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <h1 className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8">Job Automation Dashboard</h1>
-      
-      {/* Statistics Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
+    <div className="space-y-6">
+      {/* Key Metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard 
           title="Total Jobs" 
           value={stats?.total || 0} 
-          icon="📊"
+          icon="inventory"
           color="blue"
         />
         <StatCard 
           title="Queued" 
           value={stats?.queued || 0} 
-          icon="⏳"
-          color="yellow"
+          icon="schedule"
+          color="amber"
         />
         <StatCard 
           title="Applied" 
           value={stats?.applied || 0} 
-          icon="✅"
+          icon="check-circle"
           color="green"
         />
         <StatCard 
           title="Success Rate" 
           value={`${stats?.successRate || 0}%`} 
-          icon="🎯"
+          icon="trending-up"
           color="purple"
         />
       </div>
 
       {/* Error Summary */}
       {activity && activity.some(job => job.status === 'skipped' && job.rejection_reason?.includes('Error')) && (
-        <div className="mb-6 sm:mb-8">
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <h2 className="text-lg font-bold text-red-800 mb-2">⚠️ Recent Errors</h2>
-            <div className="space-y-2">
+        <div className="bg-white rounded-xl shadow-sm border border-red-200 overflow-hidden">
+          <div className="bg-gradient-to-r from-red-50 to-orange-50 px-6 py-4 border-b border-red-100">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                <Icon icon="error" size={24} className="text-red-600" />
+              </div>
+              <h2 className="text-lg font-semibold text-red-900">Recent Errors</h2>
+            </div>
+          </div>
+          <div className="p-6">
+            <div className="space-y-3">
               {activity
                 .filter(job => job.status === 'skipped' && job.rejection_reason?.includes('Error'))
                 .slice(0, 3)
                 .map((job) => (
-                  <div key={job.id} className="text-sm text-red-700">
-                    <span className="font-medium">{job.title} at {job.company}:</span>
-                    <span className="ml-2">{job.rejection_reason}</span>
+                  <div key={job.id} className="flex items-start gap-3 p-3 bg-red-50 rounded-lg">
+                    <Icon icon="cancel" size={20} className="text-red-500 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm text-gray-900">{job.title} at {job.company}</p>
+                      <p className="text-xs text-red-700 mt-1">{job.rejection_reason}</p>
+                    </div>
                   </div>
                 ))}
-            </div>
-            <div className="mt-3">
-              <a 
-                href="/activity" 
-                className="text-red-600 hover:text-red-800 text-sm font-medium underline"
-              >
-                View all errors in Activity Log →
-              </a>
             </div>
           </div>
         </div>
       )}
 
       {/* Application Method Breakdown */}
-      <div className="mb-6 sm:mb-8">
-        <h2 className="text-lg sm:text-xl font-bold mb-4">Application Methods</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+      <div>
+        <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <Icon icon="category" size={24} className="text-gray-600" />
+          Application Methods
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <StatCard 
             title="Manual Applications" 
             value={stats?.totalManual || 0} 
-            icon="✅"
+            icon="touch-app"
             color="blue"
           />
           <StatCard 
             title="Automatic Applications" 
             value={stats?.totalAutomatic || 0} 
-            icon="🤖"
+            icon="smart-toy"
             color="green"
           />
         </div>
       </div>
 
       {/* Application Trends */}
-      <div className="mb-6 sm:mb-8">
-        <h2 className="text-lg sm:text-xl font-bold mb-4">Application Activity</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <div>
+        <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <Icon icon="calendar-month" size={24} className="text-gray-600" />
+          Application Activity
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <StatCard 
             title="Applied Today" 
             value={stats?.appliedToday || 0} 
-            icon="📅"
+            icon="today"
             color="green"
           />
           <StatCard 
             title="Applied This Week" 
             value={stats?.appliedThisWeek || 0} 
-            icon="📆"
+            icon="date-range"
             color="blue"
           />
           <StatCard 
             title="Applied This Month" 
             value={stats?.appliedThisMonth || 0} 
-            icon="📊"
+            icon="calendar-today"
             color="purple"
           />
         </div>
       </div>
 
+      {/* Profile Performance Analytics */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                <Icon icon="insights" size={24} className="text-purple-600" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Profile Performance</h2>
+                <p className="text-sm text-gray-600">Which search profiles find the best jobs</p>
+              </div>
+            </div>
+            {!profileAnalyticsLoading && profileAnalytics?.profiles && (
+              <span className="text-sm text-gray-500">{profileAnalytics.profiles.length} profiles</span>
+            )}
+          </div>
+        </div>
+        
+        <div className="p-6">
+          {profileAnalyticsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex items-center gap-3">
+                <Icon icon="progress-activity" size={28} className="text-purple-600 animate-spin" />
+                <span className="text-gray-600">Loading profile analytics...</span>
+              </div>
+            </div>
+          ) : !profileAnalytics?.profiles?.length ? (
+            <div className="text-center py-12">
+              <Icon icon="inbox" size={48} className="text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500">No profile data available yet</p>
+              <p className="text-sm text-gray-400 mt-2">Run job searches to see profile performance</p>
+            </div>
+          ) : (
+            <ProfilePerformanceChart profiles={profileAnalytics.profiles} />
+          )}
+        </div>
+      </div>
+
       {/* Additional Stats */}
-      <div className="mb-6 sm:mb-8">
-        <h2 className="text-lg sm:text-xl font-bold mb-4">Job Status</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div>
+        <h2 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+          <Icon icon="assessment" size={24} className="text-gray-600" />
+          Job Status
+        </h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard 
             title="Interview" 
             value={stats?.interview || 0} 
-            icon="💼"
+            icon="event-available"
             color="green"
           />
           <StatCard 
             title="Rejected" 
             value={stats?.rejected || 0} 
-            icon="❌"
+            icon="cancel"
             color="red"
           />
           <StatCard 
             title="Skipped" 
             value={stats?.skipped || 0} 
-            icon="⏭️"
+            icon="skip-next"
             color="gray"
           />
           <StatCard 
             title="Curated" 
             value={stats?.curated || 0} 
-            icon="⭐"
-            color="yellow"
+            icon="star"
+            color="amber"
           />
         </div>
       </div>
 
       {/* Recent Activity */}
-      <div className="bg-white border-2 border-gray-200 rounded-lg p-4 sm:p-6">
-        <h2 className="text-lg sm:text-xl font-bold mb-4">Recent Activity</h2>
-        
-        {activityLoading ? (
-          <div>Loading activity...</div>
-        ) : !activity?.length ? (
-          <div className="text-gray-500 text-center py-8">No recent activity</div>
-        ) : (
-          <div className="space-y-3">
-            {activity.map((job) => (
-              <div 
-                key={job.id} 
-                className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 bg-gray-50 rounded-lg space-y-2 sm:space-y-0"
-              >
-                <div className="flex items-center space-x-3">
-                  <span className="text-xl sm:text-2xl">
-                    {job.status === 'applied' && job.applied_method === 'manual' && '✅'}
-                    {job.status === 'applied' && job.applied_method === 'automatic' && '🤖'}
-                    {job.status === 'rejected' && '❌'}
-                    {job.status === 'interview' && '🎯'}
-                    {job.status === 'queued' && '⏳'}
-                    {job.status === 'skipped' && '⏭️'}
-                    {job.status === 'reported' && '📋'}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm sm:text-base truncate">{job.title}</p>
-                    <p className="text-xs sm:text-sm text-gray-500 truncate">{job.company}</p>
-                    {job.rejection_reason && (
-                      <p className="text-xs text-red-600 mt-1 truncate">Reason: {job.rejection_reason}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="text-left sm:text-right">
-                  <div className="text-xs sm:text-sm font-medium">
-                    {job.status === 'applied' && job.applied_method === 'manual' && 'Applied (Manual)'}
-                    {job.status === 'applied' && job.applied_method === 'automatic' && 'Applied (Auto)'}
-                    {job.status === 'rejected' && 'Rejected'}
-                    {job.status === 'interview' && 'Interview'}
-                    {job.status === 'queued' && 'Queued'}
-                    {job.status === 'skipped' && 'Skipped'}
-                    {job.status === 'reported' && 'Reported'}
-                  </div>
-                  <div className="text-xs text-gray-500">
-                    {(() => {
-                      // Use action timestamp if available, otherwise use found timestamp
-                      const timestamp = job.status_updated_at || job.created_at;
-                      const label = job.status_updated_at ? 'Action' : 'Found';
-                      
-                      if (timestamp) {
-                        const relativeTime = formatRelativeTime(timestamp);
-                        return `${label}: ${relativeTime}`;
-                      }
-                      return 'N/A';
-                    })()}
-                  </div>
-                </div>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Icon icon="history" size={24} className="text-blue-600" />
               </div>
-            ))}
+              <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
+            </div>
+            {!activityLoading && activity?.length > 0 && (
+              <span className="text-sm text-gray-500">{activity.length} items</span>
+            )}
           </div>
-        )}
+        </div>
+        
+        <div className="p-6">
+          {activityLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex items-center gap-3">
+                <Icon icon="progress-activity" size={28} className="text-blue-600 animate-spin" />
+                <span className="text-gray-600">Loading activity...</span>
+              </div>
+            </div>
+          ) : !activity?.length ? (
+            <div className="text-center py-12">
+              <Icon icon="inbox" size={48} className="text-gray-300 mx-auto mb-3" />
+              <p className="text-gray-500">No recent activity</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {activity.map((job) => {
+                const getStatusConfig = () => {
+                  if (job.status === 'applied' && job.applied_method === 'manual') {
+                    return { icon: 'check-circle', color: 'text-green-600', bg: 'bg-green-50', label: 'Applied (Manual)' };
+                  }
+                  if (job.status === 'applied' && job.applied_method === 'automatic') {
+                    return { icon: 'smart-toy', color: 'text-blue-600', bg: 'bg-blue-50', label: 'Applied (Auto)' };
+                  }
+                  if (job.status === 'rejected') {
+                    return { icon: 'cancel', color: 'text-red-600', bg: 'bg-red-50', label: 'Rejected' };
+                  }
+                  if (job.status === 'interview') {
+                    return { icon: 'event-available', color: 'text-purple-600', bg: 'bg-purple-50', label: 'Interview' };
+                  }
+                  if (job.status === 'queued') {
+                    return { icon: 'schedule', color: 'text-amber-600', bg: 'bg-amber-50', label: 'Queued' };
+                  }
+                  if (job.status === 'skipped') {
+                    return { icon: 'skip-next', color: 'text-gray-600', bg: 'bg-gray-50', label: 'Skipped' };
+                  }
+                  if (job.status === 'reported') {
+                    return { icon: 'flag', color: 'text-orange-600', bg: 'bg-orange-50', label: 'Reported' };
+                  }
+                  return { icon: 'help', color: 'text-gray-600', bg: 'bg-gray-50', label: 'Unknown' };
+                };
+                
+                const config = getStatusConfig();
+                const timestamp = job.status_updated_at || job.created_at;
+                const label = job.status_updated_at ? 'Action' : 'Found';
+                
+                return (
+                  <div 
+                    key={job.id} 
+                    className="flex items-start gap-4 p-4 hover:bg-gray-50 rounded-lg transition-colors border border-gray-100"
+                  >
+                    <div className={`w-10 h-10 ${config.bg} rounded-lg flex items-center justify-center flex-shrink-0`}>
+                      <Icon icon={config.icon} size={20} className={config.color} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 truncate">{job.title}</p>
+                      <p className="text-sm text-gray-600 truncate">{job.company}</p>
+                      {job.rejection_reason && (
+                        <div className="flex items-start gap-1 mt-1">
+                          <Icon icon="info" size={14} className="text-red-500 mt-0.5 flex-shrink-0" />
+                          <p className="text-xs text-red-700">{job.rejection_reason}</p>
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <div className="text-sm font-medium text-gray-900">{config.label}</div>
+                      <div className="text-xs text-gray-500 mt-1">
+                        {timestamp ? `${label}: ${formatRelativeTime(timestamp)}` : 'N/A'}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
