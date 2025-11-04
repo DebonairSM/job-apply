@@ -14,6 +14,7 @@ interface Lead {
   location?: string;
   profile_url: string;
   linkedin_id?: string;
+  worked_together?: string;
   scraped_at?: string;
   created_at?: string;
 }
@@ -22,6 +23,7 @@ interface LeadStats {
   total: number;
   withEmail: number;
   withoutEmail: number;
+  workedTogether: number;
   topCompanies: Array<{ company: string; count: number }>;
   topTitles: Array<{ title: string; count: number }>;
 }
@@ -45,12 +47,13 @@ export function LeadsList() {
   const [companyFilter, setCompanyFilter] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
   const [emailFilter, setEmailFilter] = useState<string>('');
+  const [workedTogetherFilter, setWorkedTogetherFilter] = useState<string>('');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showRuns, setShowRuns] = useState(false);
 
   // Fetch leads
   const { data: leadsData, isLoading: leadsLoading } = useQuery({
-    queryKey: ['leads', searchQuery, titleFilter, companyFilter, locationFilter, emailFilter],
+    queryKey: ['leads', searchQuery, titleFilter, companyFilter, locationFilter, emailFilter, workedTogetherFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (searchQuery) params.set('search', searchQuery);
@@ -58,6 +61,7 @@ export function LeadsList() {
       if (companyFilter) params.set('company', companyFilter);
       if (locationFilter) params.set('location', locationFilter);
       if (emailFilter) params.set('hasEmail', emailFilter);
+      if (workedTogetherFilter) params.set('workedTogether', workedTogetherFilter);
       params.set('limit', '200');
 
       const response = await api.get(`/leads?${params.toString()}`);
@@ -88,7 +92,7 @@ export function LeadsList() {
   });
 
   const leads = leadsData?.leads || [];
-  const stats = statsData || { total: 0, withEmail: 0, withoutEmail: 0, topCompanies: [], topTitles: [] };
+  const stats = statsData || { total: 0, withEmail: 0, withoutEmail: 0, workedTogether: 0, topCompanies: [], topTitles: [] };
   const runs = runsData || [];
 
   const handleRowClick = (lead: Lead) => {
@@ -138,12 +142,10 @@ export function LeadsList() {
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-gray-600">Email Rate</p>
-              <p className="text-2xl font-bold text-blue-600">
-                {stats.total > 0 ? Math.round((stats.withEmail / stats.total) * 100) : 0}%
-              </p>
+              <p className="text-sm text-gray-600">Worked Together</p>
+              <p className="text-2xl font-bold text-blue-600">{stats.workedTogether}</p>
             </div>
-            <Icon icon="trending-up" size={32} className="text-blue-500" />
+            <Icon icon="users" size={32} className="text-blue-500" />
           </div>
         </div>
       </div>
@@ -193,6 +195,19 @@ export function LeadsList() {
               onChange={(e) => setLocationFilter(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Worked Together</label>
+            <select
+              value={workedTogetherFilter}
+              onChange={(e) => setWorkedTogetherFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All</option>
+              <option value="true">Worked Together</option>
+              <option value="false">Did Not Work Together</option>
+            </select>
           </div>
 
           <div>
@@ -277,6 +292,7 @@ export function LeadsList() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Worked Together</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Scraped</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
@@ -300,6 +316,16 @@ export function LeadsList() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="text-sm text-gray-700">{lead.location || '-'}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {lead.worked_together ? (
+                        <div className="flex items-center gap-2">
+                          <Icon icon="users" size={16} className="text-blue-500" />
+                          <span className="text-sm text-gray-700">{lead.worked_together}</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-400">-</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       {lead.email ? (

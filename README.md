@@ -42,9 +42,10 @@ npm run search -- --profile security  # Security-focused roles
 
 **2. Build Your Network** (optional)
 ```bash
-npm run leads:search                           # Scrape all 1st degree connections (US)
-npm run leads:search -- --titles "CTO,Director,Founder"  # Filter by titles
-npm run leads:search -- --max 50               # Limit to 50 profiles
+npm run leads:search -- --profile chiefs       # Target C-suite executives
+npm run leads:search -- --profile founders     # Find company founders
+npm run leads:search -- --profile directors    # Connect with directors
+npm run leads:search -- --max 100              # Limit to 100 profiles
 ```
 
 **3. Monitor & Apply**
@@ -150,9 +151,12 @@ npm run search -- --location "Wesley Chapel, FL" --radius 25  # Location + radiu
 **Lead Scraping**
 ```bash
 npm run leads:search                                  # All 1st connections (US)
-npm run leads:search -- --titles "CTO,Director"       # Filter by title
-npm run leads:search -- --max 100                     # Limit profiles
-npm run leads:search -- --titles "Founder,VP" --max 50  # Combined filters
+npm run leads:search -- --profile chiefs              # C-suite & leadership
+npm run leads:search -- --profile founders            # Founders & entrepreneurs
+npm run leads:search -- --profile directors           # Directors & senior mgmt
+npm run leads:search -- --profile techLeads           # Tech leads & architects
+npm run leads:search -- --profile recruiters          # Recruiters & talent acquisition
+npm run leads:search -- --titles "CTO,VP" --max 50    # Custom titles (no profile)
 npm run leads:search -- --resume 123                  # Resume previous run
 ```
 
@@ -203,7 +207,7 @@ npm run login                                    # LinkedIn auth
 **Run**
 ```bash
 npm run search -- --profile contract            # Find contract jobs
-npm run leads:search -- --titles "CTO,Director" # Build network leads
+npm run leads:search -- --profile chiefs        # Build network leads
 npm run dashboard:dev                           # Open dashboard
 npm run apply -- --easy                         # Apply to jobs
 ```

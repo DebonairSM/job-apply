@@ -391,6 +391,13 @@ export function initDb(): void {
     // Column already exists, ignore
   }
 
+  // Add worked_together column if it doesn't exist (migration)
+  try {
+    database.exec(`ALTER TABLE leads ADD COLUMN worked_together TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+
   // Lead scraping runs table for batch processing and resume capability
   database.exec(`
     CREATE TABLE IF NOT EXISTS lead_scraping_runs (
@@ -1886,6 +1893,7 @@ export interface Lead {
   location?: string;
   profile_url: string;
   linkedin_id?: string;
+  worked_together?: string;
   scraped_at?: string;
   created_at?: string;
 }
@@ -1912,8 +1920,8 @@ export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at'>): boolean 
   }
   
   const stmt = database.prepare(`
-    INSERT INTO leads (id, name, title, company, about, email, location, profile_url, linkedin_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO leads (id, name, title, company, about, email, location, profile_url, linkedin_id, worked_together)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   try {
@@ -1926,7 +1934,8 @@ export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at'>): boolean 
       lead.email || null,
       lead.location || null,
       lead.profile_url,
-      lead.linkedin_id || null
+      lead.linkedin_id || null,
+      lead.worked_together || null
     );
     return true;
   } catch (error) {
@@ -1963,6 +1972,7 @@ export function getLeads(filters?: {
   company?: string;
   location?: string;
   hasEmail?: boolean;
+  workedTogether?: boolean;
   limit?: number;
   offset?: number;
 }): Lead[] {
@@ -1999,6 +2009,14 @@ export function getLeads(filters?: {
     }
   }
 
+  if (filters?.workedTogether !== undefined) {
+    if (filters.workedTogether) {
+      query += " AND worked_together IS NOT NULL AND worked_together != ''";
+    } else {
+      query += " AND (worked_together IS NULL OR worked_together = '')";
+    }
+  }
+
   query += ' ORDER BY scraped_at DESC';
 
   if (filters?.limit) {
@@ -2021,6 +2039,7 @@ export function getLeadsCount(filters?: {
   company?: string;
   location?: string;
   hasEmail?: boolean;
+  workedTogether?: boolean;
 }): number {
   const database = getDb();
   let query = 'SELECT COUNT(*) as count FROM leads WHERE 1=1';
@@ -2055,6 +2074,14 @@ export function getLeadsCount(filters?: {
     }
   }
 
+  if (filters?.workedTogether !== undefined) {
+    if (filters.workedTogether) {
+      query += " AND worked_together IS NOT NULL AND worked_together != ''";
+    } else {
+      query += " AND (worked_together IS NULL OR worked_together = '')";
+    }
+  }
+
   const stmt = database.prepare(query);
   const result = stmt.get(...params) as { count: number };
   return result.count;
@@ -2064,6 +2091,7 @@ export interface LeadStats {
   total: number;
   withEmail: number;
   withoutEmail: number;
+  workedTogether: number;
   topCompanies: Array<{ company: string; count: number }>;
   topTitles: Array<{ title: string; count: number }>;
 }
@@ -2075,6 +2103,10 @@ export function getLeadStats(): LeadStats {
   
   const withEmail = database.prepare(
     "SELECT COUNT(*) as count FROM leads WHERE email IS NOT NULL AND email != ''"
+  ).get() as { count: number };
+  
+  const workedTogether = database.prepare(
+    "SELECT COUNT(*) as count FROM leads WHERE worked_together IS NOT NULL AND worked_together != ''"
   ).get() as { count: number };
   
   const topCompanies = database.prepare(`
@@ -2099,6 +2131,7 @@ export function getLeadStats(): LeadStats {
     total: total.count,
     withEmail: withEmail.count,
     withoutEmail: total.count - withEmail.count,
+    workedTogether: workedTogether.count,
     topCompanies,
     topTitles
   };

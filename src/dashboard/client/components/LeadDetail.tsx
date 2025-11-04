@@ -11,6 +11,7 @@ interface Lead {
   location?: string;
   profile_url: string;
   linkedin_id?: string;
+  worked_together?: string;
   scraped_at?: string;
   created_at?: string;
 }
@@ -66,6 +67,16 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
                 <p className="mt-1 text-lg text-gray-900 flex items-center gap-2">
                   <Icon icon="place" size={20} className="text-gray-500" />
                   {lead.location}
+                </p>
+              </div>
+            )}
+
+            {lead.worked_together && (
+              <div>
+                <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Worked Together</label>
+                <p className="mt-1 text-lg text-gray-900 flex items-center gap-2">
+                  <Icon icon="users" size={20} className="text-blue-500" />
+                  {lead.worked_together}
                 </p>
               </div>
             )}

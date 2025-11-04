@@ -3,9 +3,11 @@ import { STORAGE_STATE_PATH, loadConfig, hasSession } from '../lib/session.js';
 import { createScrapingRun, updateScrapingRun, getScrapingRun } from '../lib/db.js';
 import { scrapeConnections } from '../services/lead-scraper.js';
 import { shouldStop as checkStopSignal, clearStopSignal } from '../lib/stop-signal.js';
+import { getLeadProfile, getLeadProfileKeys } from '../ai/lead-profiles.js';
 
 export interface LeadSearchOptions {
   titles?: string;
+  profile?: string;
   max?: number;
   resume?: number;
 }
@@ -18,17 +20,32 @@ export async function leadSearchCommand(opts: LeadSearchOptions): Promise<void> 
 
   const config = loadConfig();
   const maxProfiles = opts.max || 50;
-  const filterTitles = opts.titles ? opts.titles.split(',').map(t => t.trim()) : undefined;
-
-  console.log('🔍 Starting LinkedIn lead scraper...');
-  const startTime = Date.now();
   
-  if (filterTitles && filterTitles.length > 0) {
+  // Determine filter titles: use profile if specified, otherwise parse titles option
+  let filterTitles: string[] | undefined;
+  
+  if (opts.profile) {
+    const profile = getLeadProfile(opts.profile);
+    if (!profile) {
+      console.error(`❌ Unknown profile: ${opts.profile}`);
+      console.error(`   Available profiles: ${getLeadProfileKeys().join(', ')}`);
+      process.exit(1);
+    }
+    filterTitles = profile.titles;
+    console.log('🔍 Starting LinkedIn lead scraper...');
+    console.log(`   Profile: ${profile.name}`);
+    console.log(`   Description: ${profile.description}`);
+    console.log(`   Title Filters (${profile.titles.length}): ${profile.titles.slice(0, 5).join(', ')}${profile.titles.length > 5 ? '...' : ''}`);
+  } else if (opts.titles) {
+    filterTitles = opts.titles.split(',').map(t => t.trim());
+    console.log('🔍 Starting LinkedIn lead scraper...');
     console.log(`   Title Filters: ${filterTitles.join(', ')}`);
   } else {
+    console.log('🔍 Starting LinkedIn lead scraper...');
     console.log('   Title Filters: None (all connections)');
   }
   
+  const startTime = Date.now();
   console.log(`   Max Profiles: ${maxProfiles}`);
   
   if (opts.resume) {

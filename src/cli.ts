@@ -142,6 +142,12 @@ yargs(hideBin(process.argv))
     'Scrape LinkedIn 1st degree connections',
     (yargs) => {
       return yargs
+        .option('profile', {
+          alias: 'p',
+          describe: 'Use predefined lead profile',
+          choices: ['chiefs', 'founders', 'directors', 'techLeads', 'productLeads', 'recruiters', 'sales', 'consultants'] as const,
+          type: 'string'
+        })
         .option('titles', {
           alias: 't',
           describe: 'Filter by job titles (comma-separated)',
@@ -157,10 +163,17 @@ yargs(hideBin(process.argv))
           alias: 'r',
           describe: 'Resume from previous run (run ID)',
           type: 'number'
+        })
+        .check((argv) => {
+          if (argv.profile && argv.titles) {
+            throw new Error('Cannot use both --profile and --titles. Choose one.');
+          }
+          return true;
         });
     },
     async (argv) => {
       await leadSearchCommand({
+        profile: argv.profile,
         titles: argv.titles,
         max: argv.max,
         resume: argv.resume

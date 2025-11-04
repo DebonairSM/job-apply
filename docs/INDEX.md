@@ -17,6 +17,7 @@ This directory contains documentation for the Job Application Automation system.
 ## Customization Guides
 
 - **[PROFILE_CREATION_GUIDE.md](PROFILE_CREATION_GUIDE.md)** - Creating custom job search profiles
+- **[LEAD_PROFILES_GUIDE.md](LEAD_PROFILES_GUIDE.md)** - Using and creating lead scraping profiles
 - **[RANKING_CUSTOMIZATION_GUIDE.md](RANKING_CUSTOMIZATION_GUIDE.md)** - Customizing job ranking algorithms
 - **[TECH_FILTER_GUIDE.md](TECH_FILTER_GUIDE.md)** - Filtering jobs by technology stack
 - **[CURSOR_CUSTOMIZATION_GUIDE.md](CURSOR_CUSTOMIZATION_GUIDE.md)** - Customizing the development environment
@@ -29,6 +30,10 @@ This directory contains documentation for the Job Application Automation system.
 - **[PROFILE_PERFORMANCE_ANALYTICS.md](PROFILE_PERFORMANCE_ANALYTICS.md)** - Profile performance tracking and analytics
 - **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Testing framework and best practices
 - **[LEADS_SYSTEM_IMPLEMENTATION.md](LEADS_SYSTEM_IMPLEMENTATION.md)** - LinkedIn leads scraping system
+
+## Recent Implementations
+
+- **[LEAD_PROFILES_IMPLEMENTATION_SUMMARY.md](LEAD_PROFILES_IMPLEMENTATION_SUMMARY.md)** - Profile-based lead scraping system
 
 ## Bug Fixes and Improvements
 

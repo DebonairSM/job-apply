@@ -260,6 +260,39 @@ export async function scrapeConnections(
             }
           }
 
+          // Extract "worked together" information
+          let workedTogether: string | undefined;
+          try {
+            // Look for the "You both worked at" text in spans
+            // Try detailed version first (includes dates), then fall back to basic version
+            const workedTogetherSelectors = [
+              'span.t-14.t-normal span[aria-hidden="true"]',  // Detailed version with dates
+              'div.mr1.hoverable-link-text.t-bold span[aria-hidden="true"]',  // Basic version
+              'span[aria-hidden="true"]:has-text("You both worked at")',  // Generic fallback
+              'span[aria-hidden="true"]:has-text("worked at")'
+            ];
+
+            for (const selector of workedTogetherSelectors) {
+              const elem = page.locator(selector);
+              const count = await elem.count();
+              
+              if (count > 0) {
+                // Check each matching element
+                for (let i = 0; i < count; i++) {
+                  const text = await elem.nth(i).innerText({ timeout: 2000 }).catch(() => null);
+                  if (text && text.trim() && text.toLowerCase().includes('you both worked')) {
+                    workedTogether = text.trim();
+                    break;
+                  }
+                }
+                
+                if (workedTogether) break;
+              }
+            }
+          } catch (error) {
+            // Worked together extraction is optional, continue without it
+          }
+
           // Apply title filter if specified
           if (options.filterTitles && options.filterTitles.length > 0 && title) {
             const titleLower = title.toLowerCase();
@@ -356,7 +389,8 @@ export async function scrapeConnections(
             email,
             location: location || undefined,
             profile_url: profileUrl,
-            linkedin_id: linkedinId
+            linkedin_id: linkedinId,
+            worked_together: workedTogether
           };
 
           const added = addLead(lead);
@@ -367,6 +401,7 @@ export async function scrapeConnections(
             if (title) console.log(`      Title: ${title}`);
             if (company) console.log(`      Company: ${company}`);
             if (location) console.log(`      Location: ${location}`);
+            if (workedTogether) console.log(`      🤝 ${workedTogether}`);
             if (email) console.log(`      Email: ${email}`);
           } else {
             console.log(`   ⏭️  Skipped: ${name} (already exists)`);
