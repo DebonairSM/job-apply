@@ -16,6 +16,21 @@ interface ScrapingProgress {
   lastProfileUrl?: string;
 }
 
+/**
+ * Build a LinkedIn People Search URL with page number
+ * @param pageNumber The page number to navigate to (1-based)
+ * @returns Full search URL with page parameter
+ */
+function buildSearchUrl(pageNumber: number): string {
+  const baseUrl = 'https://www.linkedin.com/search/results/people/';
+  const params = new URLSearchParams({
+    network: '["F"]',
+    geoUrn: '["103644278"]',
+    page: pageNumber.toString()
+  });
+  return `${baseUrl}?${params.toString()}`;
+}
+
 export async function scrapeConnections(
   page: Page,
   runId: number,
@@ -35,6 +50,9 @@ export async function scrapeConnections(
     profilesAdded: 0
   };
 
+  // Track the current search results URL to preserve pagination on forced navigation
+  let currentSearchUrl = '';
+
   try {
     // Build People Search URL with filters
     // network=["F"] = 1st degree connections
@@ -46,6 +64,9 @@ export async function scrapeConnections(
       waitUntil: 'domcontentloaded'
     });
     await page.waitForTimeout(3000);
+    
+    // Track initial search URL
+    currentSearchUrl = page.url();
 
     // Wait for search results to load
     await page.waitForSelector('ul.reusables-search-results__list, div.search-results-container', {
@@ -61,23 +82,60 @@ export async function scrapeConnections(
     if (currentPage > 1) {
       console.log(`\n⏭️  Fast-forwarding to page ${currentPage}...`);
       
-      for (let skipPage = 1; skipPage < currentPage; skipPage++) {
-        try {
-          const nextButton = page.locator('button.artdeco-pagination__button--next:not([disabled])').first();
-          const buttonExists = await nextButton.count() > 0;
-          
-          if (buttonExists) {
-            await nextButton.click({ timeout: 5000 });
-            await page.waitForTimeout(2000);
-          } else {
-            console.log(`   ⚠️  Could not find next button at page ${skipPage}, starting from current page`);
+      // Wait for pagination controls to be visible
+      try {
+        await page.waitForSelector('.artdeco-pagination', { state: 'visible', timeout: 5000 });
+        await page.waitForTimeout(500);
+      } catch (error) {
+        console.log(`   ⚠️  Could not find pagination controls, starting from page 1`);
+        currentPage = 1;
+      }
+      
+      if (currentPage > 1) {
+        for (let skipPage = 1; skipPage < currentPage; skipPage++) {
+          try {
+            // Try multiple selectors for the Next button
+            const nextButtonSelectors = [
+              'button.artdeco-pagination__button--next:not([disabled])',
+              'button[aria-label="Next"]:not([disabled])',
+              'button.artdeco-pagination__button--next'
+            ];
+            
+            let nextButton = null;
+            for (const selector of nextButtonSelectors) {
+              const btn = page.locator(selector);
+              const count = await btn.count();
+              if (count > 0) {
+                // Check if button is actually enabled
+                const isDisabled = await btn.getAttribute('disabled');
+                if (isDisabled === null) {
+                  nextButton = btn;
+                  break;
+                }
+              }
+            }
+            
+            if (nextButton) {
+              console.log(`   Clicking to page ${skipPage + 1}...`);
+              await nextButton.click({ timeout: 5000 });
+              await page.waitForTimeout(2000);
+              
+              // Wait for search results to reload
+              await page.waitForSelector('ul.reusables-search-results__list, div.search-results-container', {
+                state: 'visible',
+                timeout: 5000
+              });
+              await page.waitForTimeout(1000);
+            } else {
+              console.log(`   ⚠️  Could not find enabled next button at page ${skipPage}, starting from current page`);
+              currentPage = skipPage;
+              break;
+            }
+          } catch (error) {
+            console.log(`   ⚠️  Error navigating to page ${skipPage + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
             currentPage = skipPage;
             break;
           }
-        } catch (error) {
-          console.log(`   ⚠️  Error navigating to page ${currentPage}, starting from page ${skipPage}`);
-          currentPage = skipPage;
-          break;
         }
       }
       
@@ -692,10 +750,24 @@ export async function scrapeConnections(
             // If STILL not on search page, force navigate to the search URL
             if (!currentUrl.includes('/search/results/people/')) {
               console.log(`   ⚠️  Still stuck, forcing navigation to search page...`);
-              const searchUrl = 'https://www.linkedin.com/search/results/people/?network=%5B%22F%22%5D&geoUrn=%5B%22103644278%22%5D';
-              await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
+              console.log(`   📍 Current page: ${currentPage}, Last known URL: ${currentSearchUrl || 'none'}`);
+              
+              // Try using the stored URL first (most reliable)
+              if (currentSearchUrl) {
+                await page.goto(currentSearchUrl, { waitUntil: 'domcontentloaded' });
+              } else {
+                // Fallback: construct URL with page number
+                const searchUrlWithPage = buildSearchUrl(currentPage);
+                await page.goto(searchUrlWithPage, { waitUntil: 'domcontentloaded' });
+              }
               await page.waitForTimeout(3000);
             }
+          }
+          
+          // Update tracked URL after successful goBack
+          currentUrl = page.url();
+          if (currentUrl.includes('/search/results/people/')) {
+            currentSearchUrl = currentUrl;
           }
           
           // Ensure search results container has re-loaded
@@ -822,6 +894,9 @@ export async function scrapeConnections(
             // Wait for page number to change (indicates navigation completed)
             await page.waitForTimeout(1500);
             currentPage++;
+            
+            // Update tracked URL to new page
+            currentSearchUrl = page.url();
           } else {
             console.log(`\n🏁 No more pages available`);
             hasMorePages = false;
