@@ -373,6 +373,72 @@ export async function scrapeConnections(
             // Email extraction is optional, continue without it
           }
 
+          // Try to extract article links
+          let articles: string | undefined;
+          try {
+            // Look for the Articles pill button in the activity section
+            const articlesPillButton = page.locator('button.profile-creator-shared-pills__pill').filter({ hasText: 'Articles' });
+            const articlesButtonCount = await articlesPillButton.count();
+
+            if (articlesButtonCount > 0) {
+              // Check if Articles button is not already selected
+              const isSelected = await articlesPillButton.getAttribute('aria-pressed');
+              
+              if (isSelected !== 'true') {
+                await articlesPillButton.click({ timeout: 2000 });
+                await page.waitForTimeout(1500);
+              }
+
+              // Wait for article content to load
+              await page.waitForTimeout(1000);
+
+              // Extract article links
+              // Articles are typically displayed with specific selectors in the activity feed
+              const articleLinkSelectors = [
+                'a[href*="/pulse/"]',  // LinkedIn article URLs contain /pulse/
+                'article a[data-test-app-aware-link]',
+                '.profile-creator-shared-feed-update__container a[href*="/pulse/"]'
+              ];
+
+              const articleUrls: string[] = [];
+              
+              for (const selector of articleLinkSelectors) {
+                const links = page.locator(selector);
+                const linkCount = await links.count();
+                
+                if (linkCount > 0) {
+                  // Extract up to 20 article links
+                  const maxArticles = Math.min(linkCount, 20);
+                  for (let i = 0; i < maxArticles; i++) {
+                    const href = await links.nth(i).getAttribute('href', { timeout: 1000 }).catch(() => null);
+                    if (href) {
+                      // Clean up URL
+                      let articleUrl = href.includes('?') ? href.split('?')[0] : href;
+                      if (!articleUrl.startsWith('http')) {
+                        articleUrl = `https://www.linkedin.com${articleUrl}`;
+                      }
+                      
+                      // Only add unique article URLs
+                      if (!articleUrls.includes(articleUrl)) {
+                        articleUrls.push(articleUrl);
+                      }
+                    }
+                  }
+                  
+                  if (articleUrls.length > 0) {
+                    break;
+                  }
+                }
+              }
+
+              if (articleUrls.length > 0) {
+                articles = JSON.stringify(articleUrls);
+              }
+            }
+          } catch (error) {
+            // Article extraction is optional, continue without it
+          }
+
           // Extract LinkedIn ID from profile URL
           const linkedinId = profileUrl.split('/in/')[1]?.split('/')[0]?.split('?')[0] || undefined;
 
@@ -390,7 +456,8 @@ export async function scrapeConnections(
             location: location || undefined,
             profile_url: profileUrl,
             linkedin_id: linkedinId,
-            worked_together: workedTogether
+            worked_together: workedTogether,
+            articles
           };
 
           const added = addLead(lead);
@@ -403,6 +470,10 @@ export async function scrapeConnections(
             if (location) console.log(`      Location: ${location}`);
             if (workedTogether) console.log(`      🤝 ${workedTogether}`);
             if (email) console.log(`      Email: ${email}`);
+            if (articles) {
+              const articleCount = JSON.parse(articles).length;
+              console.log(`      📰 Articles: ${articleCount}`);
+            }
           } else {
             console.log(`   ⏭️  Skipped: ${name} (already exists)`);
           }

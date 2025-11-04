@@ -12,6 +12,7 @@ interface Lead {
   profile_url: string;
   linkedin_id?: string;
   worked_together?: string;
+  articles?: string; // JSON array of article URLs
   scraped_at?: string;
   created_at?: string;
 }
@@ -123,6 +124,43 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
               </div>
             </div>
           )}
+
+          {/* Articles Section */}
+          {lead.articles && (() => {
+            try {
+              const articleUrls = JSON.parse(lead.articles) as string[];
+              if (articleUrls.length > 0) {
+                return (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                      Published Articles ({articleUrls.length})
+                    </label>
+                    <div className="mt-2 space-y-2">
+                      {articleUrls.map((url, index) => (
+                        <div key={index} className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:text-blue-800 flex items-center gap-2"
+                          >
+                            <Icon icon="article" size={18} className="text-gray-500" />
+                            <span className="flex-1 break-all">
+                              {url.split('/').pop() || url}
+                            </span>
+                            <Icon icon="open-in-new" size={16} />
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+            } catch (error) {
+              // Invalid JSON, skip rendering
+            }
+            return null;
+          })()}
 
           {/* Metadata */}
           <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">

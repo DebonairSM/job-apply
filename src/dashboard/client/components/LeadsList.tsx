@@ -15,6 +15,7 @@ interface Lead {
   profile_url: string;
   linkedin_id?: string;
   worked_together?: string;
+  articles?: string; // JSON array of article URLs
   scraped_at?: string;
   created_at?: string;
 }
@@ -24,6 +25,7 @@ interface LeadStats {
   withEmail: number;
   withoutEmail: number;
   workedTogether: number;
+  withArticles: number;
   topCompanies: Array<{ company: string; count: number }>;
   topTitles: Array<{ title: string; count: number }>;
 }
@@ -93,7 +95,7 @@ export function LeadsList() {
   });
 
   const leads = leadsData?.leads || [];
-  const stats = statsData || { total: 0, withEmail: 0, withoutEmail: 0, workedTogether: 0, topCompanies: [], topTitles: [] };
+  const stats = statsData || { total: 0, withEmail: 0, withoutEmail: 0, workedTogether: 0, withArticles: 0, topCompanies: [], topTitles: [] };
   const runs = runsData || [];
 
   const handleRowClick = (lead: Lead) => {
@@ -109,7 +111,7 @@ export function LeadsList() {
   return (
     <div className="space-y-6">
       {/* Header Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center justify-between">
             <div>
@@ -147,6 +149,16 @@ export function LeadsList() {
               <p className="text-2xl font-bold text-blue-600">{stats.workedTogether}</p>
             </div>
             <Icon icon="users" size={32} className="text-blue-500" />
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">With Articles</p>
+              <p className="text-2xl font-bold text-purple-600">{stats.withArticles}</p>
+            </div>
+            <Icon icon="article" size={32} className="text-purple-500" />
           </div>
         </div>
       </div>

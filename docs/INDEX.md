@@ -30,6 +30,8 @@ This directory contains documentation for the Job Application Automation system.
 - **[PROFILE_PERFORMANCE_ANALYTICS.md](PROFILE_PERFORMANCE_ANALYTICS.md)** - Profile performance tracking and analytics
 - **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Testing framework and best practices
 - **[LEADS_SYSTEM_IMPLEMENTATION.md](LEADS_SYSTEM_IMPLEMENTATION.md)** - LinkedIn leads scraping system
+- **[ARTICLE_EXTRACTION_FEATURE.md](ARTICLE_EXTRACTION_FEATURE.md)** - Extracting and displaying LinkedIn articles from lead profiles
+- **[WORKED_TOGETHER_FEATURE.md](WORKED_TOGETHER_FEATURE.md)** - Tracking shared work history with leads
 
 ## Recent Implementations
 

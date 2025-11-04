@@ -398,6 +398,13 @@ export function initDb(): void {
     // Column already exists, ignore
   }
 
+  // Add articles column if it doesn't exist (migration)
+  try {
+    database.exec(`ALTER TABLE leads ADD COLUMN articles TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+
   // Lead scraping runs table for batch processing and resume capability
   database.exec(`
     CREATE TABLE IF NOT EXISTS lead_scraping_runs (
@@ -1894,6 +1901,7 @@ export interface Lead {
   profile_url: string;
   linkedin_id?: string;
   worked_together?: string;
+  articles?: string; // JSON array of article URLs
   scraped_at?: string;
   created_at?: string;
 }
@@ -1920,8 +1928,8 @@ export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at'>): boolean 
   }
   
   const stmt = database.prepare(`
-    INSERT INTO leads (id, name, title, company, about, email, location, profile_url, linkedin_id, worked_together)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO leads (id, name, title, company, about, email, location, profile_url, linkedin_id, worked_together, articles)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   try {
@@ -1935,7 +1943,8 @@ export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at'>): boolean 
       lead.location || null,
       lead.profile_url,
       lead.linkedin_id || null,
-      lead.worked_together || null
+      lead.worked_together || null,
+      lead.articles || null
     );
     return true;
   } catch (error) {
@@ -2092,6 +2101,7 @@ export interface LeadStats {
   withEmail: number;
   withoutEmail: number;
   workedTogether: number;
+  withArticles: number;
   topCompanies: Array<{ company: string; count: number }>;
   topTitles: Array<{ title: string; count: number }>;
 }
@@ -2107,6 +2117,10 @@ export function getLeadStats(): LeadStats {
   
   const workedTogether = database.prepare(
     "SELECT COUNT(*) as count FROM leads WHERE worked_together IS NOT NULL AND worked_together != ''"
+  ).get() as { count: number };
+  
+  const withArticles = database.prepare(
+    "SELECT COUNT(*) as count FROM leads WHERE articles IS NOT NULL AND articles != ''"
   ).get() as { count: number };
   
   const topCompanies = database.prepare(`
@@ -2132,6 +2146,7 @@ export function getLeadStats(): LeadStats {
     withEmail: withEmail.count,
     withoutEmail: total.count - withEmail.count,
     workedTogether: workedTogether.count,
+    withArticles: withArticles.count,
     topCompanies,
     topTitles
   };
