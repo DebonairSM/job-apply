@@ -174,47 +174,52 @@ router.get('/profiles', (req, res) => {
     const stmt = database.prepare(`
       SELECT 
         COALESCE(profile, 'unknown') as profile_key,
-        COUNT(*) as total_jobs,
+        COUNT(*) as total_jobs_found,
         SUM(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) as queued,
         SUM(CASE WHEN status = 'applied' THEN 1 ELSE 0 END) as applied,
         SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as rejected,
         SUM(CASE WHEN status = 'interview' THEN 1 ELSE 0 END) as interviews,
+        SUM(CASE WHEN status IN ('queued', 'applied', 'rejected', 'interview') THEN 1 ELSE 0 END) as considered_jobs,
         AVG(rank) as avg_fit_score
       FROM jobs
       WHERE profile IS NOT NULL
       GROUP BY profile_key
-      HAVING total_jobs > 0
-      ORDER BY total_jobs DESC
+      HAVING total_jobs_found > 0
+      ORDER BY total_jobs_found DESC
     `);
 
     const rows = stmt.all() as Array<{
       profile_key: string;
-      total_jobs: number;
+      total_jobs_found: number;
       queued: number;
       applied: number;
       rejected: number;
       interviews: number;
+      considered_jobs: number;
       avg_fit_score: number | null;
     }>;
 
     // Calculate derived metrics for each profile
     const profiles = rows.map(row => {
-      const totalJobs = row.total_jobs || 1; // Avoid division by zero
+      const consideredJobs = row.considered_jobs || 1; // Avoid division by zero
+      const totalJobsFound = row.total_jobs_found || 0;
       const applied = row.applied || 0;
       const rejected = row.rejected || 0;
       const interviews = row.interviews || 0;
       
-      // Net success rate: ((applied - rejected + (interviews * 2)) / total_jobs) * 100
+      // Net success rate: ((applied - rejected + (interviews * 2)) / considered_jobs) * 100
+      // Only counts jobs that were actually considered (queued/applied/rejected/interview), excludes skipped
       // Rejections subtract from success, interviews count double
-      const netSuccessRate = ((applied - rejected + (interviews * 2)) / totalJobs) * 100;
+      const netSuccessRate = ((applied - rejected + (interviews * 2)) / consideredJobs) * 100;
       
-      // Application rate: percentage of jobs that were applied to
-      const applicationRate = (applied / totalJobs) * 100;
+      // Application rate: percentage of FOUND jobs that were applied to (shows filtering effectiveness)
+      const applicationRate = totalJobsFound > 0 ? (applied / totalJobsFound) * 100 : 0;
       
       return {
         profile_key: row.profile_key,
         profile_name: PROFILE_NAMES[row.profile_key] || row.profile_key,
-        total_jobs: row.total_jobs,
+        total_jobs: row.considered_jobs, // Show considered jobs (queued/applied/rejected/interview) not all jobs found
+        total_jobs_found: row.total_jobs_found, // Total including skipped (for reference)
         queued: row.queued,
         applied: row.applied,
         rejected: row.rejected,

@@ -40,7 +40,7 @@ export function ProfilePerformanceChart({ profiles }: ProfilePerformanceChartPro
       <div className="flex flex-wrap gap-4 text-sm text-gray-600 bg-gray-50 p-4 rounded-lg">
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded bg-gradient-to-r from-green-500 to-red-500"></div>
-          <span>Net Success Rate (Applied - Rejected + 2×Interviews)</span>
+          <span>Net Success Rate: (Applied - Rejected + 2×Interviews) / Considered Jobs</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded bg-purple-500"></div>
@@ -48,7 +48,7 @@ export function ProfilePerformanceChart({ profiles }: ProfilePerformanceChartPro
         </div>
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 rounded bg-gray-400"></div>
-          <span>Total Jobs</span>
+          <span>Jobs Considered (excludes skipped)</span>
         </div>
       </div>
 
@@ -66,7 +66,8 @@ export function ProfilePerformanceChart({ profiles }: ProfilePerformanceChartPro
                 <div className="flex-1">
                   <h3 className="font-semibold text-gray-900">{profile.profile_name}</h3>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 mt-1">
-                    <span>{profile.total_jobs} jobs</span>
+                    <span>{profile.total_jobs} considered</span>
+                    <span className="text-gray-500">({profile.total_jobs_found} found, {profile.total_jobs_found - profile.total_jobs} skipped)</span>
                     <span className="text-blue-600">{profile.applied} applied</span>
                     <span className="text-red-600">{profile.rejected} rejected</span>
                     {profile.interviews > 0 && (
@@ -114,10 +115,10 @@ export function ProfilePerformanceChart({ profiles }: ProfilePerformanceChartPro
                   </div>
                 </div>
 
-                {/* Total Jobs Bar */}
+                {/* Considered Jobs Bar */}
                 <div>
                   <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
-                    <span>Total Jobs Found</span>
+                    <span>Jobs Considered (excl. skipped)</span>
                     <span className="text-gray-700">{profile.total_jobs}</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">

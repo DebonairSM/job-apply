@@ -94,7 +94,8 @@ export interface ActivityEntry {
 export interface ProfileAnalytic {
   profile_key: string;
   profile_name: string;
-  total_jobs: number;
+  total_jobs: number; // Considered jobs (queued/applied/rejected/interview) - denominator for net success rate
+  total_jobs_found: number; // All jobs found including skipped
   queued: number;
   applied: number;
   rejected: number;

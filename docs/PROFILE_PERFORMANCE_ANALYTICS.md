@@ -9,14 +9,18 @@ The Profile Performance Analytics feature helps identify which search profiles a
 The core metric is **Net Success Rate**, calculated as:
 
 ```
-Net Success Rate = ((Applied - Rejected + (Interviews × 2)) / Total Jobs) × 100
+Net Success Rate = ((Applied - Rejected + (Interviews × 2)) / Considered Jobs) × 100
 ```
+
+Where **Considered Jobs** includes only jobs with status: `queued`, `applied`, `rejected`, or `interview`.
+Jobs with status `skipped` (low fit score) are excluded from the denominator.
 
 This formula:
 - Adds points for successful applications
 - Subtracts points for rejections (addressing the problem of high-scoring profiles with many rejections)
 - Double-counts interviews (strongest positive signal)
-- Shows true profile quality, not just volume
+- Only counts jobs that were worth applying to (excludes skipped jobs)
+- Shows true profile quality among viable opportunities
 
 A negative net success rate indicates a profile is generating more rejections than successful applications.
 
@@ -33,18 +37,24 @@ A negative net success rate indicates a profile is generating more rejections th
     {
       "profile_key": "aspnet-simple",
       "profile_name": "ASP.NET Simple",
-      "total_jobs": 113,
+      "total_jobs": 31,
+      "total_jobs_found": 113,
       "queued": 0,
       "applied": 7,
       "rejected": 4,
       "interviews": 0,
       "avg_fit_score": 48,
-      "net_success_rate": 2.7,
+      "net_success_rate": 9.7,
       "application_rate": 6.2
     }
   ]
 }
 ```
+
+**Field Descriptions**:
+- `total_jobs`: Considered jobs (queued/applied/rejected/interview) - denominator for net success rate
+- `total_jobs_found`: All jobs found including skipped ones
+- `application_rate`: Applied / Total Jobs Found (shows filtering effectiveness)
 
 **Files Modified**:
 - `src/dashboard/routes/analytics.ts` - Added `/profiles` endpoint with profile name mapping
@@ -67,10 +77,12 @@ The Profile Performance section displays:
 - Four metrics per profile:
   1. **Net Success Rate** - Color-coded bar (green for positive, red for negative)
   2. **Average Fit Score** - Purple bar showing job match quality
-  3. **Total Jobs Found** - Gray bar showing search volume
-  4. **Application Rate** - Blue bar showing percentage of jobs applied to
-- Detailed statistics showing applied, rejected, and interview counts
-- Legend explaining the metrics
+  3. **Jobs Considered** - Gray bar showing viable opportunities (excludes skipped)
+  4. **Application Rate** - Blue bar showing percentage of FOUND jobs applied to (filtering effectiveness)
+- Detailed statistics showing:
+  - Considered jobs vs total jobs found (with skipped count)
+  - Applied, rejected, and interview counts
+- Legend explaining the metrics and formula
 
 ## Usage
 
@@ -95,14 +107,17 @@ The following profile keys are mapped to friendly display names:
 
 ## Example Results
 
-Based on actual data:
+Based on actual data (before/after the fix to exclude skipped jobs):
 
-1. **ASP.NET Simple** (2.7% net success) - Best performer with 7 applications and 4 rejections from 113 jobs
-2. **Legacy Web** (2.4% net success) - Second best with 4 applications and 2 rejections from 83 jobs
-3. **C# Azure (No Frontend)** (-4.7% net success) - Poor performer with 2 applications but 8 rejections from 127 jobs
-4. **Core Azure API** (-5% net success) - High volume (200 jobs) but 68 applications vs 78 rejections
+**Before Fix** (skipped jobs included in denominator):
+- Legacy Modernization: 0.7% net success (16 applied - 15 rejected) / 145 total jobs
+- This was artificially low because ~114 jobs were skipped
 
-This demonstrates how the net success rate correctly penalizes profiles that generate many rejections, even if they have high fit scores.
+**After Fix** (skipped jobs excluded):
+- Legacy Modernization: 3.2% net success (16 applied - 15 rejected) / 31 considered jobs
+- More accurate representation of success rate among viable opportunities
+
+The fix ensures profiles are evaluated based only on jobs that met the fit score threshold, not penalized for correctly filtering out poor matches.
 
 ## Technical Notes
 
