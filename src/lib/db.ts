@@ -2072,12 +2072,10 @@ export function getLeadStats(): LeadStats {
   const database = getDb();
   
   const total = database.prepare('SELECT COUNT(*) as count FROM leads').get() as { count: number };
-  console.log('[getLeadStats] Total count:', total);
   
   const withEmail = database.prepare(
     "SELECT COUNT(*) as count FROM leads WHERE email IS NOT NULL AND email != ''"
   ).get() as { count: number };
-  console.log('[getLeadStats] With email count:', withEmail);
   
   const topCompanies = database.prepare(`
     SELECT company, COUNT(*) as count
@@ -2097,16 +2095,13 @@ export function getLeadStats(): LeadStats {
     LIMIT 10
   `).all() as Array<{ title: string; count: number }>;
   
-  const result = {
+  return {
     total: total.count,
     withEmail: withEmail.count,
     withoutEmail: total.count - withEmail.count,
     topCompanies,
     topTitles
   };
-  console.log('[getLeadStats] Returning stats:', result);
-  
-  return result;
 }
 
 // Lead scraping runs operations
