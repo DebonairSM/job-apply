@@ -10,6 +10,7 @@ export interface LeadSearchOptions {
   profile?: string;
   max?: number;
   resume?: number;
+  startPage?: number;
 }
 
 export async function leadSearchCommand(opts: LeadSearchOptions): Promise<void> {
@@ -130,7 +131,8 @@ export async function leadSearchCommand(opts: LeadSearchOptions): Promise<void> 
     const progress = await scrapeConnections(page, runId, {
       filterTitles,
       maxProfiles,
-      resumeRunId: opts.resume
+      resumeRunId: opts.resume,
+      startPage: opts.startPage
     }, shouldStopNow);
 
     // Mark run as completed or stopped

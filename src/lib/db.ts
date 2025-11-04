@@ -412,6 +412,27 @@ export function initDb(): void {
     // Column already exists, ignore
   }
 
+  // Add birthday column if it doesn't exist (migration)
+  try {
+    database.exec(`ALTER TABLE leads ADD COLUMN birthday TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+
+  // Add connected_date column if it doesn't exist (migration)
+  try {
+    database.exec(`ALTER TABLE leads ADD COLUMN connected_date TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+
+  // Add address column if it doesn't exist (migration)
+  try {
+    database.exec(`ALTER TABLE leads ADD COLUMN address TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+
   // Lead scraping runs table for batch processing and resume capability
   database.exec(`
     CREATE TABLE IF NOT EXISTS lead_scraping_runs (
@@ -1909,6 +1930,9 @@ export interface Lead {
   linkedin_id?: string;
   worked_together?: string;
   articles?: string; // JSON array of article URLs
+  birthday?: string; // e.g., "January 1"
+  connected_date?: string; // e.g., "Oct 18, 2017"
+  address?: string; // Social media handles or custom addresses
   scraped_at?: string;
   created_at?: string;
   deleted_at?: string;
@@ -1936,8 +1960,8 @@ export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at' | 'deleted_
   }
   
   const stmt = database.prepare(`
-    INSERT INTO leads (id, name, title, company, about, email, location, profile_url, linkedin_id, worked_together, articles)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO leads (id, name, title, company, about, email, location, profile_url, linkedin_id, worked_together, articles, birthday, connected_date, address)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   try {
@@ -1952,7 +1976,10 @@ export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at' | 'deleted_
       lead.profile_url,
       lead.linkedin_id || null,
       lead.worked_together || null,
-      lead.articles || null
+      lead.articles || null,
+      lead.birthday || null,
+      lead.connected_date || null,
+      lead.address || null
     );
     return true;
   } catch (error) {

@@ -26,35 +26,49 @@ The contact info modal wasn't consistently closing:
 
 ## Solutions Implemented
 
-### Profile Link Extraction Improvements
+### Profile Link Extraction Improvements (Latest Update)
 
-**File:** `src/services/lead-scraper.ts` (lines 125-167)
+**File:** `src/services/lead-scraper.ts` (lines 125-180)
 
-Changes:
-- Increased initial wait time from 500ms to 1000ms after scrolling
-- Added extra scroll past card (100px) to ensure full viewport visibility
-- Implemented retry mechanism with up to 3 attempts
+Latest improvements for initial link extraction:
+- **Increased attempts**: Now 5 attempts instead of 3
+- **Better timing**: Initial wait increased from 1000ms to 1500ms
+- **Bidirectional scrolling**: Scrolls down 200px then back up 50px to trigger lazy loading
+- **Visual feedback**: Shows retry message after 2nd attempt
+- **Aggressive recovery**: Scrolls 300px down, 100px back up on retries with 2s waits
+- **Longer retry delays**: 2000ms between attempts (up from 1500ms)
+
+Previous changes:
 - Fresh DOM queries on each attempt (avoids stale element issues)
 - Waits for link visibility, not just attachment
 - Variable scoping fix to allow link reuse for clicking
 
-### Post-Navigation DOM Verification (Latest Update)
+### Post-Navigation DOM Verification (Latest Update v2)
 
-**File:** `src/services/lead-scraper.ts` (lines 612-675)
+**File:** `src/services/lead-scraper.ts` (lines 638-710)
 
-Latest improvements to prevent cascading failures:
-- **Smart positioning**: Scrolls back to the next card position after navigation
-- **Increased retries**: Now 5 attempts instead of 3
-- **More aggressive scrolling**: Scrolls down 300px then back up 100px to trigger intersection observers
-- **Visual feedback**: Progress messages showing retry attempts
-- **Automatic recovery**: Refreshes the page if links don't load after 5 attempts
-- **Post-refresh verification**: Confirms links are available after refresh
+Latest improvements - now with three-tier recovery:
+- **Tier 1 - Smart retry** (5 attempts):
+  - Scrolls back to the next card position after navigation
+  - Scrolls down 300px then back up 100px to trigger intersection observers
+  - Visual feedback showing retry attempts
+  - 2-second waits between attempts
+  
+- **Tier 2 - Page refresh** (if Tier 1 fails):
+  - Reloads the current page
+  - Scrolls 400px to trigger lazy loading
+  - Verifies links are available after refresh
+  
+- **Tier 3 - Full navigation** (if Tier 2 fails):
+  - Navigates to the search URL again (fresh page load)
+  - Waits for search results container
+  - Scrolls and verifies links
+  - **Breaks out of profile loop if this fails** (prevents cascading failures)
 
 Previous changes:
 - Increased navigation wait time from 1500ms to 2000ms
 - Waits for search results container to be visible
 - Verifies at least one profile card with link exists before continuing
-- Triggers lazy loading with scroll if links not immediately present
 
 ### Modal Close Reliability
 
@@ -88,9 +102,16 @@ The latest update specifically prevents the cascading failure pattern where:
 - Profiles 5-10 all fail consecutively ❌
 
 Now when navigation back fails, the scraper will:
-1. Try 5 times with progressive scrolling
-2. Refresh the page if needed
-3. Continue successfully after recovery
+1. Try 5 times with progressive scrolling (Tier 1)
+2. Refresh the page if that fails (Tier 2)
+3. Navigate to the URL again for a fresh load (Tier 3)
+4. Skip remaining profiles on the page if all recovery fails (prevents cascading failures)
+
+Initial link extraction also improved:
+- 5 attempts instead of 3
+- Better scrolling patterns (bidirectional)
+- Visual feedback on retries
+- Longer wait times (2s between attempts)
 
 ## Testing
 

@@ -16,6 +16,9 @@ interface Lead {
   linkedin_id?: string;
   worked_together?: string;
   articles?: string; // JSON array of article URLs
+  birthday?: string;
+  connected_date?: string;
+  address?: string;
   scraped_at?: string;
   created_at?: string;
   deleted_at?: string;

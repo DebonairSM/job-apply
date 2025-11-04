@@ -164,6 +164,11 @@ yargs(hideBin(process.argv))
           describe: 'Resume from previous run (run ID)',
           type: 'number'
         })
+        .option('start-page', {
+          alias: 's',
+          describe: 'Start from specific page number (skip earlier pages)',
+          type: 'number'
+        })
         .check((argv) => {
           if (argv.profile && argv.titles) {
             throw new Error('Cannot use both --profile and --titles. Choose one.');
@@ -176,7 +181,8 @@ yargs(hideBin(process.argv))
         profile: argv.profile,
         titles: argv.titles,
         max: argv.max,
-        resume: argv.resume
+        resume: argv.resume,
+        startPage: argv.startPage
       });
     }
   )

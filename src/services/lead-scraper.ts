@@ -7,6 +7,7 @@ export interface LeadScraperOptions {
   filterTitles?: string[];
   maxProfiles?: number;
   resumeRunId?: number;
+  startPage?: number;
 }
 
 interface ScrapingProgress {
@@ -53,8 +54,35 @@ export async function scrapeConnections(
 
     console.log('✅ Search results loaded\n');
 
-    let currentPage = 1;
+    let currentPage = options.startPage || 1;
     let hasMorePages = true;
+
+    // If starting from a page other than 1, navigate to it first
+    if (currentPage > 1) {
+      console.log(`\n⏭️  Fast-forwarding to page ${currentPage}...`);
+      
+      for (let skipPage = 1; skipPage < currentPage; skipPage++) {
+        try {
+          const nextButton = page.locator('button.artdeco-pagination__button--next:not([disabled])').first();
+          const buttonExists = await nextButton.count() > 0;
+          
+          if (buttonExists) {
+            await nextButton.click({ timeout: 5000 });
+            await page.waitForTimeout(2000);
+          } else {
+            console.log(`   ⚠️  Could not find next button at page ${skipPage}, starting from current page`);
+            currentPage = skipPage;
+            break;
+          }
+        } catch (error) {
+          console.log(`   ⚠️  Error navigating to page ${currentPage}, starting from page ${skipPage}`);
+          currentPage = skipPage;
+          break;
+        }
+      }
+      
+      console.log(`   ✅ Starting from page ${currentPage}\n`);
+    }
 
     // Process pages
     while (hasMorePages && !shouldStopNow()) {
@@ -373,8 +401,12 @@ export async function scrapeConnections(
             }
           }
 
-          // Try to extract email
+          // Try to extract contact info (email, birthday, connected_date, address)
           let email: string | undefined;
+          let birthday: string | undefined;
+          let connectedDate: string | undefined;
+          let address: string | undefined;
+          
           try {
             // Look for contact info button
             const contactButton = page.locator('a[href*="/overlay/contact-info/"]').first();
@@ -384,7 +416,7 @@ export async function scrapeConnections(
               await contactButton.click({ timeout: 2000 });
               await page.waitForTimeout(1500);
 
-              // Try to find email in the modal
+              // Extract email
               const emailSelectors = [
                 'a[href^="mailto:"]',
                 'section.pv-contact-info__contact-type.ci-email a'
@@ -400,6 +432,48 @@ export async function scrapeConnections(
                     break;
                   }
                 }
+              }
+
+              // Extract birthday
+              try {
+                const birthdaySection = page.locator('section.pv-contact-info__contact-type:has(svg[data-test-icon="calendar-medium"])');
+                const birthdayCount = await birthdaySection.count();
+                if (birthdayCount > 0) {
+                  const birthdayText = await birthdaySection.locator('span.t-14.t-black.t-normal, div.t-14').first().innerText({ timeout: 1000 }).catch(() => null);
+                  if (birthdayText && birthdayText.trim()) {
+                    birthday = birthdayText.trim();
+                  }
+                }
+              } catch (e) {
+                // Birthday extraction is optional
+              }
+
+              // Extract connected date
+              try {
+                const connectedSection = page.locator('section.pv-contact-info__contact-type:has(svg[data-test-icon="people-medium"])');
+                const connectedCount = await connectedSection.count();
+                if (connectedCount > 0) {
+                  const connectedText = await connectedSection.locator('span.t-14.t-black.t-normal, div.t-14').first().innerText({ timeout: 1000 }).catch(() => null);
+                  if (connectedText && connectedText.trim()) {
+                    connectedDate = connectedText.trim();
+                  }
+                }
+              } catch (e) {
+                // Connected date extraction is optional
+              }
+
+              // Extract address (social media handles or custom addresses)
+              try {
+                const addressSection = page.locator('section.pv-contact-info__contact-type:has(svg[data-test-icon="location-marker-medium"])');
+                const addressCount = await addressSection.count();
+                if (addressCount > 0) {
+                  const addressLink = await addressSection.locator('a, div.t-14').first().innerText({ timeout: 1000 }).catch(() => null);
+                  if (addressLink && addressLink.trim()) {
+                    address = addressLink.trim();
+                  }
+                }
+              } catch (e) {
+                // Address extraction is optional
               }
 
               // Close the modal - try multiple methods with verification
@@ -562,7 +636,10 @@ export async function scrapeConnections(
             profile_url: profileUrl,
             linkedin_id: linkedinId,
             worked_together: workedTogether,
-            articles
+            articles,
+            birthday,
+            connected_date: connectedDate,
+            address
           };
 
           const added = addLead(lead);
@@ -575,6 +652,9 @@ export async function scrapeConnections(
             if (location) console.log(`      Location: ${location}`);
             if (workedTogether) console.log(`      🤝 ${workedTogether}`);
             if (email) console.log(`      Email: ${email}`);
+            if (birthday) console.log(`      🎂 Birthday: ${birthday}`);
+            if (connectedDate) console.log(`      🤝 Connected: ${connectedDate}`);
+            if (address) console.log(`      📍 Address: ${address}`);
             if (articles) {
               const articleCount = JSON.parse(articles).length;
               console.log(`      📰 Articles: ${articleCount}`);
@@ -603,13 +683,23 @@ export async function scrapeConnections(
           // Verify we're back on search results page (not stuck on profile or overlay)
           let currentUrl = page.url();
           if (!currentUrl.includes('/search/results/people/')) {
+            console.log(`   ⚠️  Not on search page after goBack, trying again...`);
             // If not on search page, try going back one more time
             await page.goBack({ waitUntil: 'domcontentloaded' });
             await page.waitForTimeout(2000);
             currentUrl = page.url();
+            
+            // If STILL not on search page, force navigate to the search URL
+            if (!currentUrl.includes('/search/results/people/')) {
+              console.log(`   ⚠️  Still stuck, forcing navigation to search page...`);
+              const searchUrl = 'https://www.linkedin.com/search/results/people/?network=%5B%22F%22%5D&geoUrn=%5B%22103644278%22%5D';
+              await page.goto(searchUrl, { waitUntil: 'domcontentloaded' });
+              await page.waitForTimeout(3000);
+            }
           }
           
           // Ensure search results container has re-loaded
+          let recoverySuccessful = true;
           try {
             await page.waitForSelector('ul.reusables-search-results__list, div.search-results-container', {
               state: 'visible',
@@ -668,10 +758,18 @@ export async function scrapeConnections(
                 console.log(`   ✅ Profile links loaded after refresh`);
               } else {
                 console.log(`   ❌ Profile links still not loading - page may have issues`);
+                recoverySuccessful = false;
               }
             }
           } catch (error) {
             console.log(`   ⚠️  Warning: Could not verify search results loaded properly`);
+            recoverySuccessful = false;
+          }
+          
+          // CRITICAL: Stop processing if we couldn't recover the page
+          if (!recoverySuccessful) {
+            console.log(`   🛑 STOPPING: Cannot continue on this page, moving to next page`);
+            break;
           }
 
         } catch (error) {

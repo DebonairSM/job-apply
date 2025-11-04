@@ -15,6 +15,9 @@ interface Lead {
   linkedin_id?: string;
   worked_together?: string;
   articles?: string; // JSON array of article URLs
+  birthday?: string;
+  connected_date?: string;
+  address?: string;
   scraped_at?: string;
   created_at?: string;
   deleted_at?: string;
@@ -138,6 +141,27 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
                 <Icon icon="open-in-new" size={16} />
               </a>
             </div>
+
+            {lead.address && (
+              <div className="flex items-center gap-3">
+                <Icon icon="place" size={20} className="text-orange-500" />
+                <span className="text-gray-900">{lead.address}</span>
+              </div>
+            )}
+
+            {lead.birthday && (
+              <div className="flex items-center gap-3">
+                <Icon icon="cake" size={20} className="text-pink-500" />
+                <span className="text-gray-900">Birthday: {lead.birthday}</span>
+              </div>
+            )}
+
+            {lead.connected_date && (
+              <div className="flex items-center gap-3">
+                <Icon icon="people" size={20} className="text-blue-500" />
+                <span className="text-gray-900">Connected: {lead.connected_date}</span>
+              </div>
+            )}
           </div>
 
           {/* About Section */}
