@@ -40,13 +40,20 @@ npm run search -- --profile contract  # Contract/freelance positions
 npm run search -- --profile security  # Security-focused roles
 ```
 
-**2. Apply to Jobs**
+**2. Build Your Network** (optional)
 ```bash
-npm run apply -- --easy              # Apply to Easy Apply positions  
-npm run dashboard:dev                # Monitor at https://localhost:3000
+npm run leads:search                           # Scrape all 1st degree connections (US)
+npm run leads:search -- --titles "CTO,Director,Founder"  # Filter by titles
+npm run leads:search -- --max 50               # Limit to 50 profiles
 ```
 
-**3. Manage Filters** (optional)
+**3. Monitor & Apply**
+```bash
+npm run dashboard:dev                # Monitor at https://localhost:3000
+npm run apply -- --easy              # Apply to Easy Apply positions
+```
+
+**4. Manage Filters** (optional)
 ```bash
 npm run block:company "CompanyName" # Block specific companies
 npm run filters:list                # View active filters
@@ -100,6 +107,7 @@ Access at **https://localhost:3000**
 
 - **Live Stats** - Success rates, trends, updates every 5 seconds
 - **Job Management** - Filter, update status, view detailed scores
+- **Leads Database** - Browse connections, filter by title/company/location, export contacts
 - **AI Content** - Generate headlines and cover letters per job
 - **Analytics** - Timeline, company performance, score distributions
 - **Automation** - Run search/apply commands with live logs
@@ -129,33 +137,46 @@ Update statuses as you hear back to help the learning system improve.
 
 ## Common Commands
 
-**Search**
+**Job Search**
 ```bash
 npm run search -- --profile contract           # Contract positions
 npm run search -- --profile core               # Full-time Azure roles
 npm run search -- --min-score 85 --max-pages 3 # Custom threshold
-# New simplified profiles and location options
 npm run search -- --profile aspnet-simple      # Simple ASP.NET keyword
-npm run search -- --profile csharp-azure-no-frontend # C# + Azure, exclude Angular/React
-npm run search -- --profile legacy-web         # Legacy WebForms, MVC, jQuery, .NET Framework
-# Preset location (no UI slider shown). Radius applied only if LinkedIn exposes it
-npm run search -- --profile aspnet-simple --location-preset wesley-chapel
-# Explicit location + desired radius (best-effort if distance control exists)
-npm run search -- --profile csharp-azure-no-frontend --location "Wesley Chapel, FL" --radius 25
+npm run search -- --profile legacy-web         # Legacy WebForms/MVC/.NET Framework
+npm run search -- --location "Wesley Chapel, FL" --radius 25  # Location + radius
 ```
 
-**Apply**
+**Lead Scraping**
+```bash
+npm run leads:search                                  # All 1st connections (US)
+npm run leads:search -- --titles "CTO,Director"       # Filter by title
+npm run leads:search -- --max 100                     # Limit profiles
+npm run leads:search -- --titles "Founder,VP" --max 50  # Combined filters
+npm run leads:search -- --resume 123                  # Resume previous run
+```
+
+**Job Applications**
 ```bash
 npm run apply -- --dry-run                     # Test mode (no submit)
 npm run apply -- --easy                        # Easy Apply only
 npm run apply -- --job <job-id>                # Specific job
 ```
 
-**Manage**
+**Management**
 ```bash
 npm run status                                 # View statistics
 npm run list queued                            # Show queued jobs
 npm run backup                                 # Backup database
+npm run dashboard:dev                          # Open dashboard
+```
+
+**Filters & Blocks**
+```bash
+npm run block:company "CompanyName"            # Block company
+npm run filters:add                            # Add tech filter
+npm run filters:remove                         # Remove tech filter
+npm run filters:list                           # View active filters
 ```
 
 ---
@@ -182,6 +203,7 @@ npm run login                                    # LinkedIn auth
 **Run**
 ```bash
 npm run search -- --profile contract            # Find contract jobs
+npm run leads:search -- --titles "CTO,Director" # Build network leads
 npm run dashboard:dev                           # Open dashboard
 npm run apply -- --easy                         # Apply to jobs
 ```

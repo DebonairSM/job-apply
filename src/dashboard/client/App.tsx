@@ -23,7 +23,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
   { id: 'jobs', label: 'Jobs', icon: 'work' },
-  { id: 'leads', label: 'Leads', icon: 'people' },
+  { id: 'leads', label: 'Leads', icon: 'group' },
   { id: 'activity', label: 'Activity', icon: 'list-alt' },
   { id: 'automation', label: 'Automation', icon: 'precision-manufacturing' },
   { id: 'settings', label: 'Settings', icon: 'settings' },

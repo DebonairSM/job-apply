@@ -177,26 +177,28 @@ export async function scrapeConnections(
             continue;
           }
 
-          // Extract title and company from card
-          // LinkedIn uses div.t-14 for both title and location
-          // Title is div.t-14.t-black (first occurrence)
-          // Location is div.t-14.t-normal (second occurrence)
-          const occupationSelectors = [
-            'div.t-14.t-black',           // Current LinkedIn structure (Nov 2024)
-            'div.t-14',                   // Fallback - get first t-14 element
-            '.entity-result__primary-subtitle',  // Legacy
-            '.artdeco-entity-lockup__subtitle',
-            '.mn-connection-card__occupation'
-          ];
+          // Click to view full profile
+          await profileLink.click({ timeout: 3000 }).catch(async () => {
+            await profileLink.click({ force: true, timeout: 2000 });
+          });
+          await page.waitForTimeout(2000);
 
+          // Extract title and company from profile page
           let title = '';
           let company = '';
+          
+          const titleSelectors = [
+            'div.text-body-medium.break-words',  // Current LinkedIn structure (top of profile)
+            '.pv-top-card--list-bullet li:first-child',
+            'h2.mt1.t-18.t-black.t-normal',
+            '.pv-top-card-section__headline'
+          ];
 
-          for (const selector of occupationSelectors) {
-            const occElem = card.locator(selector).first();
-            const occCount = await occElem.count();
-            if (occCount > 0) {
-              const text = await occElem.innerText({ timeout: 2000 }).catch(() => null);
+          for (const selector of titleSelectors) {
+            const titleElem = page.locator(selector).first();
+            const titleCount = await titleElem.count();
+            if (titleCount > 0) {
+              const text = await titleElem.innerText({ timeout: 2000 }).catch(() => null);
               if (text && text.trim()) {
                 // LinkedIn typically shows "Title at Company"
                 const occupation = text.trim();
@@ -204,6 +206,9 @@ export async function scrapeConnections(
                   const parts = occupation.split(' at ');
                   title = parts[0].trim();
                   company = parts.slice(1).join(' at ').trim();
+                } else if (occupation.includes(' · ')) {
+                  // Some profiles use · separator
+                  title = occupation.split(' · ')[0].trim();
                 } else {
                   title = occupation;
                 }
@@ -212,22 +217,43 @@ export async function scrapeConnections(
             }
           }
 
-          // Extract location from card
-          // Location is the second div.t-14 element (or specifically div.t-14.t-normal)
+          // If we didn't get company from title, try experience section
+          if (!company) {
+            const companySelectors = [
+              'section[data-section="currentPositionsDetails"] li a',
+              '.pv-entity__secondary-title',
+              'ul.pv-top-card--list-bullet li span.text-body-small'
+            ];
+
+            for (const selector of companySelectors) {
+              const companyElem = page.locator(selector).first();
+              const companyCount = await companyElem.count();
+              if (companyCount > 0) {
+                const text = await companyElem.innerText({ timeout: 2000 }).catch(() => null);
+                if (text && text.trim()) {
+                  company = text.trim();
+                  break;
+                }
+              }
+            }
+          }
+
+          // Extract location from profile page
           let location = '';
           const locationSelectors = [
-            'div.t-14.t-normal',          // Current LinkedIn structure (Nov 2024)
-            '.entity-result__secondary-subtitle',  // Legacy
-            '.artdeco-entity-lockup__caption',
-            '.mn-connection-card__location'
+            'span.text-body-small.inline.t-black--light.break-words',  // Current LinkedIn structure
+            '.pv-top-card--list-bullet li:last-child span',
+            'span.t-16.t-black.t-normal',
+            '.pv-top-card-section__location'
           ];
 
           for (const selector of locationSelectors) {
-            const locElem = card.locator(selector).first();
+            const locElem = page.locator(selector).first();
             const locCount = await locElem.count();
             if (locCount > 0) {
               const text = await locElem.innerText({ timeout: 2000 }).catch(() => null);
-              if (text && text.trim()) {
+              if (text && text.trim() && !text.includes('@') && text.length < 100) {
+                // Make sure it looks like a location (not email or long text)
                 location = text.trim();
                 break;
               }
@@ -245,15 +271,12 @@ export async function scrapeConnections(
               console.log(`   ⏭️  Skipping ${name}: title "${title}" doesn't match filter`);
               progress.profilesScraped++;
               progress.lastProfileUrl = profileUrl;
+              // Navigate back before continuing
+              await page.goBack({ waitUntil: 'domcontentloaded' });
+              await page.waitForTimeout(1500);
               continue;
             }
           }
-
-          // Click to view full profile
-          await profileLink.click({ timeout: 3000 }).catch(async () => {
-            await profileLink.click({ force: true, timeout: 2000 });
-          });
-          await page.waitForTimeout(2000);
 
           // Extract about section from profile page
           let about = '';

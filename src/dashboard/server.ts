@@ -12,7 +12,7 @@ import leadsRouter from './routes/leads.js';
 import runsRouter from './routes/runs.js';
 import analyticsRouter from './routes/analytics.js';
 import coverLetterRouter from './routes/cover-letter-router.js';
-import { generateHeadline } from './routes/headline.js';
+import headlineRouter from './routes/headline-router.js';
 import profileRouter from './routes/profile.js';
 import skillsRouter from './routes/skills.js';
 import commonAnswersRouter from './routes/common-answers.js';
@@ -68,7 +68,7 @@ app.use('/api/leads', leadsRouter);
 app.use('/api/runs', runsRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/cover-letter', coverLetterRouter);
-app.post('/api/headline/generate', generateHeadline);
+app.use('/api/headline', headlineRouter);
 
 // User Configuration Routes
 app.use('/api/profile', profileRouter);

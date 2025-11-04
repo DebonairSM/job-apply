@@ -4,33 +4,43 @@ This directory contains documentation for the Job Application Automation system.
 
 ## Getting Started
 
-- **[README.md](README.md)** - Main project documentation
 - **[DASHBOARD_QUICKSTART.md](DASHBOARD_QUICKSTART.md)** - Quick start guide for the dashboard
+- **[README.md](README.md)** - Main project documentation
 
 ## Setup and Configuration
 
 - **[HTTPS_SETUP_COMPLETE.md](HTTPS_SETUP_COMPLETE.md)** - HTTPS setup for secure local development
-- **[SONARQUBE_SETUP_AND_USAGE.md](SONARQUBE_SETUP_AND_USAGE.md)** - Code quality analysis setup
 - **[DATABASE_MIGRATION_GUIDE.md](DATABASE_MIGRATION_GUIDE.md)** - Database migration instructions
 - **[DATABASE_SAFETY_SYSTEM.md](DATABASE_SAFETY_SYSTEM.md)** - Database backup and safety features
+- **[SONARQUBE_SETUP_AND_USAGE.md](SONARQUBE_SETUP_AND_USAGE.md)** - Code quality analysis setup
 
 ## Customization Guides
 
-- **[CURSOR_CUSTOMIZATION_GUIDE.md](CURSOR_CUSTOMIZATION_GUIDE.md)** - Customizing the development environment
-- **[CURSORRULES_EXAMPLES.md](CURSORRULES_EXAMPLES.md)** - Examples for Cursor IDE rules
 - **[PROFILE_CREATION_GUIDE.md](PROFILE_CREATION_GUIDE.md)** - Creating custom job search profiles
 - **[RANKING_CUSTOMIZATION_GUIDE.md](RANKING_CUSTOMIZATION_GUIDE.md)** - Customizing job ranking algorithms
 - **[TECH_FILTER_GUIDE.md](TECH_FILTER_GUIDE.md)** - Filtering jobs by technology stack
+- **[CURSOR_CUSTOMIZATION_GUIDE.md](CURSOR_CUSTOMIZATION_GUIDE.md)** - Customizing the development environment
+- **[CURSORRULES_EXAMPLES.md](CURSORRULES_EXAMPLES.md)** - Examples for Cursor IDE rules
 
 ## System Features
 
 - **[KEYWORD_HIGHLIGHTING.md](KEYWORD_HIGHLIGHTING.md)** - Keyword highlighting in the dashboard
 - **[RESUME_PROCESSING_SYSTEM.md](RESUME_PROCESSING_SYSTEM.md)** - Resume parsing and processing
+- **[PROFILE_PERFORMANCE_ANALYTICS.md](PROFILE_PERFORMANCE_ANALYTICS.md)** - Profile performance tracking and analytics
 - **[TESTING_GUIDE.md](TESTING_GUIDE.md)** - Testing framework and best practices
+- **[LEADS_SYSTEM_IMPLEMENTATION.md](LEADS_SYSTEM_IMPLEMENTATION.md)** - LinkedIn leads scraping system
+
+## Bug Fixes and Improvements
+
+- **[LEADS_SCRAPER_PROFILE_EXTRACTION_FIX.md](LEADS_SCRAPER_PROFILE_EXTRACTION_FIX.md)** - Fix for title, company, and location extraction
+- **[LEADS_STATS_SQL_FIX.md](LEADS_STATS_SQL_FIX.md)** - SQL query fix for leads statistics
+- **[LEADS_SCRAPER_SELECTOR_FIX.md](LEADS_SCRAPER_SELECTOR_FIX.md)** - Selector improvements for leads scraping
+- **[LEADS_SCRAPER_FIX_SUMMARY.md](LEADS_SCRAPER_FIX_SUMMARY.md)** - Summary of leads scraper improvements
+- **[LEADS_DISPLAY_FIX.md](LEADS_DISPLAY_FIX.md)** - Dashboard display improvements for leads
+- **[PROFILE_PERFORMANCE_FIX.md](PROFILE_PERFORMANCE_FIX.md)** - Profile performance tracking fixes
 
 ## Dashboard and UI
 
-- **[DASHBOARD_MODERNIZATION_COMPLETE.md](DASHBOARD_MODERNIZATION_COMPLETE.md)** - Material Design dashboard redesign
 - **[DASHBOARD_VISUAL_GUIDE.md](DASHBOARD_VISUAL_GUIDE.md)** - Visual reference for icons and components
 
 ## Archived Documentation
@@ -54,3 +64,10 @@ When adding new documentation:
 4. Update this index when adding new documents
 5. Move completed implementation docs to archive/
 
+## Quick Reference
+
+- [Main README](../README.md) - Project overview and usage
+- [Dashboard Source Code](../src/dashboard/) - Dashboard implementation
+- [Package Configuration](../package.json) - Dependencies and scripts
+- [CLI Commands](../src/cli.ts) - Command-line interface
+- [AI Profiles](../src/ai/profiles.ts) - Search profiles and scoring weights
