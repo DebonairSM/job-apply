@@ -3,6 +3,15 @@ import { JobStats, JobsResponse, RunsResponse, Job, JobActivity, ActivityEntry, 
 const API_BASE = '/api';
 
 export const api = {
+  // Generic GET method for flexible endpoint access
+  async get(endpoint: string): Promise<{ data: any }> {
+    const url = endpoint.startsWith('/') ? `${API_BASE}${endpoint}` : `${API_BASE}/${endpoint}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`Failed to fetch ${endpoint}`);
+    const data = await response.json();
+    return { data };
+  },
+
   async getStats(): Promise<JobStats> {
     const response = await fetch(`${API_BASE}/stats`);
     if (!response.ok) throw new Error('Failed to fetch stats');

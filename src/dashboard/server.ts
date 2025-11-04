@@ -8,6 +8,7 @@ import { dirname, join } from 'path';
 import { networkInterfaces } from 'os';
 import statsRouter from './routes/stats.js';
 import jobsRouter from './routes/jobs.js';
+import leadsRouter from './routes/leads.js';
 import runsRouter from './routes/runs.js';
 import analyticsRouter from './routes/analytics.js';
 import coverLetterRouter from './routes/cover-letter-router.js';
@@ -18,6 +19,7 @@ import commonAnswersRouter from './routes/common-answers.js';
 import preferencesRouter from './routes/preferences.js';
 import resumesRouter from './routes/resumes.js';
 import automationRouter from './routes/automation.js';
+import backupRouter from './routes/backup.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -62,6 +64,7 @@ app.use('/artifacts', express.static(artifactsPath));
 // API Routes
 app.use('/api/stats', statsRouter);
 app.use('/api/jobs', jobsRouter);
+app.use('/api/leads', leadsRouter);
 app.use('/api/runs', runsRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/cover-letter', coverLetterRouter);
@@ -76,6 +79,9 @@ app.use('/api/resumes', resumesRouter);
 
 // Automation Routes
 app.use('/api/automation', automationRouter);
+
+// Backup Routes
+app.use('/api/backup', backupRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {

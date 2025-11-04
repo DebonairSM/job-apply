@@ -18,6 +18,13 @@ interface UserProfile {
   updated_at?: string;
 }
 
+interface BackupInfo {
+  lastBackupDate: string | null;
+  lastBackupSize: number;
+  lastBackupName?: string;
+  backupCount: number;
+}
+
 export function Settings() {
   const queryClient = useQueryClient();
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -33,6 +40,19 @@ export function Settings() {
       }
       return response.json();
     },
+  });
+
+  // Fetch backup info
+  const { data: backupInfo } = useQuery<BackupInfo>({
+    queryKey: ['backup-info'],
+    queryFn: async () => {
+      const response = await fetch('/api/backup/info');
+      if (!response.ok) {
+        throw new Error('Failed to fetch backup info');
+      }
+      return response.json();
+    },
+    refetchInterval: 30000 // Refresh every 30 seconds
   });
 
   // Mutation for updating profile
@@ -135,6 +155,40 @@ export function Settings() {
         {/* Resume Sync Component */}
         <div className="mb-6">
           <ResumeSync />
+        </div>
+
+        {/* Database Backup Info */}
+        <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <h3 className="text-xl font-semibold text-gray-800 mb-4">Database Backup</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-gray-50 rounded-lg p-4">
+              <p className="text-sm text-gray-600 mb-1">Last Backup</p>
+              <p className="text-lg font-medium text-gray-900">
+                {backupInfo?.lastBackupDate 
+                  ? new Date(backupInfo.lastBackupDate).toLocaleString()
+                  : 'No backups found'}
+              </p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <p className="text-sm text-gray-600 mb-1">Backup Size</p>
+              <p className="text-lg font-medium text-gray-900">
+                {backupInfo?.lastBackupSize 
+                  ? `${(backupInfo.lastBackupSize / 1024).toFixed(2)} KB`
+                  : 'N/A'}
+              </p>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <p className="text-sm text-gray-600 mb-1">Total Backups</p>
+              <p className="text-lg font-medium text-gray-900">
+                {backupInfo?.backupCount || 0}
+              </p>
+            </div>
+          </div>
+          {backupInfo?.lastBackupName && (
+            <p className="mt-3 text-sm text-gray-500">
+              Latest: {backupInfo.lastBackupName}
+            </p>
+          )}
         </div>
 
         {/* Profile Form */}

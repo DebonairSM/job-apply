@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Dashboard } from './components/Dashboard';
 import { JobsList } from './components/JobsList';
+import { LeadsList } from './components/LeadsList';
 import { ActivityLog } from './components/ActivityLog';
 import { Automation } from './components/Automation';
 import { Settings } from './components/Settings';
@@ -11,7 +12,7 @@ import { Icon } from './components/Icon';
 
 const queryClient = new QueryClient();
 
-type View = 'dashboard' | 'jobs' | 'activity' | 'automation' | 'settings';
+type View = 'dashboard' | 'jobs' | 'leads' | 'activity' | 'automation' | 'settings';
 
 interface NavItem {
   id: View;
@@ -22,6 +23,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
   { id: 'jobs', label: 'Jobs', icon: 'work' },
+  { id: 'leads', label: 'Leads', icon: 'people' },
   { id: 'activity', label: 'Activity', icon: 'list-alt' },
   { id: 'automation', label: 'Automation', icon: 'precision-manufacturing' },
   { id: 'settings', label: 'Settings', icon: 'settings' },
@@ -54,7 +56,7 @@ function AppContent() {
               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
                 <Icon icon="work" className="text-white" size={20} />
               </div>
-              <h1 className="text-lg font-semibold text-gray-800">Job Automation</h1>
+              <h1 className="text-lg font-semibold text-gray-800">LinkedIn Automation</h1>
             </div>
           )}
           <button
@@ -131,6 +133,7 @@ function AppContent() {
         <div className="p-6">
           {currentView === 'dashboard' && <Dashboard />}
           {currentView === 'jobs' && <JobsList />}
+          {currentView === 'leads' && <LeadsList />}
           {currentView === 'activity' && <ActivityLog />}
           {currentView === 'automation' && <Automation />}
           {currentView === 'settings' && <Settings />}

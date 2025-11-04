@@ -12,6 +12,8 @@
     "list": "tsx src/cli.ts list",
     "rank": "tsx src/cli.ts rank",
     "clear-cache": "tsx src/cli.ts clear-cache",
+    "leads:search": "tsx src/cli.ts leads:search",
+    "cli": "tsx src/cli.ts",
     "test": "tsx --test tests/**/*.test.ts",
     "test:all": "node tests/run-all-tests.cjs",
     "test:learning": "node tests/learning/run-learning-tests.cjs",

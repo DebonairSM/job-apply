@@ -366,6 +366,46 @@ export function initDb(): void {
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // LinkedIn leads table for storing 1st degree connections
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS leads (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      title TEXT,
+      company TEXT,
+      about TEXT,
+      email TEXT,
+      location TEXT,
+      profile_url TEXT UNIQUE NOT NULL,
+      linkedin_id TEXT,
+      scraped_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Add location column if it doesn't exist (migration)
+  try {
+    database.exec(`ALTER TABLE leads ADD COLUMN location TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+
+  // Lead scraping runs table for batch processing and resume capability
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS lead_scraping_runs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      started_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      completed_at TEXT,
+      status TEXT DEFAULT 'in_progress',
+      profiles_scraped INTEGER DEFAULT 0,
+      profiles_added INTEGER DEFAULT 0,
+      last_profile_url TEXT,
+      filter_titles TEXT,
+      max_profiles INTEGER,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
 }
 
 // Job operations
@@ -1833,6 +1873,313 @@ export function getAllProfiles(): Profile[] {
     created_at: r.created_at,
     updated_at: r.updated_at
   }));
+}
+
+// LinkedIn Leads operations
+export interface Lead {
+  id: string;
+  name: string;
+  title?: string;
+  company?: string;
+  about?: string;
+  email?: string;
+  location?: string;
+  profile_url: string;
+  linkedin_id?: string;
+  scraped_at?: string;
+  created_at?: string;
+}
+
+export interface LeadScrapingRun {
+  id?: number;
+  started_at?: string;
+  completed_at?: string;
+  status: 'in_progress' | 'completed' | 'stopped';
+  profiles_scraped: number;
+  profiles_added: number;
+  last_profile_url?: string;
+  filter_titles?: string; // JSON array
+  max_profiles?: number;
+  created_at?: string;
+}
+
+export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at'>): boolean {
+  const database = getDb();
+  
+  // Check if lead already exists
+  if (leadExistsByUrl(lead.profile_url)) {
+    return false;
+  }
+  
+  const stmt = database.prepare(`
+    INSERT INTO leads (id, name, title, company, about, email, location, profile_url, linkedin_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  
+  try {
+    stmt.run(
+      lead.id,
+      lead.name,
+      lead.title || null,
+      lead.company || null,
+      lead.about || null,
+      lead.email || null,
+      lead.location || null,
+      lead.profile_url,
+      lead.linkedin_id || null
+    );
+    return true;
+  } catch (error) {
+    const err = error as Error;
+    if (err.message.includes('UNIQUE constraint failed')) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+export function leadExistsByUrl(profileUrl: string): boolean {
+  const database = getDb();
+  const stmt = database.prepare('SELECT 1 FROM leads WHERE profile_url = ? LIMIT 1');
+  const result = stmt.get(profileUrl);
+  return !!result;
+}
+
+export function getLeadByUrl(profileUrl: string): Lead | null {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM leads WHERE profile_url = ?');
+  return stmt.get(profileUrl) as Lead | null;
+}
+
+export function getLeadById(id: string): Lead | null {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM leads WHERE id = ?');
+  return stmt.get(id) as Lead | null;
+}
+
+export function getLeads(filters?: {
+  search?: string;
+  title?: string;
+  company?: string;
+  location?: string;
+  hasEmail?: boolean;
+  limit?: number;
+  offset?: number;
+}): Lead[] {
+  const database = getDb();
+  let query = 'SELECT * FROM leads WHERE 1=1';
+  const params: any[] = [];
+
+  if (filters?.search) {
+    query += ' AND (LOWER(name) LIKE ? OR LOWER(title) LIKE ? OR LOWER(company) LIKE ? OR LOWER(location) LIKE ?)';
+    const searchPattern = `%${filters.search.toLowerCase()}%`;
+    params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+  }
+
+  if (filters?.title) {
+    query += ' AND LOWER(title) LIKE ?';
+    params.push(`%${filters.title.toLowerCase()}%`);
+  }
+
+  if (filters?.company) {
+    query += ' AND LOWER(company) LIKE ?';
+    params.push(`%${filters.company.toLowerCase()}%`);
+  }
+
+  if (filters?.location) {
+    query += ' AND LOWER(location) LIKE ?';
+    params.push(`%${filters.location.toLowerCase()}%`);
+  }
+
+  if (filters?.hasEmail !== undefined) {
+    if (filters.hasEmail) {
+      query += ' AND email IS NOT NULL AND email != ""';
+    } else {
+      query += ' AND (email IS NULL OR email = "")';
+    }
+  }
+
+  query += ' ORDER BY scraped_at DESC';
+
+  if (filters?.limit) {
+    query += ' LIMIT ?';
+    params.push(filters.limit);
+  }
+
+  if (filters?.offset) {
+    query += ' OFFSET ?';
+    params.push(filters.offset);
+  }
+
+  const stmt = database.prepare(query);
+  return stmt.all(...params) as Lead[];
+}
+
+export function getLeadsCount(filters?: {
+  search?: string;
+  title?: string;
+  company?: string;
+  location?: string;
+  hasEmail?: boolean;
+}): number {
+  const database = getDb();
+  let query = 'SELECT COUNT(*) as count FROM leads WHERE 1=1';
+  const params: any[] = [];
+
+  if (filters?.search) {
+    query += ' AND (LOWER(name) LIKE ? OR LOWER(title) LIKE ? OR LOWER(company) LIKE ? OR LOWER(location) LIKE ?)';
+    const searchPattern = `%${filters.search.toLowerCase()}%`;
+    params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+  }
+
+  if (filters?.title) {
+    query += ' AND LOWER(title) LIKE ?';
+    params.push(`%${filters.title.toLowerCase()}%`);
+  }
+
+  if (filters?.company) {
+    query += ' AND LOWER(company) LIKE ?';
+    params.push(`%${filters.company.toLowerCase()}%`);
+  }
+
+  if (filters?.location) {
+    query += ' AND LOWER(location) LIKE ?';
+    params.push(`%${filters.location.toLowerCase()}%`);
+  }
+
+  if (filters?.hasEmail !== undefined) {
+    if (filters.hasEmail) {
+      query += ' AND email IS NOT NULL AND email != ""';
+    } else {
+      query += ' AND (email IS NULL OR email = "")';
+    }
+  }
+
+  const stmt = database.prepare(query);
+  const result = stmt.get(...params) as { count: number };
+  return result.count;
+}
+
+export interface LeadStats {
+  total: number;
+  withEmail: number;
+  withoutEmail: number;
+  topCompanies: Array<{ company: string; count: number }>;
+  topTitles: Array<{ title: string; count: number }>;
+}
+
+export function getLeadStats(): LeadStats {
+  const database = getDb();
+  
+  const total = database.prepare('SELECT COUNT(*) as count FROM leads').get() as { count: number };
+  
+  const withEmail = database.prepare(
+    'SELECT COUNT(*) as count FROM leads WHERE email IS NOT NULL AND email != ""'
+  ).get() as { count: number };
+  
+  const topCompanies = database.prepare(`
+    SELECT company, COUNT(*) as count
+    FROM leads
+    WHERE company IS NOT NULL AND company != ""
+    GROUP BY company
+    ORDER BY count DESC
+    LIMIT 10
+  `).all() as Array<{ company: string; count: number }>;
+  
+  const topTitles = database.prepare(`
+    SELECT title, COUNT(*) as count
+    FROM leads
+    WHERE title IS NOT NULL AND title != ""
+    GROUP BY title
+    ORDER BY count DESC
+    LIMIT 10
+  `).all() as Array<{ title: string; count: number }>;
+  
+  return {
+    total: total.count,
+    withEmail: withEmail.count,
+    withoutEmail: total.count - withEmail.count,
+    topCompanies,
+    topTitles
+  };
+}
+
+// Lead scraping runs operations
+export function createScrapingRun(run: Omit<LeadScrapingRun, 'id' | 'created_at' | 'started_at'>): number {
+  const database = getDb();
+  const stmt = database.prepare(`
+    INSERT INTO lead_scraping_runs (status, profiles_scraped, profiles_added, last_profile_url, filter_titles, max_profiles)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `);
+  
+  const result = stmt.run(
+    run.status,
+    run.profiles_scraped,
+    run.profiles_added,
+    run.last_profile_url || null,
+    run.filter_titles || null,
+    run.max_profiles || null
+  );
+  
+  return result.lastInsertRowid as number;
+}
+
+export function updateScrapingRun(id: number, updates: Partial<LeadScrapingRun>): void {
+  const database = getDb();
+  const fields: string[] = [];
+  const values: any[] = [];
+  
+  if (updates.status !== undefined) {
+    fields.push('status = ?');
+    values.push(updates.status);
+  }
+  
+  if (updates.profiles_scraped !== undefined) {
+    fields.push('profiles_scraped = ?');
+    values.push(updates.profiles_scraped);
+  }
+  
+  if (updates.profiles_added !== undefined) {
+    fields.push('profiles_added = ?');
+    values.push(updates.profiles_added);
+  }
+  
+  if (updates.last_profile_url !== undefined) {
+    fields.push('last_profile_url = ?');
+    values.push(updates.last_profile_url);
+  }
+  
+  if (updates.completed_at !== undefined) {
+    fields.push('completed_at = ?');
+    values.push(updates.completed_at);
+  }
+  
+  if (fields.length === 0) return;
+  
+  values.push(id);
+  const query = `UPDATE lead_scraping_runs SET ${fields.join(', ')} WHERE id = ?`;
+  const stmt = database.prepare(query);
+  stmt.run(...values);
+}
+
+export function getScrapingRun(id: number): LeadScrapingRun | null {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM lead_scraping_runs WHERE id = ?');
+  return stmt.get(id) as LeadScrapingRun | null;
+}
+
+export function getScrapingRuns(limit: number = 50): LeadScrapingRun[] {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM lead_scraping_runs ORDER BY started_at DESC LIMIT ?');
+  return stmt.all(limit) as LeadScrapingRun[];
+}
+
+export function getLastIncompleteScrapingRun(): LeadScrapingRun | null {
+  const database = getDb();
+  const stmt = database.prepare(
+    "SELECT * FROM lead_scraping_runs WHERE status IN ('in_progress', 'stopped') ORDER BY started_at DESC LIMIT 1"
+  );
+  return stmt.get() as LeadScrapingRun | null;
 }
 
 // Initialize on import

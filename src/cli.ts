@@ -5,6 +5,7 @@ import { hideBin } from 'yargs/helpers';
 import { loginCommand } from './cli/login.js';
 import { searchCommand, SearchOptions } from './cli/search.js';
 import { applyCommand } from './cli/apply.js';
+import { leadSearchCommand } from './cli/lead-search.js';
 import { getJobsByStatus, getJobStats, clearAnswersCache, clearLabelMappings, clearAllCaches, getJobById } from './lib/db.js';
 import { rankJob } from './ai/ranker.js';
 import { loadConfig } from './lib/session.js';
@@ -133,6 +134,36 @@ yargs(hideBin(process.argv))
         external: argv.ext,
         jobId: argv.job,
         dryRun: argv['dry-run']
+      });
+    }
+  )
+  .command(
+    'leads:search',
+    'Scrape LinkedIn 1st degree connections',
+    (yargs) => {
+      return yargs
+        .option('titles', {
+          alias: 't',
+          describe: 'Filter by job titles (comma-separated)',
+          type: 'string'
+        })
+        .option('max', {
+          alias: 'm',
+          describe: 'Max profiles to scrape',
+          type: 'number',
+          default: 50
+        })
+        .option('resume', {
+          alias: 'r',
+          describe: 'Resume from previous run (run ID)',
+          type: 'number'
+        });
+    },
+    async (argv) => {
+      await leadSearchCommand({
+        titles: argv.titles,
+        max: argv.max,
+        resume: argv.resume
       });
     }
   )
