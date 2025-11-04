@@ -1993,9 +1993,9 @@ export function getLeads(filters?: {
 
   if (filters?.hasEmail !== undefined) {
     if (filters.hasEmail) {
-      query += ' AND email IS NOT NULL AND email != ""';
+      query += " AND email IS NOT NULL AND email != ''";
     } else {
-      query += ' AND (email IS NULL OR email = "")';
+      query += " AND (email IS NULL OR email = '')";
     }
   }
 
@@ -2049,9 +2049,9 @@ export function getLeadsCount(filters?: {
 
   if (filters?.hasEmail !== undefined) {
     if (filters.hasEmail) {
-      query += ' AND email IS NOT NULL AND email != ""';
+      query += " AND email IS NOT NULL AND email != ''";
     } else {
-      query += ' AND (email IS NULL OR email = "")';
+      query += " AND (email IS NULL OR email = '')";
     }
   }
 
@@ -2072,15 +2072,17 @@ export function getLeadStats(): LeadStats {
   const database = getDb();
   
   const total = database.prepare('SELECT COUNT(*) as count FROM leads').get() as { count: number };
+  console.log('[getLeadStats] Total count:', total);
   
   const withEmail = database.prepare(
-    'SELECT COUNT(*) as count FROM leads WHERE email IS NOT NULL AND email != ""'
+    "SELECT COUNT(*) as count FROM leads WHERE email IS NOT NULL AND email != ''"
   ).get() as { count: number };
+  console.log('[getLeadStats] With email count:', withEmail);
   
   const topCompanies = database.prepare(`
     SELECT company, COUNT(*) as count
     FROM leads
-    WHERE company IS NOT NULL AND company != ""
+    WHERE company IS NOT NULL AND company != ''
     GROUP BY company
     ORDER BY count DESC
     LIMIT 10
@@ -2089,19 +2091,22 @@ export function getLeadStats(): LeadStats {
   const topTitles = database.prepare(`
     SELECT title, COUNT(*) as count
     FROM leads
-    WHERE title IS NOT NULL AND title != ""
+    WHERE title IS NOT NULL AND title != ''
     GROUP BY title
     ORDER BY count DESC
     LIMIT 10
   `).all() as Array<{ title: string; count: number }>;
   
-  return {
+  const result = {
     total: total.count,
     withEmail: withEmail.count,
     withoutEmail: total.count - withEmail.count,
     topCompanies,
     topTitles
   };
+  console.log('[getLeadStats] Returning stats:', result);
+  
+  return result;
 }
 
 // Lead scraping runs operations

@@ -43,7 +43,7 @@ export function LeadsList() {
   const [searchQuery, setSearchQuery] = useState('');
   const [titleFilter, setTitleFilter] = useState('');
   const [companyFilter, setCompanyFilter] = useState('');
-  const [locationFilter, setLocationFilter] = useState('United States');
+  const [locationFilter, setLocationFilter] = useState('');
   const [emailFilter, setEmailFilter] = useState<string>('');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showRuns, setShowRuns] = useState(false);

@@ -61,10 +61,44 @@ export async function scrapeConnections(
       console.log(`\n📄 Processing page ${currentPage}...`);
 
       // Get all result cards on current page
-      const resultCards = page.locator('li.reusable-search__result-container');
-      const cardCount = await resultCards.count();
-
-      console.log(`📊 Found ${cardCount} profiles on page ${currentPage}\n`);
+      // Try multiple selectors (LinkedIn changes their DOM frequently)
+      const selectorsToTry = [
+        'div.search-results-container ul > li',
+        '.search-results-container li',
+        'li.reusable-search__result-container'
+      ];
+      
+      let bestSelector = null;
+      let cardCount = 0;
+      
+      for (const selector of selectorsToTry) {
+        const locator = page.locator(selector);
+        const count = await locator.count();
+        
+        if (count > 0) {
+          // Verify first few have profile links
+          let validCards = 0;
+          const checkCount = Math.min(3, count);
+          
+          for (let i = 0; i < checkCount; i++) {
+            const hasLink = await locator.nth(i).locator('a[href*="/in/"]').count() > 0;
+            if (hasLink) validCards++;
+          }
+          
+          if (validCards > 0) {
+            bestSelector = selector;
+            cardCount = count;
+            console.log(`📊 Found ${cardCount} profile cards on page ${currentPage} (using selector: ${selector})\n`);
+            break;
+          }
+        }
+      }
+      
+      if (!bestSelector || cardCount === 0) {
+        console.log(`⚠️  No profiles found on page ${currentPage} with any known selector`);
+        hasMorePages = false;
+        break;
+      }
 
       // Process each profile card on this page
       for (let i = 0; i < cardCount; i++) {
@@ -85,22 +119,17 @@ export async function scrapeConnections(
         try {
           console.log(`   Processing profile ${i + 1}/${cardCount}...`);
 
-          // Re-locate card each iteration
-          const card = resultCards.nth(i);
+          // Re-query card fresh each time to avoid stale elements
+          const card = page.locator(bestSelector).nth(i);
 
-          // Ensure card is visible
-          const isVisible = await card.isVisible({ timeout: 2000 }).catch(() => false);
-          if (!isVisible) {
-            console.log(`   ⚠️  Skipping profile ${i + 1}: card not visible`);
-            continue;
-          }
-
-          // Scroll into view
+          // Scroll into view to make card visible
           await card.scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {});
           await page.waitForTimeout(500);
 
-          // Extract profile URL
+          // Wait for profile link to be present (LinkedIn lazy-loads content)
           const profileLink = card.locator('a[href*="/in/"]').first();
+          await profileLink.waitFor({ state: 'attached', timeout: 3000 }).catch(() => {});
+          
           const href = await profileLink.getAttribute('href', { timeout: 2000 }).catch(() => null);
 
           if (!href) {
@@ -149,8 +178,13 @@ export async function scrapeConnections(
           }
 
           // Extract title and company from card
+          // LinkedIn uses div.t-14 for both title and location
+          // Title is div.t-14.t-black (first occurrence)
+          // Location is div.t-14.t-normal (second occurrence)
           const occupationSelectors = [
-            '.entity-result__primary-subtitle',
+            'div.t-14.t-black',           // Current LinkedIn structure (Nov 2024)
+            'div.t-14',                   // Fallback - get first t-14 element
+            '.entity-result__primary-subtitle',  // Legacy
             '.artdeco-entity-lockup__subtitle',
             '.mn-connection-card__occupation'
           ];
@@ -179,9 +213,11 @@ export async function scrapeConnections(
           }
 
           // Extract location from card
+          // Location is the second div.t-14 element (or specifically div.t-14.t-normal)
           let location = '';
           const locationSelectors = [
-            '.entity-result__secondary-subtitle',
+            'div.t-14.t-normal',          // Current LinkedIn structure (Nov 2024)
+            '.entity-result__secondary-subtitle',  // Legacy
             '.artdeco-entity-lockup__caption',
             '.mn-connection-card__location'
           ];
