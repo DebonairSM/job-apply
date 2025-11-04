@@ -56,7 +56,7 @@ function AppContent() {
               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
                 <Icon icon="work" className="text-white" size={20} />
               </div>
-              <h1 className="text-lg font-semibold text-gray-800">LinkedIn Automation</h1>
+              <h1 className="text-lg font-semibold text-gray-800">Opp Scraper</h1>
             </div>
           )}
           <button

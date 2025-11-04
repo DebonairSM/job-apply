@@ -2,7 +2,7 @@
 
 ## Overview
 
-The LinkedIn Leads Management System has been implemented as a modular extension to the existing job automation platform. The system scrapes 1st degree LinkedIn connections filtered by location (United States by default) and stores them for future outreach.
+The LinkedIn Leads Management System has been implemented as a modular extension to the Opp Scraper platform. The system scrapes 1st degree LinkedIn connections filtered by location (United States by default) and stores them for future outreach.
 
 ## System Architecture
 

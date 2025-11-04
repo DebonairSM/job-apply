@@ -1,7 +1,7 @@
 {
-  "name": "li-assistant",
+  "name": "opp-scraper",
   "version": "1.0.0",
-  "description": "LinkedIn job application automation with local LLM intelligence",
+  "description": "Opp Scraper - LinkedIn opportunity scraper for jobs and leads with local AI",
   "type": "module",
   "private": true,
   "scripts": {

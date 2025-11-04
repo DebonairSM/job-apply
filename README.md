@@ -1,8 +1,8 @@
-# AI Job Application Assistant
+# Opp Scraper
 
-**Intelligent job search automation that learns, adapts, and applies for you.**
+**Intelligent LinkedIn scraper for jobs and professional networking.**
 
-Transform your job search from hours of manual work into minutes of intelligent automation. This system finds the right opportunities, blocks companies you don't want, and applies with personalized responses - all powered by local AI that protects your privacy.
+Transform your job search and networking from hours of manual work into minutes of intelligent automation. This system scrapes job opportunities, identifies valuable connections in your network, and automates outreach - all powered by local AI that protects your privacy.
 
 ---
 
@@ -10,6 +10,9 @@ Transform your job search from hours of manual work into minutes of intelligent 
 
 **🎯 Smart Job Discovery**  
 Searches LinkedIn with profile-specific queries, finds jobs that match your expertise, and queues high-scoring opportunities automatically.
+
+**👥 Network Lead Generation**  
+Scrapes your 1st degree LinkedIn connections filtered by location (US), extracts contact info, and builds a database of leads for professional outreach.
 
 **🧠 Intelligent Ranking**  
 AI evaluates each job across 9 categories (Azure, Security, .NET, Performance, etc.) using weighted scoring that adapts to your preferences and learns from rejections.
@@ -21,7 +24,7 @@ Block unwanted companies and filter out jobs with technologies outside your stac
 Fills application forms intelligently across different job boards (LinkedIn, Greenhouse, Lever, Workday) with AI-generated, personalized responses.
 
 **📊 Live Dashboard**  
-Monitor everything in real-time with statistics, job lists, activity logs, and learning insights that update automatically.
+Monitor everything in real-time with statistics, job lists, leads database, activity logs, and learning insights that update automatically.
 
 **🔄 Manual Learning & Refinement**  
 Generate Cursor AI prompts from rejection reasons to manually refine profiles and scoring logic. Mark rejections as processed after review.
