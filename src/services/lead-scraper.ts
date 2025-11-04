@@ -124,16 +124,46 @@ export async function scrapeConnections(
 
           // Scroll into view to make card visible
           await card.scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {});
+          
+          // Give LinkedIn more time to lazy-load content after scrolling
+          await page.waitForTimeout(1000);
+          
+          // Scroll a bit past the card to ensure it's fully in viewport
+          await page.evaluate(() => window.scrollBy(0, 100));
           await page.waitForTimeout(500);
 
           // Wait for profile link to be present (LinkedIn lazy-loads content)
-          const profileLink = card.locator('a[href*="/in/"]').first();
-          await profileLink.waitFor({ state: 'attached', timeout: 3000 }).catch(() => {});
+          // Try multiple times with fresh queries to handle lazy loading
+          let href: string | null = null;
+          let profileLink;
+          let attempts = 0;
+          const maxAttempts = 3;
           
-          const href = await profileLink.getAttribute('href', { timeout: 2000 }).catch(() => null);
+          while (!href && attempts < maxAttempts) {
+            attempts++;
+            
+            // Get fresh locator each attempt (avoids stale element issues)
+            const freshCard = page.locator(bestSelector).nth(i);
+            profileLink = freshCard.locator('a[href*="/in/"]').first();
+            
+            // Wait for the link to be attached
+            const linkExists = await profileLink.count() > 0;
+            
+            if (linkExists) {
+              // Wait for element to be visible and stable
+              await profileLink.waitFor({ state: 'visible', timeout: 2000 }).catch(() => {});
+              href = await profileLink.getAttribute('href', { timeout: 2000 }).catch(() => null);
+            }
+            
+            if (!href && attempts < maxAttempts) {
+              // Still no link - scroll again and wait longer
+              await freshCard.scrollIntoViewIfNeeded({ timeout: 2000 }).catch(() => {});
+              await page.waitForTimeout(1500);
+            }
+          }
 
-          if (!href) {
-            console.log(`   ⚠️  Skipping profile ${i + 1}: profile URL not found`);
+          if (!href || !profileLink) {
+            console.log(`   ⚠️  Skipping profile ${i + 1}: profile URL not found after ${maxAttempts} attempts`);
             continue;
           }
 
@@ -372,38 +402,60 @@ export async function scrapeConnections(
                 }
               }
 
-              // Close the modal - try multiple methods
+              // Close the modal - try multiple methods with verification
               try {
-                // Method 1: Click the X button
-                const closeButtonSelectors = [
-                  'button[aria-label*="Dismiss"], button[aria-label*="Close"]',
-                  'button.artdeco-modal__dismiss',
-                  'button[data-test-modal-close-btn]'
-                ];
-                
                 let modalClosed = false;
-                for (const selector of closeButtonSelectors) {
-                  const closeBtn = page.locator(selector).first();
-                  if (await closeBtn.count() > 0) {
-                    await closeBtn.click({ timeout: 1000 });
-                    await page.waitForTimeout(500);
-                    modalClosed = true;
-                    break;
+                
+                // Method 1: Press Escape key (most reliable for modals)
+                await page.keyboard.press('Escape');
+                await page.waitForTimeout(800);
+                
+                // Verify modal is actually closed
+                const modalStillVisible = await page.locator('.artdeco-modal__content').isVisible().catch(() => false);
+                if (!modalStillVisible) {
+                  modalClosed = true;
+                }
+                
+                // Method 2: Click the X/Dismiss button if Escape didn't work
+                if (!modalClosed) {
+                  const closeButtonSelectors = [
+                    'button[aria-label*="Dismiss"]',
+                    'button[aria-label*="Close"]',
+                    'button.artdeco-modal__dismiss',
+                    'button[data-test-modal-close-btn]'
+                  ];
+                  
+                  for (const selector of closeButtonSelectors) {
+                    const closeBtn = page.locator(selector).first();
+                    if (await closeBtn.count() > 0 && await closeBtn.isVisible().catch(() => false)) {
+                      await closeBtn.click({ timeout: 1000 });
+                      await page.waitForTimeout(800);
+                      
+                      // Check if modal closed
+                      const stillVisible = await page.locator('.artdeco-modal__content').isVisible().catch(() => false);
+                      if (!stillVisible) {
+                        modalClosed = true;
+                        break;
+                      }
+                    }
                   }
                 }
                 
-                // Method 2: Press Escape if close button didn't work
-                if (!modalClosed) {
-                  await page.keyboard.press('Escape');
-                  await page.waitForTimeout(500);
-                }
-                
-                // Method 3: If still on overlay URL, navigate back to profile
+                // Method 3: If still on overlay URL, force navigate back to profile
                 const currentUrl = page.url();
-                if (currentUrl.includes('/overlay/contact-info/')) {
+                if (currentUrl.includes('/overlay/contact-info/') || currentUrl.includes('/overlay/')) {
                   await page.goBack({ waitUntil: 'domcontentloaded' });
                   await page.waitForTimeout(1000);
                 }
+                
+                // Final verification - wait for modal to disappear
+                await page.waitForSelector('.artdeco-modal__content', { 
+                  state: 'hidden', 
+                  timeout: 3000 
+                }).catch(() => {
+                  // Modal might already be gone, that's fine
+                });
+                
               } catch (closeError) {
                 // If modal close fails, force navigate back to profile
                 const currentUrl = page.url();
@@ -546,14 +598,80 @@ export async function scrapeConnections(
 
           // Navigate back to search results
           await page.goBack({ waitUntil: 'domcontentloaded' });
-          await page.waitForTimeout(1500);
+          await page.waitForTimeout(2000);
           
           // Verify we're back on search results page (not stuck on profile or overlay)
-          const currentUrl = page.url();
+          let currentUrl = page.url();
           if (!currentUrl.includes('/search/results/people/')) {
             // If not on search page, try going back one more time
             await page.goBack({ waitUntil: 'domcontentloaded' });
-            await page.waitForTimeout(1500);
+            await page.waitForTimeout(2000);
+            currentUrl = page.url();
+          }
+          
+          // Ensure search results container has re-loaded
+          try {
+            await page.waitForSelector('ul.reusables-search-results__list, div.search-results-container', {
+              state: 'visible',
+              timeout: 5000
+            });
+            
+            // Scroll to approximately where we were (the next card we need to process)
+            // This ensures LinkedIn loads content around that position
+            try {
+              const nextCard = page.locator(bestSelector).nth(i + 1);
+              await nextCard.scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {});
+              await page.waitForTimeout(1500);
+            } catch (scrollError) {
+              // If next card doesn't exist, scroll to current position
+              const currentCard = page.locator(bestSelector).nth(i);
+              await currentCard.scrollIntoViewIfNeeded({ timeout: 3000 }).catch(() => {});
+              await page.waitForTimeout(1500);
+            }
+            
+            // Wait for at least some profile cards to be present with links
+            // This ensures LinkedIn has re-rendered the search results properly
+            let linksLoaded = false;
+            for (let attempt = 0; attempt < 5; attempt++) {
+              const cardWithLink = page.locator(`${bestSelector}:has(a[href*="/in/"])`).first();
+              const hasLink = await cardWithLink.count() > 0;
+              
+              if (hasLink) {
+                linksLoaded = true;
+                break;
+              }
+              
+              // If no links yet, scroll more aggressively to trigger lazy loading
+              if (attempt < 4) {
+                console.log(`   🔄 Attempt ${attempt + 1}: Waiting for profile links to load...`);
+                await page.evaluate(() => {
+                  window.scrollBy(0, 300);
+                  window.scrollBy(0, -100); // Scroll back up slightly to trigger intersection observers
+                });
+                await page.waitForTimeout(2000);
+              }
+            }
+            
+            if (!linksLoaded) {
+              console.log(`   ⚠️  Search results loaded but profile links not ready after 5 attempts`);
+              console.log(`   🔄 Attempting page refresh...`);
+              
+              // Try refreshing the page as a last resort
+              await page.reload({ waitUntil: 'domcontentloaded' });
+              await page.waitForTimeout(3000);
+              
+              // Verify after refresh
+              const cardWithLink = page.locator(`${bestSelector}:has(a[href*="/in/"])`).first();
+              const hasLinkAfterRefresh = await cardWithLink.count() > 0;
+              
+              if (hasLinkAfterRefresh) {
+                console.log(`   ✅ Profile links loaded after refresh`);
+              } else {
+                console.log(`   ❌ Profile links still not loading - page may have issues`);
+              }
+            }
+          } catch (error) {
+            console.log(`   ⚠️  Warning: Could not verify search results loaded properly`);
           }
 
         } catch (error) {

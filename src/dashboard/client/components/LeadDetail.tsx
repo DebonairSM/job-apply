@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Icon } from './Icon';
+import { api } from '../lib/api';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface Lead {
   id: string;
@@ -15,6 +17,7 @@ interface Lead {
   articles?: string; // JSON array of article URLs
   scraped_at?: string;
   created_at?: string;
+  deleted_at?: string;
 }
 
 interface LeadDetailProps {
@@ -23,10 +26,32 @@ interface LeadDetailProps {
 }
 
 export function LeadDetail({ lead, onClose }: LeadDetailProps) {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const queryClient = useQueryClient();
+
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return 'N/A';
     const date = new Date(dateStr);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+  };
+
+  const handleDelete = async () => {
+    if (!confirm(`Are you sure you want to delete ${lead.name}? This lead will not be re-added in future scrapes.`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      await api.delete(`/leads/${lead.id}`);
+      // Invalidate queries to refresh the list
+      await queryClient.invalidateQueries({ queryKey: ['leads'] });
+      await queryClient.invalidateQueries({ queryKey: ['lead-stats'] });
+      onClose();
+    } catch (error) {
+      console.error('Error deleting lead:', error);
+      alert('Failed to delete lead. Please try again.');
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -162,45 +187,52 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
             return null;
           })()}
 
-          {/* Metadata */}
-          <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
-            <h3 className="font-semibold text-gray-900">Metadata</h3>
-            <div className="grid grid-cols-2 gap-3 text-gray-600">
-              <div>
-                <span className="font-medium">Scraped:</span>{' '}
-                {formatDate(lead.scraped_at)}
-              </div>
-              <div>
-                <span className="font-medium">Added:</span>{' '}
-                {formatDate(lead.created_at)}
-              </div>
-              {lead.linkedin_id && (
-                <div className="col-span-2">
+          {/* Profile Information */}
+          {lead.linkedin_id && (
+            <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
+              <h3 className="font-semibold text-gray-900">Profile Information</h3>
+              <div className="grid grid-cols-1 gap-3 text-gray-600">
+                <div>
                   <span className="font-medium">LinkedIn ID:</span>{' '}
-                  {lead.linkedin_id}
+                  <span className="text-gray-900 font-mono">{lead.linkedin_id}</span>
                 </div>
-              )}
+                <div>
+                  <span className="font-medium">Profile Added:</span>{' '}
+                  {formatDate(lead.created_at)}
+                </div>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex justify-end gap-3">
+        <div className="px-6 py-4 border-t border-gray-200 flex justify-between items-center">
           <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+            onClick={handleDelete}
+            disabled={isDeleting}
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            Close
+            <Icon icon="delete" size={16} />
+            {isDeleting ? 'Deleting...' : 'Delete Lead'}
           </button>
-          <a
-            href={lead.profile_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
-          >
-            Open LinkedIn
-            <Icon icon="open-in-new" size={16} />
-          </a>
+          
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+            >
+              Close
+            </button>
+            <a
+              href={lead.profile_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+            >
+              Open LinkedIn
+              <Icon icon="open-in-new" size={16} />
+            </a>
+          </div>
         </div>
       </div>
     </div>

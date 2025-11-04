@@ -18,6 +18,7 @@ interface Lead {
   articles?: string; // JSON array of article URLs
   scraped_at?: string;
   created_at?: string;
+  deleted_at?: string;
 }
 
 interface LeadStats {

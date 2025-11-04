@@ -405,6 +405,13 @@ export function initDb(): void {
     // Column already exists, ignore
   }
 
+  // Add deleted_at column for soft delete functionality (migration)
+  try {
+    database.exec(`ALTER TABLE leads ADD COLUMN deleted_at TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+
   // Lead scraping runs table for batch processing and resume capability
   database.exec(`
     CREATE TABLE IF NOT EXISTS lead_scraping_runs (
@@ -1904,6 +1911,7 @@ export interface Lead {
   articles?: string; // JSON array of article URLs
   scraped_at?: string;
   created_at?: string;
+  deleted_at?: string;
 }
 
 export interface LeadScrapingRun {
@@ -1919,11 +1927,11 @@ export interface LeadScrapingRun {
   created_at?: string;
 }
 
-export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at'>): boolean {
+export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at' | 'deleted_at'>): boolean {
   const database = getDb();
   
-  // Check if lead already exists
-  if (leadExistsByUrl(lead.profile_url)) {
+  // Check if lead already exists (including soft-deleted)
+  if (leadExistsIncludingDeleted(lead.profile_url, lead.linkedin_id, lead.name, lead.email)) {
     return false;
   }
   
@@ -1958,9 +1966,34 @@ export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at'>): boolean 
 
 export function leadExistsByUrl(profileUrl: string): boolean {
   const database = getDb();
-  const stmt = database.prepare('SELECT 1 FROM leads WHERE profile_url = ? LIMIT 1');
+  const stmt = database.prepare('SELECT 1 FROM leads WHERE profile_url = ? AND deleted_at IS NULL LIMIT 1');
   const result = stmt.get(profileUrl);
   return !!result;
+}
+
+export function leadExistsIncludingDeleted(profileUrl: string, linkedinId?: string, name?: string, email?: string): boolean {
+  const database = getDb();
+  
+  // Check by profile URL first (most reliable)
+  let stmt = database.prepare('SELECT 1 FROM leads WHERE profile_url = ? LIMIT 1');
+  let result = stmt.get(profileUrl);
+  if (result) return true;
+  
+  // Check by LinkedIn ID if available
+  if (linkedinId) {
+    stmt = database.prepare('SELECT 1 FROM leads WHERE linkedin_id = ? LIMIT 1');
+    result = stmt.get(linkedinId);
+    if (result) return true;
+  }
+  
+  // Check by name + email combination if both available
+  if (name && email) {
+    stmt = database.prepare('SELECT 1 FROM leads WHERE LOWER(name) = ? AND LOWER(email) = ? LIMIT 1');
+    result = stmt.get(name.toLowerCase(), email.toLowerCase());
+    if (result) return true;
+  }
+  
+  return false;
 }
 
 export function getLeadByUrl(profileUrl: string): Lead | null {
@@ -1975,6 +2008,18 @@ export function getLeadById(id: string): Lead | null {
   return stmt.get(id) as Lead | null;
 }
 
+export function softDeleteLead(id: string): boolean {
+  const database = getDb();
+  const stmt = database.prepare(`
+    UPDATE leads 
+    SET deleted_at = CURRENT_TIMESTAMP 
+    WHERE id = ? AND deleted_at IS NULL
+  `);
+  
+  const result = stmt.run(id);
+  return result.changes > 0;
+}
+
 export function getLeads(filters?: {
   search?: string;
   title?: string;
@@ -1986,7 +2031,7 @@ export function getLeads(filters?: {
   offset?: number;
 }): Lead[] {
   const database = getDb();
-  let query = 'SELECT * FROM leads WHERE 1=1';
+  let query = 'SELECT * FROM leads WHERE deleted_at IS NULL';
   const params: any[] = [];
 
   if (filters?.search) {
@@ -2051,7 +2096,7 @@ export function getLeadsCount(filters?: {
   workedTogether?: boolean;
 }): number {
   const database = getDb();
-  let query = 'SELECT COUNT(*) as count FROM leads WHERE 1=1';
+  let query = 'SELECT COUNT(*) as count FROM leads WHERE deleted_at IS NULL';
   const params: any[] = [];
 
   if (filters?.search) {
@@ -2109,24 +2154,24 @@ export interface LeadStats {
 export function getLeadStats(): LeadStats {
   const database = getDb();
   
-  const total = database.prepare('SELECT COUNT(*) as count FROM leads').get() as { count: number };
+  const total = database.prepare('SELECT COUNT(*) as count FROM leads WHERE deleted_at IS NULL').get() as { count: number };
   
   const withEmail = database.prepare(
-    "SELECT COUNT(*) as count FROM leads WHERE email IS NOT NULL AND email != ''"
+    "SELECT COUNT(*) as count FROM leads WHERE deleted_at IS NULL AND email IS NOT NULL AND email != ''"
   ).get() as { count: number };
   
   const workedTogether = database.prepare(
-    "SELECT COUNT(*) as count FROM leads WHERE worked_together IS NOT NULL AND worked_together != ''"
+    "SELECT COUNT(*) as count FROM leads WHERE deleted_at IS NULL AND worked_together IS NOT NULL AND worked_together != ''"
   ).get() as { count: number };
   
   const withArticles = database.prepare(
-    "SELECT COUNT(*) as count FROM leads WHERE articles IS NOT NULL AND articles != ''"
+    "SELECT COUNT(*) as count FROM leads WHERE deleted_at IS NULL AND articles IS NOT NULL AND articles != ''"
   ).get() as { count: number };
   
   const topCompanies = database.prepare(`
     SELECT company, COUNT(*) as count
     FROM leads
-    WHERE company IS NOT NULL AND company != ''
+    WHERE deleted_at IS NULL AND company IS NOT NULL AND company != ''
     GROUP BY company
     ORDER BY count DESC
     LIMIT 10
@@ -2135,7 +2180,7 @@ export function getLeadStats(): LeadStats {
   const topTitles = database.prepare(`
     SELECT title, COUNT(*) as count
     FROM leads
-    WHERE title IS NOT NULL AND title != ''
+    WHERE deleted_at IS NULL AND title IS NOT NULL AND title != ''
     GROUP BY title
     ORDER BY count DESC
     LIMIT 10

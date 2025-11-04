@@ -1,5 +1,5 @@
 import express from 'express';
-import { getLeads, getLeadsCount, getLeadById, getLeadStats, getScrapingRuns, getScrapingRun } from '../../lib/db.js';
+import { getLeads, getLeadsCount, getLeadById, getLeadStats, getScrapingRuns, getScrapingRun, softDeleteLead } from '../../lib/db.js';
 
 const router = express.Router();
 
@@ -94,6 +94,22 @@ router.get('/:id', (req, res) => {
   } catch (error) {
     console.error('Error fetching lead:', error);
     res.status(500).json({ error: 'Failed to fetch lead' });
+  }
+});
+
+// DELETE /api/leads/:id - Soft delete a lead
+router.delete('/:id', (req, res) => {
+  try {
+    const success = softDeleteLead(req.params.id);
+    
+    if (!success) {
+      return res.status(404).json({ error: 'Lead not found or already deleted' });
+    }
+    
+    res.json({ message: 'Lead deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting lead:', error);
+    res.status(500).json({ error: 'Failed to delete lead' });
   }
 });
 

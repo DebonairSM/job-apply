@@ -12,6 +12,15 @@ export const api = {
     return { data };
   },
 
+  // Generic DELETE method for flexible endpoint access
+  async delete(endpoint: string): Promise<{ data: any }> {
+    const url = endpoint.startsWith('/') ? `${API_BASE}${endpoint}` : `${API_BASE}/${endpoint}`;
+    const response = await fetch(url, { method: 'DELETE' });
+    if (!response.ok) throw new Error(`Failed to delete ${endpoint}`);
+    const data = await response.json();
+    return { data };
+  },
+
   async getStats(): Promise<JobStats> {
     const response = await fetch(`${API_BASE}/stats`);
     if (!response.ok) throw new Error('Failed to fetch stats');
