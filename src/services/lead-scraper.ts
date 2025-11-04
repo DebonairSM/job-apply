@@ -307,6 +307,13 @@ export async function scrapeConnections(
               // Navigate back before continuing
               await page.goBack({ waitUntil: 'domcontentloaded' });
               await page.waitForTimeout(1500);
+              
+              // Verify we're back on search results page
+              const currentUrl = page.url();
+              if (!currentUrl.includes('/search/results/people/')) {
+                await page.goBack({ waitUntil: 'domcontentloaded' });
+                await page.waitForTimeout(1500);
+              }
               continue;
             }
           }
@@ -365,12 +372,58 @@ export async function scrapeConnections(
                 }
               }
 
-              // Close the modal
-              await page.keyboard.press('Escape');
-              await page.waitForTimeout(500);
+              // Close the modal - try multiple methods
+              try {
+                // Method 1: Click the X button
+                const closeButtonSelectors = [
+                  'button[aria-label*="Dismiss"], button[aria-label*="Close"]',
+                  'button.artdeco-modal__dismiss',
+                  'button[data-test-modal-close-btn]'
+                ];
+                
+                let modalClosed = false;
+                for (const selector of closeButtonSelectors) {
+                  const closeBtn = page.locator(selector).first();
+                  if (await closeBtn.count() > 0) {
+                    await closeBtn.click({ timeout: 1000 });
+                    await page.waitForTimeout(500);
+                    modalClosed = true;
+                    break;
+                  }
+                }
+                
+                // Method 2: Press Escape if close button didn't work
+                if (!modalClosed) {
+                  await page.keyboard.press('Escape');
+                  await page.waitForTimeout(500);
+                }
+                
+                // Method 3: If still on overlay URL, navigate back to profile
+                const currentUrl = page.url();
+                if (currentUrl.includes('/overlay/contact-info/')) {
+                  await page.goBack({ waitUntil: 'domcontentloaded' });
+                  await page.waitForTimeout(1000);
+                }
+              } catch (closeError) {
+                // If modal close fails, force navigate back to profile
+                const currentUrl = page.url();
+                if (currentUrl.includes('/overlay/')) {
+                  await page.goBack({ waitUntil: 'domcontentloaded' });
+                  await page.waitForTimeout(1000);
+                }
+              }
             }
           } catch (error) {
-            // Email extraction is optional, continue without it
+            // Email extraction is optional, but ensure we're not stuck on overlay
+            try {
+              const currentUrl = page.url();
+              if (currentUrl.includes('/overlay/')) {
+                await page.goBack({ waitUntil: 'domcontentloaded' });
+                await page.waitForTimeout(1000);
+              }
+            } catch (navError) {
+              // Continue without email if navigation fails
+            }
           }
 
           // Try to extract article links
@@ -494,6 +547,14 @@ export async function scrapeConnections(
           // Navigate back to search results
           await page.goBack({ waitUntil: 'domcontentloaded' });
           await page.waitForTimeout(1500);
+          
+          // Verify we're back on search results page (not stuck on profile or overlay)
+          const currentUrl = page.url();
+          if (!currentUrl.includes('/search/results/people/')) {
+            // If not on search page, try going back one more time
+            await page.goBack({ waitUntil: 'domcontentloaded' });
+            await page.waitForTimeout(1500);
+          }
 
         } catch (error) {
           const err = error as Error;
@@ -504,16 +565,55 @@ export async function scrapeConnections(
 
       // Check if there's a next page
       if (!shouldStopNow() && (!options.maxProfiles || progress.profilesScraped < options.maxProfiles)) {
-        const nextButton = page.locator('button.artdeco-pagination__button--next:not([disabled])');
-        const hasNext = await nextButton.count() > 0;
+        try {
+          // Wait for pagination to be stable after navigating back
+          await page.waitForSelector('.artdeco-pagination', { state: 'visible', timeout: 5000 }).catch(() => {});
+          await page.waitForTimeout(1000);
+          
+          // Check pagination state text (e.g., "Page 3 of 84")
+          const paginationStateText = await page.locator('.artdeco-pagination__page-state, .artdeco-pagination__state--a11y').first().innerText({ timeout: 2000 }).catch(() => null);
+          
+          if (paginationStateText) {
+            console.log(`   📄 Pagination: ${paginationStateText.trim()}`);
+          }
+          
+          // Try multiple selectors for the Next button
+          const nextButtonSelectors = [
+            'button.artdeco-pagination__button--next:not([disabled])',
+            'button[aria-label="Next"]:not([disabled])',
+            'button.artdeco-pagination__button--next'
+          ];
+          
+          let nextButton = null;
+          for (const selector of nextButtonSelectors) {
+            const btn = page.locator(selector);
+            const count = await btn.count();
+            if (count > 0) {
+              // Check if button is actually enabled
+              const isDisabled = await btn.getAttribute('disabled');
+              if (!isDisabled) {
+                nextButton = btn;
+                break;
+              }
+            }
+          }
 
-        if (hasNext) {
-          console.log(`\n➡️  Navigating to page ${currentPage + 1}...`);
-          await nextButton.click({ timeout: 5000 });
-          await page.waitForTimeout(3000);
-          currentPage++;
-        } else {
-          console.log(`\n🏁 No more pages available`);
+          if (nextButton) {
+            console.log(`\n➡️  Navigating to page ${currentPage + 1}...`);
+            await nextButton.click({ timeout: 5000 });
+            await page.waitForTimeout(3000);
+            
+            // Wait for page number to change (indicates navigation completed)
+            await page.waitForTimeout(1500);
+            currentPage++;
+          } else {
+            console.log(`\n🏁 No more pages available`);
+            hasMorePages = false;
+          }
+        } catch (error) {
+          const err = error as Error;
+          console.log(`\n⚠️  Error checking pagination: ${err.message}`);
+          console.log('   Assuming no more pages');
           hasMorePages = false;
         }
       } else {
