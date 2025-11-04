@@ -50,6 +50,7 @@ export function LeadsList() {
   const [workedTogetherFilter, setWorkedTogetherFilter] = useState<string>('');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showRuns, setShowRuns] = useState(false);
+  const [showCLIReference, setShowCLIReference] = useState(false);
 
   // Fetch leads
   const { data: leadsData, isLoading: leadsLoading } = useQuery({
@@ -148,6 +149,116 @@ export function LeadsList() {
             <Icon icon="users" size={32} className="text-blue-500" />
           </div>
         </div>
+      </div>
+
+      {/* CLI Reference */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg shadow">
+        <button
+          onClick={() => setShowCLIReference(!showCLIReference)}
+          className="w-full px-4 py-3 flex items-center justify-between hover:bg-blue-100 transition-colors"
+        >
+          <div className="flex items-center gap-2">
+            <Icon icon="terminal" size={20} className="text-blue-600" />
+            <span className="font-semibold text-blue-900">CLI Reference - Lead Scraping Commands</span>
+          </div>
+          <Icon 
+            icon={showCLIReference ? "expand_less" : "expand_more"} 
+            size={24} 
+            className="text-blue-600" 
+          />
+        </button>
+        
+        {showCLIReference && (
+          <div className="px-4 pb-4 space-y-4">
+            {/* Profiles Section */}
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900 mb-2">Lead Profiles (Recommended)</h4>
+              <div className="space-y-2 text-sm">
+                <div className="bg-white rounded p-3 border border-blue-100">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <span className="font-mono text-blue-600">--profile chiefs</span>
+                      <p className="text-gray-600 text-xs mt-1">C-Suite & Leadership (CTO, CEO, VP, General Manager)</p>
+                    </div>
+                    <code className="text-xs bg-gray-100 px-2 py-1 rounded whitespace-nowrap">npm run leads:search -- --profile chiefs</code>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded p-3 border border-blue-100">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <span className="font-mono text-blue-600">--profile founders</span>
+                      <p className="text-gray-600 text-xs mt-1">Founders & Entrepreneurs</p>
+                    </div>
+                    <code className="text-xs bg-gray-100 px-2 py-1 rounded whitespace-nowrap">npm run leads:search -- --profile founders</code>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded p-3 border border-blue-100">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <span className="font-mono text-blue-600">--profile directors</span>
+                      <p className="text-gray-600 text-xs mt-1">Directors & Senior Management</p>
+                    </div>
+                    <code className="text-xs bg-gray-100 px-2 py-1 rounded whitespace-nowrap">npm run leads:search -- --profile directors</code>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded p-3 border border-blue-100">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <span className="font-mono text-blue-600">--profile techLeads</span>
+                      <p className="text-gray-600 text-xs mt-1">Tech Leads & Architects</p>
+                    </div>
+                    <code className="text-xs bg-gray-100 px-2 py-1 rounded whitespace-nowrap">npm run leads:search -- --profile techLeads</code>
+                  </div>
+                </div>
+
+                <details className="text-xs text-gray-600">
+                  <summary className="cursor-pointer hover:text-gray-900">More profiles...</summary>
+                  <div className="mt-2 space-y-2 pl-2">
+                    <div><span className="font-mono text-blue-600">--profile productLeads</span> - Product Management</div>
+                    <div><span className="font-mono text-blue-600">--profile recruiters</span> - Recruiters & Talent Acquisition</div>
+                    <div><span className="font-mono text-blue-600">--profile sales</span> - Sales & Business Development</div>
+                    <div><span className="font-mono text-blue-600">--profile consultants</span> - Consultants & Advisors</div>
+                  </div>
+                </details>
+              </div>
+            </div>
+
+            {/* Common Options */}
+            <div>
+              <h4 className="text-sm font-semibold text-gray-900 mb-2">Common Options</h4>
+              <div className="space-y-2 text-sm">
+                <div className="bg-white rounded p-2 border border-gray-200">
+                  <code className="text-xs">npm run leads:search -- --profile chiefs --max 100</code>
+                  <p className="text-gray-600 text-xs mt-1">Limit to 100 profiles</p>
+                </div>
+
+                <div className="bg-white rounded p-2 border border-gray-200">
+                  <code className="text-xs">npm run leads:search -- --titles "CTO,VP Engineering"</code>
+                  <p className="text-gray-600 text-xs mt-1">Custom titles (no profile)</p>
+                </div>
+
+                <div className="bg-white rounded p-2 border border-gray-200">
+                  <code className="text-xs">npm run leads:search -- --resume 123</code>
+                  <p className="text-gray-600 text-xs mt-1">Resume interrupted run</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Tips */}
+            <div className="bg-blue-100 rounded p-3 text-xs">
+              <p className="font-semibold text-blue-900 mb-1">Tips:</p>
+              <ul className="text-blue-800 space-y-1 list-disc list-inside">
+                <li>Default limit is 50 profiles. Use <code className="bg-white px-1 rounded">--max</code> to change</li>
+                <li>Cannot use both <code className="bg-white px-1 rounded">--profile</code> and <code className="bg-white px-1 rounded">--titles</code> together</li>
+                <li>Run <code className="bg-white px-1 rounded">npm run leads:search -- --help</code> for all options</li>
+                <li>Check "Scraping Runs" below to see progress and get run IDs for resuming</li>
+              </ul>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Filters */}

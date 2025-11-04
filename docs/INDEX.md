@@ -34,6 +34,7 @@ This directory contains documentation for the Job Application Automation system.
 ## Recent Implementations
 
 - **[LEAD_PROFILES_IMPLEMENTATION_SUMMARY.md](LEAD_PROFILES_IMPLEMENTATION_SUMMARY.md)** - Profile-based lead scraping system
+- **[LEADS_CLI_REFERENCE_UI.md](LEADS_CLI_REFERENCE_UI.md)** - CLI reference panel in leads dashboard
 
 ## Bug Fixes and Improvements
 
