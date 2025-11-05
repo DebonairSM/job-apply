@@ -369,33 +369,13 @@ export function LeadsList() {
                 <li>Default limit is 50 profiles. Use <code className="bg-white px-1 rounded">--max</code> to change</li>
                 <li>Cannot use both <code className="bg-white px-1 rounded">--profile</code> and <code className="bg-white px-1 rounded">--titles</code> together</li>
                 <li>Run <code className="bg-white px-1 rounded">npm run leads:search -- --help</code> for all options</li>
-                <li>Check "Scraping Runs" below to see progress and get run IDs for resuming</li>
+                <li>Check "Utilities" section at the bottom to view scraping runs and manage data quality</li>
               </ul>
             </div>
           </div>
         )}
       </div>
 
-      {/* Cleanup Button */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg shadow p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Icon icon="warning" size={24} className="text-yellow-600" />
-            <div>
-              <h3 className="font-semibold text-yellow-900">Data Quality</h3>
-              <p className="text-sm text-yellow-700">Remove leads with incomplete data (missing title, company, location, and email)</p>
-            </div>
-          </div>
-          <button
-            onClick={handleCleanupIncomplete}
-            disabled={isCleaningUp}
-            className="flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Icon icon="delete_sweep" size={20} />
-            <span>{isCleaningUp ? 'Cleaning...' : 'Cleanup Incomplete Leads'}</span>
-          </button>
-        </div>
-      </div>
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4">
@@ -638,54 +618,111 @@ export function LeadsList() {
         )}
       </div>
 
-      {/* Scraping Runs Section */}
-      <div className="bg-white rounded-lg shadow p-4">
-        <button
-          onClick={() => setShowRuns(!showRuns)}
-          className="w-full flex items-center justify-between px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
-        >
-          <span className="font-medium">{showRuns ? 'Hide' : 'Show'} Scraping Runs</span>
-          <Icon 
-            icon={showRuns ? "expand_less" : "expand_more"} 
-            size={24} 
-            className="text-gray-600" 
-          />
-        </button>
-        
-        {showRuns && (
-          <div className="mt-4">
-            <h3 className="text-lg font-semibold mb-4">Recent Scraping Runs</h3>
-            <div className="space-y-2">
-              {runs.length === 0 ? (
-                <p className="text-gray-500">No scraping runs yet</p>
-              ) : (
-                runs.map((run) => (
-                  <div key={run.id} className="flex items-center justify-between p-3 border rounded-md">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">Run #{run.id}</span>
-                        <span className={`px-2 py-1 rounded-full text-xs ${
-                          run.status === 'completed' ? 'bg-green-100 text-green-800' :
-                          run.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                          'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {run.status}
-                        </span>
-                      </div>
-                      <div className="text-sm text-gray-600 mt-1">
-                        {run.profiles_scraped} scraped, {run.profiles_added} added
-                        {run.filter_titles && ` • Filters: ${JSON.parse(run.filter_titles).join(', ')}`}
-                      </div>
-                      <div className="text-xs text-gray-500 mt-1">
-                        Started: {formatDate(run.started_at)}
-                      </div>
-                    </div>
-                  </div>
-                ))
-              )}
+      {/* Utilities Section */}
+      <div className="bg-gray-50 border border-gray-300 rounded-lg shadow p-4 mt-8">
+        <div className="flex items-center gap-3 mb-4">
+          <Icon icon="build" size={28} className="text-gray-700" />
+          <h2 className="text-xl font-semibold text-gray-800">Utilities</h2>
+        </div>
+
+        <div className="space-y-4">
+          {/* Data Quality */}
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Icon icon="warning" size={24} className="text-yellow-600" />
+                <div>
+                  <h3 className="font-semibold text-yellow-900">Data Quality</h3>
+                  <p className="text-sm text-yellow-700">Remove leads with incomplete data (missing title, company, location, and email)</p>
+                </div>
+              </div>
+              <button
+                onClick={handleCleanupIncomplete}
+                disabled={isCleaningUp}
+                className="flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Icon icon="delete_sweep" size={20} />
+                <span>{isCleaningUp ? 'Cleaning...' : 'Cleanup Incomplete Leads'}</span>
+              </button>
             </div>
           </div>
-        )}
+
+          {/* Scraping Runs */}
+          <div className="bg-white border border-gray-200 rounded-lg p-4">
+            <button
+              onClick={() => setShowRuns(!showRuns)}
+              className="w-full flex items-center justify-between px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Icon icon="history" size={20} className="text-gray-600" />
+                <span className="font-medium">Scraping Runs</span>
+              </div>
+              <Icon 
+                icon={showRuns ? "expand_less" : "expand_more"} 
+                size={24} 
+                className="text-gray-600" 
+              />
+            </button>
+            
+            {showRuns && (
+              <div className="mt-4">
+                <h3 className="text-lg font-semibold mb-4">Recent Scraping Runs</h3>
+                <div className="space-y-2">
+                  {runs.length === 0 ? (
+                    <p className="text-gray-500">No scraping runs yet</p>
+                  ) : (
+                    runs.map((run) => (
+                      <div key={run.id} className="flex items-center justify-between p-3 border rounded-md">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">Run #{run.id}</span>
+                            <span className={`px-2 py-1 rounded-full text-xs ${
+                              run.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              run.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                              'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {run.status}
+                            </span>
+                          </div>
+                          <div className="text-sm text-gray-600 mt-1">
+                            {run.profiles_scraped} scraped, {run.profiles_added} added
+                            {run.filter_titles && ` • Filters: ${JSON.parse(run.filter_titles).join(', ')}`}
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            Started: {formatDate(run.started_at)}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Quick Links */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <div className="flex items-center gap-3">
+              <Icon icon="link" size={24} className="text-blue-600" />
+              <div className="flex-1">
+                <h3 className="font-semibold text-blue-900">Quick Links</h3>
+                <div className="mt-2 flex items-center gap-2">
+                  <a
+                    href="http://192.168.1.65:3000/leads"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-sm text-blue-700 hover:text-blue-900 hover:underline"
+                  >
+                    <Icon icon="open_in_new" size={16} />
+                    Network Leads Dashboard
+                  </a>
+                  <span className="text-gray-400">|</span>
+                  <span className="text-xs text-gray-600">Access from network devices</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Lead Detail Modal */}

@@ -47,7 +47,30 @@ export interface Mapping {
   confidence: number;
 }
 
-// Smart mapper with heuristics-first, then LLM, then cache
+/**
+ * Maps form field labels to canonical keys using a three-tier strategy.
+ * 
+ * This intelligent mapping system balances speed and accuracy:
+ * 1. **Heuristics (fastest)**: Pattern matching for common fields (~50 patterns)
+ * 2. **Cache (medium)**: Reuses successful mappings from previous forms (>70% confidence)
+ * 3. **LLM (slowest, most accurate)**: Semantic understanding for edge cases
+ * 
+ * The function automatically caches LLM results for future use, so subsequent
+ * mappings of the same label are instant. Labels mapped to 'unknown' are not cached
+ * as they represent ambiguous or unmappable fields.
+ * 
+ * @param labels - Array of form field labels to map (e.g., ["Email Address", "Phone", "First Name"])
+ * @returns Array of mappings with canonical keys and confidence scores (0.0-0.99)
+ * 
+ * @example
+ * const labels = ["Email Address", "Years of Experience", "Phone Number"];
+ * const mappings = await mapLabelsSmart(labels);
+ * // [
+ * //   { label: "Email Address", key: "email", confidence: 0.99 },
+ * //   { label: "Years of Experience", key: "unknown", confidence: 0.0 },
+ * //   { label: "Phone Number", key: "phone", confidence: 0.99 }
+ * // ]
+ */
 export async function mapLabelsSmart(labels: string[]): Promise<Mapping[]> {
   const results: Mapping[] = [];
   const unmapped: string[] = [];

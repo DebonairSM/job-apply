@@ -1,6 +1,30 @@
 import { SearchOptions } from '../cli/search.js';
 import { SearchResult, SearchDependencies } from './types.js';
 
+/**
+ * Searches for jobs on LinkedIn using profile-specific queries and processes results.
+ * 
+ * Orchestrates the complete job search workflow:
+ * 1. Navigates to LinkedIn jobs page with Boolean search query
+ * 2. Processes each page of results (analyzes job listings)
+ * 3. Extracts job metadata and ranks each job using AI
+ * 4. Queues high-scoring jobs (>= MIN_FIT_SCORE) for application
+ * 5. Handles pagination automatically until max pages or end of results
+ * 
+ * The function gracefully handles errors per page and continues processing.
+ * Use shouldStop() callback to implement cancellation (e.g., Ctrl+C handler).
+ * 
+ * @param options - Search configuration (keywords, profile, location, date filter, pagination)
+ * @param deps - Injected dependencies (browser, page, context, processPage callback, buildSearchUrl, shouldStop)
+ * @returns Summary with total jobs analyzed, queued count, pages processed, and any errors
+ * 
+ * @example
+ * const result = await searchJobs(
+ *   { profile: 'core', datePosted: 'day', maxPages: 5 },
+ *   { browser, page, context, processPage, shouldStop: () => false, buildSearchUrl }
+ * );
+ * console.log(`Analyzed ${result.analyzed} jobs, queued ${result.queued}`);
+ */
 export async function searchJobs(
   options: SearchOptions,
   deps: SearchDependencies

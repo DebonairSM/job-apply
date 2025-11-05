@@ -9,6 +9,7 @@ import { leadSearchCommand } from './cli/lead-search.js';
 import { getJobsByStatus, getJobStats, clearAnswersCache, clearLabelMappings, clearAllCaches, getJobById } from './lib/db.js';
 import { rankJob } from './ai/ranker.js';
 import { loadConfig } from './lib/session.js';
+import { getProfileChoices } from './ai/profile-registry.js';
 
 yargs(hideBin(process.argv))
   .scriptName('li')
@@ -33,7 +34,7 @@ yargs(hideBin(process.argv))
         .option('profile', {
           alias: 'p',
           describe: 'Use predefined Boolean search profile',
-          choices: ['core', 'backend', 'core-net', 'legacy-modernization', 'contract', 'aspnet-simple', 'csharp-azure-no-frontend', 'az204-csharp', 'ai-enhanced-net', 'legacy-web'] as const,
+          choices: getProfileChoices(),
           type: 'string'
         })
         .option('location', {

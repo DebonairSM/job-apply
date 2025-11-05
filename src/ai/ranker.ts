@@ -1,27 +1,7 @@
 import { askOllama } from './client.js';
 import { RankOutput, RankOutputSchema } from '../lib/validation.js';
 import { PROFILES } from './profiles.js';
-
-// Map CLI profile names (kebab-case) to profile keys (camelCase)
-// CRITICAL: Every profile in BOOLEAN_SEARCHES must have an entry here
-// Maps search profiles to technical profiles used for scoring
-// Missing entry = "Unknown profile: <name>" error
-const PROFILE_NAME_MAP: Record<string, string> = {
-  'core': 'coreAzure',
-  'backend': 'coreNet', // Map backend to coreNet for now
-  'core-net': 'coreNet',
-  'legacy-modernization': 'legacyModernization',
-  'contract': 'coreNet',  // Contract roles use same technical criteria as core .NET
-  'aspnet-simple': 'coreNet',
-  'csharp-azure-no-frontend': 'coreNet',
-  'az204-csharp': 'coreAzure',  // AZ-204 focuses on Azure services
-  'ai-enhanced-net': 'coreNet',  // AI-enhanced .NET roles prioritize .NET skills
-  'legacy-web': 'legacyWeb',  // Maps to itself (new technical profile)
-};
-
-function getProfileKey(cliProfileName: string): string {
-  return PROFILE_NAME_MAP[cliProfileName] || cliProfileName;
-}
+import { getTechnicalKey } from './profile-registry.js';
 
 export interface JobInput {
   title: string;
@@ -94,10 +74,37 @@ function smartTruncate(description: string, maxChars: number = 1000): string {
   return result.trim();
 }
 
-// Rank a job against user profile using profile-specific evaluation
+/**
+ * Ranks a job against the specified profile using weighted category scoring.
+ * 
+ * Uses Ollama LLM to evaluate job descriptions across multiple categories (Azure, .NET, 
+ * Security, etc.) then applies profile-specific weights. Adjusts weights based on 
+ * rejection learning system. The description is truncated to 1000 characters for faster
+ * processing while preserving complete sections.
+ * 
+ * The function performs several post-processing steps:
+ * - Validates all required fields are present
+ * - Recalculates fit score from category scores (LLMs are bad at arithmetic)
+ * - Derives blockers for low-scoring high-weight categories (>=15% weight, <40 score)
+ * - Filters missing keywords to only those relevant to high-weight categories
+ * 
+ * @param job - Job details including title, company, and full description
+ * @param profileKey - Profile identifier (e.g., 'core', 'security', 'legacy-web')
+ * @returns Category scores, recalculated fit score (0-100), reasons, blockers, and missing keywords
+ * @throws Error if profile not found in PROFILES or if LLM call fails after retries
+ * 
+ * @example
+ * const result = await rankJob({
+ *   title: 'Senior .NET Developer',
+ *   company: 'Acme Corp',
+ *   description: 'We need 5+ years Azure, C#, and API experience...'
+ * }, 'core');
+ * console.log(result.fitScore); // 0-100 weighted score
+ * console.log(result.categoryScores.coreNet); // Individual category score
+ */
 export async function rankJob(job: JobInput, profileKey: string): Promise<RankOutput> {
   // Convert CLI profile name to actual profile key
-  const actualProfileKey = getProfileKey(profileKey);
+  const actualProfileKey = getTechnicalKey(profileKey);
   
   // Truncate description to 1000 chars for faster processing (preserve sections)
   const desc = smartTruncate(job.description, 1000);

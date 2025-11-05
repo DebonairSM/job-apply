@@ -1,3 +1,4 @@
+import { Browser, Page, BrowserContext } from 'playwright';
 import { SearchOptions } from '../cli/search.js';
 import { ApplyOptions } from '../cli/apply.js';
 
@@ -10,9 +11,9 @@ export interface SearchResult {
 }
 
 export interface SearchDependencies {
-  browser: any; // Playwright Browser
-  page: any; // Playwright Page
-  context: any; // Playwright BrowserContext
+  browser: Browser;
+  page: Page;
+  context: BrowserContext;
   processPage: (pageNum: number, opts: SearchOptions) => Promise<{ analyzed: number; queued: number }>;
   shouldStop: () => boolean;
   buildSearchUrl: (opts: SearchOptions, page: number) => string;
@@ -37,9 +38,9 @@ export interface ApplyResult {
 }
 
 export interface ApplyDependencies {
-  browser: any; // Playwright Browser
-  context: any; // Playwright BrowserContext
-  page: any; // Playwright Page
+  browser: Browser;
+  context: BrowserContext;
+  page: Page;
   processJob: (job: Job) => Promise<'applied' | 'skipped' | 'failed'>;
   shouldStop: () => boolean;
   jobs: Job[];
