@@ -187,11 +187,11 @@ function generateChiefsBody(lead: Lead, firstName: string): string {
   
   const personalizedContext = generatePersonalizedContext(lead);
   
-  const mainPitch = `I'd like to share our Spreadsheet Automation Platform with you.
+  const mainPitch = `I'd like to share our **Spreadsheet Automation Platform** with you.
 
-We transform manual spreadsheet workflows into automated systems with AI-generated interactive mockups delivered during discovery calls. We analyze your current processes, design streamlined solutions, and provide working demonstrations same-day. Complete with workflow documentation, ROI analysis, and deployment-ready prototypes.
+We transform manual spreadsheet workflows into automated systems with **AI-generated interactive mockups** delivered during discovery calls. We analyze your current processes, design streamlined solutions, and provide **working demonstrations same-day**. Complete with **workflow documentation, ROI analysis, and deployment-ready prototypes**.
 
-Our approach uses AI-assisted development to create tailored, secure, open-source, local-first solutions that can cut costs by up to 100x while giving organizations full control of their data. Over time, we also train an internal technical leader to build and test proof-of-concept features in a gated CI/CD pipeline.
+Our approach uses AI-assisted development to create tailored, secure, open-source, **local-first** solutions that can **cut costs by up to 100x** while giving organizations full control of their data. Over time, we also train an internal technical leader to build and test proof-of-concept features in a gated CI/CD pipeline.
 
 Learn more about the Spreadsheet Automation Platform:
 ${SPREADSHEET_AUTOMATION_URL}`;
