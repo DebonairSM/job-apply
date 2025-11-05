@@ -38,9 +38,10 @@ Requirements:
 - Do NOT use phrases like "I hope this message finds you well" or other filler
 - Do NOT ask questions or make explicit asks - this is just acknowledging their expertise and making a subtle connection
 - Do NOT use placeholder brackets like [industry/field] - make reasonable assumptions or use general terms
-- Output ONLY the acknowledgment sentence, no explanations or meta-commentary
+- Do NOT include meta-commentary like "Here's a possible email introduction:" or "Email introduction:" - output ONLY the sentence itself
+- Output ONLY the acknowledgment sentence starting with "Given" - nothing else
 
-Generate the acknowledgment (output only the single sentence):`;
+Your response must be ONLY the sentence, with NO preamble or labels:`;
   } else if (title) {
     prompt = `You are an expert at writing professional, personalized email introductions.
 
@@ -60,9 +61,10 @@ Requirements:
 - Do NOT use phrases like "I hope this message finds you well" or other filler
 - Do NOT ask questions or make explicit asks - this is just acknowledging their expertise and making a subtle connection
 - Do NOT use placeholder brackets like [industry/field] - make reasonable assumptions or use general terms
-- Output ONLY the acknowledgment sentence, no explanations or meta-commentary
+- Do NOT include meta-commentary like "Here's a possible email introduction:" or "Email introduction:" - output ONLY the sentence itself
+- Output ONLY the acknowledgment sentence starting with "Given" - nothing else
 
-Generate the acknowledgment (output only the single sentence):`;
+Your response must be ONLY the sentence, with NO preamble or labels:`;
   } else {
     // No title or about - return a generic fallback
     return "Given your background and expertise, I thought you might be interested in this opportunity.";
@@ -102,9 +104,10 @@ Generate the acknowledgment (output only the single sentence):`;
     let cleaned = generated
       .replace(/^["']|["']$/g, '') // Remove leading/trailing quotes
       .replace(/^\*\*|\*\*$/g, '') // Remove leading/trailing bold
-      .replace(/^Here'?s (a|the) (potential )?(email )?(introduction|acknowledgment):\s*/i, '') // Remove meta preamble
-      .replace(/^(Email )?(introduction|acknowledgment):\s*/i, '') // Remove label
-      .replace(/\n\nThis (introduction|acknowledgment):[\s\S]*$/i, '') // Remove explanatory footer
+      .replace(/^Here'?s (a |the |an )?(potential|possible|sample|example)? ?(email )?(introduction|acknowledgment|sentence|opening):\s*/gi, '') // Remove meta preamble at start
+      .replace(/\n+Here'?s (a |the |an )?(potential|possible|sample|example)? ?(email )?(introduction|acknowledgment|sentence|opening):[\s\S]*/gi, '') // Remove meta preamble after newlines
+      .replace(/^(Email |Possible |Potential )?(introduction|acknowledgment|sentence):\s*/gi, '') // Remove label
+      .replace(/\n\nThis (introduction|acknowledgment|sentence):[\s\S]*$/i, '') // Remove explanatory footer
       .replace(/\n\n\*[\s\S]*$/i, '') // Remove bullet point explanations
       .trim();
 
