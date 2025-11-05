@@ -3,6 +3,7 @@ import { useRecentActivity } from '../hooks/useRecentActivity';
 import { useProfileAnalytics } from '../hooks/useProfileAnalytics';
 import { StatCard } from './StatCard';
 import { ProfilePerformanceChart } from './ProfilePerformanceChart';
+import { UpcomingBirthdays } from './UpcomingBirthdays';
 import { formatRelativeTime } from '../lib/dateUtils';
 import { Icon } from './Icon';
 
@@ -51,6 +52,9 @@ export function Dashboard() {
           color="purple"
         />
       </div>
+
+      {/* Upcoming Birthdays */}
+      <UpcomingBirthdays />
 
       {/* Error Summary */}
       {activity && activity.some(job => job.status === 'skipped' && job.rejection_reason?.includes('Error')) && (

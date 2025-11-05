@@ -21,14 +21,30 @@ interface ScrapingProgress {
  * @param pageNumber The page number to navigate to (1-based)
  * @returns Full search URL with page parameter
  */
-function buildSearchUrl(pageNumber: number): string {
-  const baseUrl = 'https://www.linkedin.com/search/results/people/';
-  const params = new URLSearchParams({
-    network: '["F"]',
-    geoUrn: '["103644278"]',
-    page: pageNumber.toString()
-  });
-  return `${baseUrl}?${params.toString()}`;
+function buildSearchUrl(pageNumber: number, baseUrl?: string): string {
+  const defaultBaseUrl = 'https://www.linkedin.com/search/results/people/';
+
+  let url: URL;
+  try {
+    url = new URL(baseUrl ?? defaultBaseUrl);
+  } catch (error) {
+    url = new URL(defaultBaseUrl);
+  }
+
+  const params = url.searchParams;
+
+  if (!params.has('network')) {
+    params.set('network', '["F"]');
+  }
+
+  if (!params.has('geoUrn')) {
+    params.set('geoUrn', '["103644278"]');
+  }
+
+  params.set('page', pageNumber.toString());
+  url.search = params.toString();
+
+  return url.toString();
 }
 
 export async function scrapeConnections(
@@ -80,65 +96,105 @@ export async function scrapeConnections(
 
     // If starting from a page other than 1, navigate to it first
     if (currentPage > 1) {
-      console.log(`\n⏭️  Fast-forwarding to page ${currentPage}...`);
-      
-      // Wait for pagination controls to be visible
+      const requestedStartPage = currentPage;
+      console.log(`\n⏭️  Fast-forwarding to page ${requestedStartPage}...`);
+
+      let startPageResolved = false;
+
+      // First attempt: navigate directly via page query parameter
+      const directNavigationUrl = buildSearchUrl(requestedStartPage, currentSearchUrl || undefined);
       try {
-        await page.waitForSelector('.artdeco-pagination', { state: 'visible', timeout: 5000 });
-        await page.waitForTimeout(500);
-      } catch (error) {
-        console.log(`   ⚠️  Could not find pagination controls, starting from page 1`);
-        currentPage = 1;
-      }
-      
-      if (currentPage > 1) {
-        for (let skipPage = 1; skipPage < currentPage; skipPage++) {
-          try {
-            // Try multiple selectors for the Next button
-            const nextButtonSelectors = [
-              'button.artdeco-pagination__button--next:not([disabled])',
-              'button[aria-label="Next"]:not([disabled])',
-              'button.artdeco-pagination__button--next'
-            ];
-            
-            let nextButton = null;
-            for (const selector of nextButtonSelectors) {
-              const btn = page.locator(selector);
-              const count = await btn.count();
-              if (count > 0) {
-                // Check if button is actually enabled
-                const isDisabled = await btn.getAttribute('disabled');
-                if (isDisabled === null) {
-                  nextButton = btn;
-                  break;
-                }
-              }
-            }
-            
-            if (nextButton) {
-              console.log(`   Clicking to page ${skipPage + 1}...`);
-              await nextButton.click({ timeout: 5000 });
-              await page.waitForTimeout(2000);
-              
-              // Wait for search results to reload
-              await page.waitForSelector('ul.reusables-search-results__list, div.search-results-container', {
-                state: 'visible',
-                timeout: 5000
-              });
-              await page.waitForTimeout(1000);
-            } else {
-              console.log(`   ⚠️  Could not find enabled next button at page ${skipPage}, starting from current page`);
-              currentPage = skipPage;
-              break;
-            }
-          } catch (error) {
-            console.log(`   ⚠️  Error navigating to page ${skipPage + 1}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-            currentPage = skipPage;
-            break;
+        await page.goto(directNavigationUrl, {
+          waitUntil: 'domcontentloaded'
+        });
+        await page.waitForTimeout(3000);
+
+        await page.waitForSelector('ul.reusables-search-results__list, div.search-results-container', {
+          timeout: 10000
+        });
+
+        const activePageLocator = page.locator('.artdeco-pagination__indicator--number.active button span, .artdeco-pagination__indicator--number.active span');
+        const activePageText = await activePageLocator.first().innerText({ timeout: 3000 }).catch(() => null);
+
+        if (activePageText) {
+          const parsedPage = Number.parseInt(activePageText.trim(), 10);
+          if (!Number.isNaN(parsedPage)) {
+            currentPage = parsedPage;
           }
         }
+
+        currentSearchUrl = page.url();
+        startPageResolved = true;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unknown error';
+        console.log(`   ⚠️  Direct navigation attempt failed (${message}), falling back to pagination controls`);
+        currentPage = requestedStartPage;
       }
-      
+
+      // Fallback: paginate through Next button clicks if direct navigation failed
+      if (!startPageResolved) {
+        try {
+          await page.waitForSelector('.artdeco-pagination', { state: 'visible', timeout: 5000 });
+          await page.waitForTimeout(500);
+        } catch (error) {
+          console.log(`   ⚠️  Could not find pagination controls, starting from page 1`);
+          currentPage = 1;
+        }
+
+        if (currentPage > 1) {
+          let resolvedPage = 1;
+
+          for (let skipPage = 1; skipPage < requestedStartPage; skipPage++) {
+            try {
+              const nextButtonSelectors = [
+                'button.artdeco-pagination__button--next:not([disabled])',
+                'button[aria-label="Next"]:not([disabled])',
+                'button.artdeco-pagination__button--next'
+              ];
+
+              let nextButton = null;
+              for (const selector of nextButtonSelectors) {
+                const btn = page.locator(selector);
+                const count = await btn.count();
+                if (count > 0) {
+                  const isDisabled = await btn.getAttribute('disabled');
+                  if (isDisabled === null) {
+                    nextButton = btn;
+                    break;
+                  }
+                }
+              }
+
+              if (nextButton) {
+                console.log(`   Clicking to page ${skipPage + 1}...`);
+                await nextButton.click({ timeout: 5000 });
+                await page.waitForTimeout(2000);
+
+                await page.waitForSelector('ul.reusables-search-results__list, div.search-results-container', {
+                  state: 'visible',
+                  timeout: 5000
+                });
+                await page.waitForTimeout(1000);
+
+                resolvedPage = skipPage + 1;
+                currentSearchUrl = page.url();
+              } else {
+                console.log(`   ⚠️  Could not find enabled next button at page ${skipPage}, starting from current page`);
+                resolvedPage = skipPage;
+                break;
+              }
+            } catch (error) {
+              const message = error instanceof Error ? error.message : 'Unknown error';
+              console.log(`   ⚠️  Error navigating to page ${skipPage + 1}: ${message}`);
+              resolvedPage = skipPage;
+              break;
+            }
+          }
+
+          currentPage = resolvedPage;
+        }
+      }
+
       console.log(`   ✅ Starting from page ${currentPage}\n`);
     }
 
@@ -757,7 +813,7 @@ export async function scrapeConnections(
                 await page.goto(currentSearchUrl, { waitUntil: 'domcontentloaded' });
               } else {
                 // Fallback: construct URL with page number
-                const searchUrlWithPage = buildSearchUrl(currentPage);
+                const searchUrlWithPage = buildSearchUrl(currentPage, currentSearchUrl || undefined);
                 await page.goto(searchUrlWithPage, { waitUntil: 'domcontentloaded' });
               }
               await page.waitForTimeout(3000);

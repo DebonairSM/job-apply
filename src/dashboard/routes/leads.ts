@@ -1,5 +1,5 @@
 import express from 'express';
-import { getLeads, getLeadsCount, getLeadById, getLeadStats, getScrapingRuns, getScrapingRun, softDeleteLead } from '../../lib/db.js';
+import { getLeads, getLeadsCount, getLeadById, getLeadStats, getScrapingRuns, getScrapingRun, softDeleteLead, getLeadsWithUpcomingBirthdays, deleteIncompleteLeads } from '../../lib/db.js';
 
 const router = express.Router();
 
@@ -49,6 +49,19 @@ router.get('/stats', (req, res) => {
   } catch (error) {
     console.error('Error fetching lead stats:', error);
     res.status(500).json({ error: 'Failed to fetch lead stats' });
+  }
+});
+
+// GET /api/leads/birthdays - Get leads with upcoming birthdays
+router.get('/birthdays', (req, res) => {
+  try {
+    const { days = '30' } = req.query;
+    const daysAhead = parseInt(String(days), 10);
+    const leads = getLeadsWithUpcomingBirthdays(daysAhead);
+    res.json(leads);
+  } catch (error) {
+    console.error('Error fetching upcoming birthdays:', error);
+    res.status(500).json({ error: 'Failed to fetch upcoming birthdays' });
   }
 });
 
@@ -110,6 +123,22 @@ router.delete('/:id', (req, res) => {
   } catch (error) {
     console.error('Error deleting lead:', error);
     res.status(500).json({ error: 'Failed to delete lead' });
+  }
+});
+
+// POST /api/leads/cleanup-incomplete - Remove incomplete leads (missing all data fields)
+router.post('/cleanup-incomplete', (req, res) => {
+  try {
+    const result = deleteIncompleteLeads();
+    
+    res.json({
+      message: `Removed ${result.deleted} incomplete lead(s)`,
+      deleted: result.deleted,
+      leads: result.leads
+    });
+  } catch (error) {
+    console.error('Error cleaning up incomplete leads:', error);
+    res.status(500).json({ error: 'Failed to cleanup incomplete leads' });
   }
 });
 

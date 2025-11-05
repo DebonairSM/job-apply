@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { LeadDetail } from './LeadDetail';
 import { Icon } from './Icon';
+import { EmailPreviewModal } from './EmailPreviewModal';
+import { generateBulkEmails, EmailContent } from '../../../ai/email-templates';
 
 interface Lead {
   id: string;
@@ -57,9 +59,12 @@ export function LeadsList() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showRuns, setShowRuns] = useState(false);
   const [showCLIReference, setShowCLIReference] = useState(false);
+  const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
+  const [generatedEmails, setGeneratedEmails] = useState<EmailContent[] | null>(null);
+  const [isCleaningUp, setIsCleaningUp] = useState(false);
 
   // Fetch leads
-  const { data: leadsData, isLoading: leadsLoading } = useQuery({
+  const { data: leadsData, isLoading: leadsLoading, refetch: refetchLeads } = useQuery({
     queryKey: ['leads', searchQuery, titleFilter, companyFilter, locationFilter, emailFilter, workedTogetherFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -111,6 +116,84 @@ export function LeadsList() {
     const date = new Date(dateStr);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
   };
+
+  // Selection handlers
+  const handleToggleSelectAll = () => {
+    if (selectedLeadIds.size === leads.length && leads.length > 0) {
+      setSelectedLeadIds(new Set());
+    } else {
+      setSelectedLeadIds(new Set(leads.map(lead => lead.id)));
+    }
+  };
+
+  const handleToggleSelectLead = (leadId: string) => {
+    const newSelected = new Set(selectedLeadIds);
+    if (newSelected.has(leadId)) {
+      newSelected.delete(leadId);
+    } else {
+      newSelected.add(leadId);
+    }
+    setSelectedLeadIds(newSelected);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedLeadIds(new Set());
+  };
+
+  // Email generation handler
+  const handleGenerateEmails = () => {
+    const selectedLeads = leads.filter(lead => selectedLeadIds.has(lead.id));
+    const leadsWithEmail = selectedLeads.filter(lead => lead.email);
+    const leadsWithoutEmail = selectedLeads.filter(lead => !lead.email);
+
+    if (leadsWithoutEmail.length > 0) {
+      const message = `${leadsWithoutEmail.length} selected lead(s) don't have email addresses and will be skipped:\n${leadsWithoutEmail.map(l => `- ${l.name}`).join('\n')}`;
+      alert(message);
+    }
+
+    if (leadsWithEmail.length === 0) {
+      alert('None of the selected leads have email addresses.');
+      return;
+    }
+
+    const emails = generateBulkEmails(leadsWithEmail);
+    setGeneratedEmails(emails);
+  };
+
+  const handleCloseEmailModal = () => {
+    setGeneratedEmails(null);
+  };
+
+  const handleCleanupIncomplete = async () => {
+    const confirmed = window.confirm(
+      'This will remove all leads that have ONLY a name but are missing title, company, location, AND email. ' +
+      'You can then re-run the scraper to get complete data. Continue?'
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+      setIsCleaningUp(true);
+      const response = await api.post('/leads/cleanup-incomplete');
+      const result = response.data;
+      
+      alert(
+        `${result.message}\n\n` +
+        `Removed leads:\n${result.leads.map((l: { name: string }) => `- ${l.name}`).join('\n')}`
+      );
+      
+      // Refetch leads to update the list
+      refetchLeads();
+    } catch (error) {
+      console.error('Error cleaning up incomplete leads:', error);
+      alert('Failed to cleanup incomplete leads. Check the console for details.');
+    } finally {
+      setIsCleaningUp(false);
+    }
+  };
+
+  const isAllSelected = leads.length > 0 && selectedLeadIds.size === leads.length;
+  const isSomeSelected = selectedLeadIds.size > 0 && selectedLeadIds.size < leads.length;
 
   return (
     <div className="space-y-6">
@@ -277,6 +360,27 @@ export function LeadsList() {
         )}
       </div>
 
+      {/* Cleanup Button */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg shadow p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Icon icon="warning" size={24} className="text-yellow-600" />
+            <div>
+              <h3 className="font-semibold text-yellow-900">Data Quality</h3>
+              <p className="text-sm text-yellow-700">Remove leads with incomplete data (missing title, company, location, and email)</p>
+            </div>
+          </div>
+          <button
+            onClick={handleCleanupIncomplete}
+            disabled={isCleaningUp}
+            className="flex items-center gap-2 px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Icon icon="delete_sweep" size={20} />
+            <span>{isCleaningUp ? 'Cleaning...' : 'Cleanup Incomplete Leads'}</span>
+          </button>
+        </div>
+      </div>
+
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -352,6 +456,36 @@ export function LeadsList() {
         </div>
       </div>
 
+      {/* Bulk Action Bar */}
+      {selectedLeadIds.size > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg shadow p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Icon icon="check_circle" size={24} className="text-blue-600" />
+              <span className="font-semibold text-blue-900">
+                {selectedLeadIds.size} lead{selectedLeadIds.size !== 1 ? 's' : ''} selected
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleGenerateEmails}
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                <Icon icon="email" size={20} />
+                <span>Generate Outreach Emails</span>
+              </button>
+              <button
+                onClick={handleClearSelection}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+              >
+                <Icon icon="close" size={20} />
+                <span>Clear Selection</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Leads Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
@@ -370,6 +504,18 @@ export function LeadsList() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
+                  <th className="px-4 py-3 text-left w-12">
+                    <input
+                      type="checkbox"
+                      checked={isAllSelected}
+                      ref={(el) => {
+                        if (el) el.indeterminate = isSomeSelected;
+                      }}
+                      onChange={handleToggleSelectAll}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                      aria-label="Select all leads"
+                    />
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
@@ -384,9 +530,18 @@ export function LeadsList() {
                 {leads.map((lead) => (
                   <tr
                     key={lead.id}
-                    className="hover:bg-gray-50 cursor-pointer"
+                    className={`hover:bg-gray-50 cursor-pointer ${selectedLeadIds.has(lead.id) ? 'bg-blue-50' : ''}`}
                     onClick={() => handleRowClick(lead)}
                   >
+                    <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedLeadIds.has(lead.id)}
+                        onChange={() => handleToggleSelectLead(lead.id)}
+                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
+                        aria-label={`Select ${lead.name}`}
+                      />
+                    </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="font-medium text-gray-900">{lead.name}</div>
                     </td>
@@ -496,6 +651,14 @@ export function LeadsList() {
         <LeadDetail
           lead={selectedLead}
           onClose={() => setSelectedLead(null)}
+        />
+      )}
+
+      {/* Email Preview Modal */}
+      {generatedEmails && (
+        <EmailPreviewModal
+          emails={generatedEmails}
+          onClose={handleCloseEmailModal}
         />
       )}
     </div>

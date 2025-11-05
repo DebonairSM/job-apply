@@ -2047,6 +2047,39 @@ export function softDeleteLead(id: string): boolean {
   return result.changes > 0;
 }
 
+export function deleteIncompleteLeads(): { deleted: number; leads: Array<{ id: string; name: string }> } {
+  const database = getDb();
+  
+  // Find leads with name but missing ALL of: title, company, location, AND email
+  const incompleteLeads = database.prepare(`
+    SELECT id, name 
+    FROM leads 
+    WHERE deleted_at IS NULL
+      AND (title IS NULL OR title = '')
+      AND (company IS NULL OR company = '')
+      AND (location IS NULL OR location = '')
+      AND (email IS NULL OR email = '')
+  `).all() as Array<{ id: string; name: string }>;
+  
+  if (incompleteLeads.length === 0) {
+    return { deleted: 0, leads: [] };
+  }
+  
+  // Soft delete all incomplete leads
+  const placeholders = incompleteLeads.map(() => '?').join(',');
+  const ids = incompleteLeads.map(l => l.id);
+  
+  const stmt = database.prepare(`
+    UPDATE leads 
+    SET deleted_at = CURRENT_TIMESTAMP 
+    WHERE id IN (${placeholders}) AND deleted_at IS NULL
+  `);
+  
+  const result = stmt.run(...ids);
+  
+  return { deleted: result.changes, leads: incompleteLeads };
+}
+
 export function getLeads(filters?: {
   search?: string;
   title?: string;
@@ -2222,6 +2255,114 @@ export function getLeadStats(): LeadStats {
     topCompanies,
     topTitles
   };
+}
+
+export interface LeadWithBirthday extends Lead {
+  birthday: string;
+  daysUntilBirthday: number;
+  age?: number;
+}
+
+export function getLeadsWithUpcomingBirthdays(daysAhead: number = 30): LeadWithBirthday[] {
+  const database = getDb();
+  
+  // Query leads with birthdays in the format "January 1" or "Jan 1" or "01-01"
+  // SQLite doesn't have great date parsing, so we'll parse the birthday in application code
+  const allLeads = database.prepare(`
+    SELECT *
+    FROM leads
+    WHERE deleted_at IS NULL
+      AND birthday IS NOT NULL
+      AND birthday != ''
+  `).all() as Lead[];
+  
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const currentDayOfYear = Math.floor((today.getTime() - new Date(currentYear, 0, 0).getTime()) / 86400000);
+  
+  const leadsWithDays: LeadWithBirthday[] = [];
+  
+  for (const lead of allLeads) {
+    if (!lead.birthday) continue;
+    
+    try {
+      // Try to parse various birthday formats
+      let birthdayDate: Date | null = null;
+      
+      // Format: "January 1", "Jan 1", "January 1st"
+      const monthDayMatch = lead.birthday.match(/^(\w+)\s+(\d{1,2})/);
+      if (monthDayMatch) {
+        const [, monthStr, dayStr] = monthDayMatch;
+        const day = parseInt(dayStr);
+        
+        // Map month names to numbers
+        const monthMap: Record<string, number> = {
+          'january': 0, 'jan': 0,
+          'february': 1, 'feb': 1,
+          'march': 2, 'mar': 2,
+          'april': 3, 'apr': 3,
+          'may': 4,
+          'june': 5, 'jun': 5,
+          'july': 6, 'jul': 6,
+          'august': 7, 'aug': 7,
+          'september': 8, 'sep': 8, 'sept': 8,
+          'october': 9, 'oct': 9,
+          'november': 10, 'nov': 10,
+          'december': 11, 'dec': 11
+        };
+        
+        const month = monthMap[monthStr.toLowerCase()];
+        if (month !== undefined) {
+          birthdayDate = new Date(currentYear, month, day);
+        }
+      }
+      
+      // Format: "01-01", "1-1"
+      if (!birthdayDate) {
+        const mmddMatch = lead.birthday.match(/^(\d{1,2})-(\d{1,2})$/);
+        if (mmddMatch) {
+          const [, monthStr, dayStr] = mmddMatch;
+          const month = parseInt(monthStr) - 1; // Month is 0-indexed
+          const day = parseInt(dayStr);
+          birthdayDate = new Date(currentYear, month, day);
+        }
+      }
+      
+      if (!birthdayDate || isNaN(birthdayDate.getTime())) continue;
+      
+      // Calculate days until birthday
+      const birthdayDayOfYear = Math.floor((birthdayDate.getTime() - new Date(currentYear, 0, 0).getTime()) / 86400000);
+      
+      let daysUntil: number;
+      if (birthdayDayOfYear >= currentDayOfYear) {
+        // Birthday hasn't happened yet this year
+        daysUntil = birthdayDayOfYear - currentDayOfYear;
+      } else {
+        // Birthday already passed this year, calculate for next year
+        const nextYearBirthday = new Date(currentYear + 1, birthdayDate.getMonth(), birthdayDate.getDate());
+        const nextYearDayOfYear = Math.floor((nextYearBirthday.getTime() - new Date(currentYear, 0, 0).getTime()) / 86400000);
+        daysUntil = nextYearDayOfYear - currentDayOfYear;
+      }
+      
+      if (daysUntil <= daysAhead) {
+        leadsWithDays.push({
+          ...lead,
+          birthday: lead.birthday,
+          daysUntilBirthday: daysUntil
+        });
+      }
+    } catch (error) {
+      // Skip leads with invalid birthday formats
+      console.error(`Error parsing birthday for lead ${lead.id}: ${lead.birthday}`, error);
+      continue;
+    }
+  }
+  
+  // Sort by days until birthday
+  leadsWithDays.sort((a, b) => a.daysUntilBirthday - b.daysUntilBirthday);
+  
+  // Return top 10
+  return leadsWithDays.slice(0, 10);
 }
 
 // Lead scraping runs operations

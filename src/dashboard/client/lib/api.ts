@@ -12,6 +12,19 @@ export const api = {
     return { data };
   },
 
+  // Generic POST method for flexible endpoint access
+  async post(endpoint: string, body?: any): Promise<{ data: any }> {
+    const url = endpoint.startsWith('/') ? `${API_BASE}${endpoint}` : `${API_BASE}/${endpoint}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    if (!response.ok) throw new Error(`Failed to post ${endpoint}`);
+    const data = await response.json();
+    return { data };
+  },
+
   // Generic DELETE method for flexible endpoint access
   async delete(endpoint: string): Promise<{ data: any }> {
     const url = endpoint.startsWith('/') ? `${API_BASE}${endpoint}` : `${API_BASE}/${endpoint}`;
