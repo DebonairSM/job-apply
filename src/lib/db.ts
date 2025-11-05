@@ -2011,17 +2011,22 @@ export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at' | 'deleted_
 
 export function leadExistsByUrl(profileUrl: string): boolean {
   const database = getDb();
+  // Normalize URL by removing trailing slash
+  const normalizedUrl = profileUrl.replace(/\/$/, '');
   const stmt = database.prepare('SELECT 1 FROM leads WHERE profile_url = ? AND deleted_at IS NULL LIMIT 1');
-  const result = stmt.get(profileUrl);
+  const result = stmt.get(normalizedUrl);
   return !!result;
 }
 
 export function leadExistsIncludingDeleted(profileUrl: string, linkedinId?: string, name?: string, email?: string): boolean {
   const database = getDb();
   
+  // Normalize URL by removing trailing slash
+  const normalizedUrl = profileUrl.replace(/\/$/, '');
+  
   // Check by profile URL first (most reliable)
   let stmt = database.prepare('SELECT 1 FROM leads WHERE profile_url = ? LIMIT 1');
-  let result = stmt.get(profileUrl);
+  let result = stmt.get(normalizedUrl);
   if (result) return true;
   
   // Check by LinkedIn ID if available
@@ -2043,8 +2048,10 @@ export function leadExistsIncludingDeleted(profileUrl: string, linkedinId?: stri
 
 export function getLeadByUrl(profileUrl: string): Lead | null {
   const database = getDb();
+  // Normalize URL by removing trailing slash
+  const normalizedUrl = profileUrl.replace(/\/$/, '');
   const stmt = database.prepare('SELECT * FROM leads WHERE profile_url = ?');
-  return stmt.get(profileUrl) as Lead | null;
+  return stmt.get(normalizedUrl) as Lead | null;
 }
 
 export function getLeadById(id: string): Lead | null {

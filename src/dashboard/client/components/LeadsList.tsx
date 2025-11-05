@@ -63,6 +63,7 @@ export function LeadsList() {
   const [showCLIReference, setShowCLIReference] = useState(false);
   const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
   const [generatedEmails, setGeneratedEmails] = useState<EmailContent[] | null>(null);
+  const [selectedLeadsForEmail, setSelectedLeadsForEmail] = useState<Lead[]>([]);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
 
   // Fetch leads
@@ -159,11 +160,13 @@ export function LeadsList() {
     }
 
     const emails = generateBulkEmails(leadsWithEmail);
+    setSelectedLeadsForEmail(leadsWithEmail);
     setGeneratedEmails(emails);
   };
 
   const handleCloseEmailModal = () => {
     setGeneratedEmails(null);
+    setSelectedLeadsForEmail([]);
   };
 
   const handleCleanupIncomplete = async () => {
@@ -665,6 +668,7 @@ export function LeadsList() {
       {generatedEmails && (
         <EmailPreviewModal
           emails={generatedEmails}
+          leads={selectedLeadsForEmail}
           onClose={handleCloseEmailModal}
         />
       )}

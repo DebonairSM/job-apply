@@ -16,6 +16,7 @@ export interface EmailContent {
   to: string;
   subject: string;
   body: string;
+  referralLink?: string;
 }
 
 const SIGNATURE = `Rommel Bandeira
@@ -25,22 +26,72 @@ VSol Software
 info@vsol.software
 www.vsol.software`;
 
+const REFERRAL_SALT = 'VSOL';
+const REFERRAL_BASE_URL = 'https://vsol.software/referral';
+
+/**
+ * Encode referrer information using Base64 with salt
+ */
+function encodeReferrerInfo(firstName: string, lastName: string): string {
+  const data = `${REFERRAL_SALT}:${firstName}:${lastName}`;
+  return Buffer.from(data).toString('base64');
+}
+
+/**
+ * Generate referral link for a lead
+ */
+function generateReferralLink(lead: Lead): string {
+  const parts = lead.name.trim().split(/\s+/);
+  const firstName = parts[0] || '';
+  const lastName = parts.slice(1).join(' ') || '';
+  
+  const encoded = encodeReferrerInfo(firstName, lastName);
+  return `${REFERRAL_BASE_URL}?ref=${encoded}`;
+}
+
+/**
+ * Add referral program section to email body
+ */
+function addReferralSection(body: string, referralLink: string): string {
+  const referralSection = `P.S. If you're not the right person for this conversation, I'd appreciate a referral! Use this link to refer someone who might benefit:
+${referralLink}
+
+Anyone you refer who becomes a client will receive my thanks and recognition.`;
+  
+  // Insert referral section before signature
+  const signatureIndex = body.indexOf(SIGNATURE);
+  if (signatureIndex !== -1) {
+    return body.substring(0, signatureIndex) + referralSection + '\n\n' + body.substring(signatureIndex);
+  }
+  
+  // Fallback: append to end
+  return body + '\n\n' + referralSection;
+}
+
 /**
  * Generate personalized outreach email for a lead
  */
-export function generateOutreachEmail(lead: Lead): EmailContent {
+export function generateOutreachEmail(lead: Lead, includeReferral?: boolean): EmailContent {
   if (!lead.email) {
     throw new Error(`Lead ${lead.name} does not have an email address`);
   }
 
   const firstName = extractFirstName(lead.name);
   const subject = generateSubject(lead);
-  const body = generateBody(lead, firstName);
+  let body = generateBody(lead, firstName);
+  let referralLink: string | undefined;
+
+  // Add referral section if requested
+  if (includeReferral) {
+    referralLink = generateReferralLink(lead);
+    body = addReferralSection(body, referralLink);
+  }
 
   return {
     to: lead.email,
     subject,
-    body
+    body,
+    referralLink
   };
 }
 
@@ -183,12 +234,13 @@ export function createMailtoLink(email: EmailContent): string {
 /**
  * Generate emails for multiple leads
  */
-export function generateBulkEmails(leads: Lead[]): EmailContent[] {
+export function generateBulkEmails(leads: Lead[], referralEnabled?: Map<string, boolean>): EmailContent[] {
   return leads
     .filter(lead => lead.email) // Only include leads with emails
     .map(lead => {
       try {
-        return generateOutreachEmail(lead);
+        const includeReferral = referralEnabled?.get(lead.id) ?? false;
+        return generateOutreachEmail(lead, includeReferral);
       } catch (error) {
         console.error(`Error generating email for ${lead.name}:`, error);
         return null;

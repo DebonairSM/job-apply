@@ -242,6 +242,11 @@ export async function scrapeConnections(
         break;
       }
 
+      // Track profiles on this page
+      let profilesFoundOnPage = 0;
+      let profilesSkippedOnPage = 0;
+      let profilesAddedOnPage = 0;
+
       // Process each profile card on this page
       for (let i = 0; i < cardCount; i++) {
         // Check stop signal
@@ -259,7 +264,7 @@ export async function scrapeConnections(
         }
 
         try {
-          console.log(`   Processing profile ${i + 1}/${cardCount}...`);
+          console.log(`   Processing card ${i + 1}/${cardCount}...`);
 
           // Re-query card fresh each time to avoid stale elements
           const card = page.locator(bestSelector).nth(i);
@@ -305,21 +310,27 @@ export async function scrapeConnections(
           }
 
           if (!href || !profileLink) {
-            console.log(`   ⚠️  Skipping profile ${i + 1}: profile URL not found after ${maxAttempts} attempts`);
+            console.log(`   ⚠️  Skipping card ${i + 1}: profile URL not found after ${maxAttempts} attempts`);
             continue;
           }
+          
+          // Found a valid profile URL
+          profilesFoundOnPage++;
 
-          // Clean up profile URL (remove query parameters)
+          // Clean up profile URL (remove query parameters and trailing slash)
           let profileUrl = href.includes('?') ? href.split('?')[0] : href;
           if (!profileUrl.startsWith('http')) {
             profileUrl = `https://www.linkedin.com${profileUrl}`;
           }
+          // Remove trailing slash for consistent URL format
+          profileUrl = profileUrl.replace(/\/$/, '');
 
           // Check if already in database
           if (leadExistsByUrl(profileUrl)) {
-            console.log(`   ⏭️  Skipping profile ${i + 1}: already in database`);
+            console.log(`   ⏭️  Skipping card ${i + 1}: already in database`);
             progress.profilesScraped++;
             progress.lastProfileUrl = profileUrl;
+            profilesSkippedOnPage++;
             continue;
           }
 
@@ -799,6 +810,7 @@ export async function scrapeConnections(
 
           if (added) {
             progress.profilesAdded++;
+            profilesAddedOnPage++;
             console.log(`   ✅ Added: ${name}`);
             if (title) console.log(`      Title: ${title}`);
             if (company) console.log(`      Company: ${company}`);
@@ -816,6 +828,7 @@ export async function scrapeConnections(
             }
           } else {
             console.log(`   ⏭️  Skipped: ${name} (already exists)`);
+            profilesSkippedOnPage++;
           }
 
           progress.profilesScraped++;
@@ -946,6 +959,17 @@ export async function scrapeConnections(
           console.log(`   ⚠️  Error processing profile ${i + 1}: ${err.message}`);
           continue;
         }
+      }
+
+      // Page summary
+      const invalidCards = cardCount - profilesFoundOnPage;
+      console.log(`\n   📊 Page ${currentPage} Summary:`);
+      console.log(`      Total cards: ${cardCount}`);
+      console.log(`      Valid profiles found: ${profilesFoundOnPage}`);
+      console.log(`      Duplicates skipped: ${profilesSkippedOnPage}`);
+      console.log(`      New profiles added: ${profilesAddedOnPage}`);
+      if (invalidCards > 0) {
+        console.log(`      Invalid/non-profile cards: ${invalidCards}`);
       }
 
       // Check if there's a next page

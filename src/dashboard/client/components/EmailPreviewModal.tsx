@@ -1,14 +1,42 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Icon } from './Icon';
-import { EmailContent, createMailtoLink } from '../../../ai/email-templates';
+import { EmailContent, createMailtoLink, generateOutreachEmail } from '../../../ai/email-templates';
+
+interface Lead {
+  id: string;
+  name: string;
+  title?: string;
+  company?: string;
+  about?: string;
+  email?: string;
+  worked_together?: string;
+}
 
 interface EmailPreviewModalProps {
   emails: EmailContent[];
+  leads: Lead[];
   onClose: () => void;
 }
 
-export function EmailPreviewModal({ emails, onClose }: EmailPreviewModalProps) {
+export function EmailPreviewModal({ emails: initialEmails, leads, onClose }: EmailPreviewModalProps) {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [referralEnabled, setReferralEnabled] = useState<Map<number, boolean>>(new Map());
+
+  // Regenerate emails when referral preferences change
+  const emails = useMemo(() => {
+    return leads.map((lead, index) => {
+      const includeReferral = referralEnabled.get(index) ?? false;
+      return generateOutreachEmail(lead, includeReferral);
+    });
+  }, [leads, referralEnabled]);
+
+  const handleToggleReferral = (index: number) => {
+    setReferralEnabled(prev => {
+      const newMap = new Map(prev);
+      newMap.set(index, !prev.get(index));
+      return newMap;
+    });
+  };
 
   const handleCopyToClipboard = async (email: EmailContent, index: number) => {
     const fullEmail = `To: ${email.to}\nSubject: ${email.subject}\n\n${email.body}`;
@@ -76,6 +104,26 @@ export function EmailPreviewModal({ emails, onClose }: EmailPreviewModalProps) {
                   {email.body.substring(0, 300)}
                   {email.body.length > 300 && '...'}
                 </div>
+              </div>
+
+              {/* Referral Program Checkbox */}
+              <div className="mb-3 flex items-center">
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={referralEnabled.get(index) ?? false}
+                    onChange={() => handleToggleReferral(index)}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                  />
+                  <span className="ml-2 text-sm text-gray-700">
+                    Include Referral Program
+                  </span>
+                </label>
+                {referralEnabled.get(index) && email.referralLink && (
+                  <span className="ml-3 text-xs text-gray-500">
+                    Link: {email.referralLink.substring(0, 40)}...
+                  </span>
+                )}
               </div>
 
               {/* Action Buttons */}

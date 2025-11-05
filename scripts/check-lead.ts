@@ -1,40 +1,45 @@
-import { getDb, initDb } from '../src/lib/db.js';
+import { getDb, getLeadByUrl } from '../src/lib/db.js';
 
 const profileUrl = process.argv[2];
-const nameSearch = process.argv[3];
 
-initDb();
+if (!profileUrl) {
+  console.log('Usage: npm run check-lead <profile-url-or-name>');
+  console.log('Example: npm run check-lead https://www.linkedin.com/in/lisabrownebanicprexpert/');
+  console.log('Example: npm run check-lead "LISA BROWNE-BANIC"');
+  process.exit(1);
+}
+
 const db = getDb();
 
-if (profileUrl) {
-  console.log(`\n🔍 Checking for profile URL: ${profileUrl}\n`);
-  const lead = db.prepare('SELECT * FROM leads WHERE profile_url = ?').get(profileUrl);
-  
-  if (lead) {
-    console.log('✅ Lead found in database:');
-    console.log(JSON.stringify(lead, null, 2));
-  } else {
-    console.log('❌ Lead not found in database');
-  }
+// Try to find by URL first (this will normalize the URL automatically)
+let lead = profileUrl.startsWith('http') ? getLeadByUrl(profileUrl) : null;
+
+// If not found by URL, try partial name match
+if (!lead && !profileUrl.startsWith('http')) {
+  const searchPattern = `%${profileUrl}%`;
+  lead = db.prepare('SELECT * FROM leads WHERE name LIKE ?').get(searchPattern);
 }
 
-if (nameSearch) {
-  console.log(`\n🔍 Searching for leads with name containing: ${nameSearch}\n`);
-  const leads = db.prepare('SELECT * FROM leads WHERE name LIKE ?').all(`%${nameSearch}%`);
+if (lead) {
+  console.log('\n✅ Lead found in database:\n');
+  console.log(`   ID: ${lead.id}`);
+  console.log(`   Name: ${lead.name}`);
+  console.log(`   Title: ${lead.title || '-'}`);
+  console.log(`   Company: ${lead.company || '-'}`);
+  console.log(`   Location: ${lead.location || '-'}`);
+  console.log(`   Email: ${lead.email || '-'}`);
+  console.log(`   Profile URL: ${lead.profile_url}`);
+  console.log(`   LinkedIn ID: ${lead.linkedin_id || '-'}`);
+  console.log(`   Scraped At: ${lead.scraped_at || '-'}`);
+  console.log(`   Created At: ${lead.created_at || '-'}`);
+  console.log(`   Status: ${lead.status || 'active'}`);
   
-  if (leads.length > 0) {
-    console.log(`✅ Found ${leads.length} matching lead(s):`);
-    leads.forEach((lead: any) => {
-      console.log(`\n  Name: ${lead.name}`);
-      console.log(`  Title: ${lead.title || 'N/A'}`);
-      console.log(`  Company: ${lead.company || 'N/A'}`);
-      console.log(`  URL: ${lead.profile_url}`);
-      console.log(`  Created: ${lead.created_at}`);
-    });
-  } else {
-    console.log('❌ No matching leads found');
+  if (lead.about) {
+    console.log(`\n   About:\n   ${lead.about.substring(0, 200)}${lead.about.length > 200 ? '...' : ''}`);
   }
+} else {
+  console.log('\n❌ Lead not found in database');
+  console.log('\nSearched for:');
+  console.log(`   URL: ${profileUrl.startsWith('http') ? profileUrl : 'N/A'}`);
+  console.log(`   Name pattern: ${!profileUrl.startsWith('http') ? profileUrl : 'N/A'}`);
 }
-
-console.log('');
-
