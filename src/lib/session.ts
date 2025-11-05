@@ -22,6 +22,7 @@ export function hasSession(): boolean {
 export interface TechnicalConfig {
   ollamaBaseUrl: string;
   llmModel: string;
+  backgroundGenModel: string;
   llmTemperature: number;
   headless: boolean;
   slowMo: number;
@@ -80,6 +81,7 @@ export function loadTechnicalConfig(): TechnicalConfig {
   return {
     ollamaBaseUrl: env.OLLAMA_BASE_URL || 'http://localhost:11434',
     llmModel: env.LLM_MODEL || 'llama3.1:8b',
+    backgroundGenModel: env.BACKGROUND_GEN_MODEL || env.LLM_MODEL || 'qwen2.5:14b',
     llmTemperature: parseFloat(env.LLM_TEMPERATURE || '0.1'),
     headless: env.HEADLESS === 'true',
     slowMo: parseInt(env.SLOW_MO || '80', 10),

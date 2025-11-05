@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Icon } from './Icon';
 import { api } from '../lib/api';
 import { useQueryClient } from '@tanstack/react-query';
+import { useGenerateBackground } from '../hooks/useGenerateBackground';
 
 interface Lead {
   id: string;
@@ -21,6 +22,7 @@ interface Lead {
   connected_date?: string;
   address?: string;
   profile?: string;
+  background?: string; // AI-generated professional background for email use
   scraped_at?: string;
   created_at?: string;
   deleted_at?: string;
@@ -33,13 +35,22 @@ interface LeadDetailProps {
 
 export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   const [isDeleting, setIsDeleting] = useState(false);
+  const [copiedBackground, setCopiedBackground] = useState(false);
   const queryClient = useQueryClient();
+  const generateBackground = useGenerateBackground();
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return 'N/A';
     const date = new Date(dateStr);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
   };
+
+  // Auto-generate background on mount if it's empty
+  useEffect(() => {
+    if (!lead.background && (lead.title || lead.about)) {
+      generateBackground.mutate(lead.id);
+    }
+  }, [lead.id]);
 
   const handleDelete = async () => {
     if (!confirm(`Are you sure you want to delete ${lead.name}? This lead will not be re-added in future scrapes.`)) {
@@ -57,6 +68,22 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
       console.error('Error deleting lead:', error);
       alert('Failed to delete lead. Please try again.');
       setIsDeleting(false);
+    }
+  };
+
+  const handleGenerateBackground = () => {
+    generateBackground.mutate(lead.id);
+  };
+
+  const handleCopyBackground = async () => {
+    if (lead.background) {
+      try {
+        await navigator.clipboard.writeText(lead.background);
+        setCopiedBackground(true);
+        setTimeout(() => setCopiedBackground(false), 2000);
+      } catch (error) {
+        console.error('Error copying to clipboard:', error);
+      }
     }
   };
 
@@ -121,6 +148,66 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
                   <Icon icon="users" size={20} className="text-blue-500" />
                   {lead.worked_together}
                 </p>
+              </div>
+            )}
+          </div>
+
+          {/* AI-Generated Background for Email */}
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 space-y-3 border border-blue-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Icon icon="auto-fix" size={20} className="text-blue-600" />
+                <h3 className="font-semibold text-gray-900">Email Background</h3>
+              </div>
+              <div className="flex gap-2">
+                {generateBackground.isPending ? (
+                  <span className="text-sm text-gray-500 flex items-center gap-1">
+                    <Icon icon="refresh" size={16} className="animate-spin" />
+                    Generating...
+                  </span>
+                ) : lead.background ? (
+                  <>
+                    <button
+                      onClick={handleCopyBackground}
+                      className="px-3 py-1 bg-white text-blue-600 rounded-md hover:bg-blue-50 transition-colors text-sm flex items-center gap-1 border border-blue-200"
+                      title="Copy to clipboard"
+                    >
+                      <Icon icon={copiedBackground ? "check" : "content-copy"} size={16} />
+                      {copiedBackground ? 'Copied!' : 'Copy'}
+                    </button>
+                    <button
+                      onClick={handleGenerateBackground}
+                      className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm flex items-center gap-1"
+                    >
+                      <Icon icon="refresh" size={16} />
+                      Regenerate
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    onClick={handleGenerateBackground}
+                    className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm flex items-center gap-1"
+                  >
+                    <Icon icon="auto-fix" size={16} />
+                    Generate
+                  </button>
+                )}
+              </div>
+            </div>
+            
+            {generateBackground.isError && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+                Failed to generate background. Please try again.
+              </div>
+            )}
+            
+            {lead.background ? (
+              <div className="p-3 bg-white rounded-md border border-blue-100">
+                <p className="text-gray-900 leading-relaxed">{lead.background}</p>
+              </div>
+            ) : !generateBackground.isPending && (
+              <div className="p-3 bg-white rounded-md border border-blue-100 text-gray-500 text-sm">
+                Click "Generate" to create a professional email introduction based on this person's title and background.
               </div>
             )}
           </div>

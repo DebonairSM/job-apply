@@ -1,5 +1,6 @@
 import express from 'express';
-import { getLeads, getLeadsCount, getLeadById, getLeadStats, getScrapingRuns, getScrapingRun, softDeleteLead, getLeadsWithUpcomingBirthdays, deleteIncompleteLeads } from '../../lib/db.js';
+import { getLeads, getLeadsCount, getLeadById, getLeadStats, getScrapingRuns, getScrapingRun, softDeleteLead, getLeadsWithUpcomingBirthdays, deleteIncompleteLeads, updateLeadBackground } from '../../lib/db.js';
+import { generateLeadBackground } from '../../ai/background-generator.js';
 
 const router = express.Router();
 
@@ -141,6 +142,32 @@ router.post('/cleanup-incomplete', (req, res) => {
   } catch (error) {
     console.error('Error cleaning up incomplete leads:', error);
     res.status(500).json({ error: 'Failed to cleanup incomplete leads' });
+  }
+});
+
+// POST /api/leads/:id/generate-background - Generate AI background for a lead
+router.post('/:id/generate-background', async (req, res) => {
+  try {
+    const lead = getLeadById(req.params.id);
+    
+    if (!lead) {
+      return res.status(404).json({ error: 'Lead not found' });
+    }
+    
+    // Generate background using AI
+    const background = await generateLeadBackground(lead.title || '', lead.about);
+    
+    // Save to database
+    const success = updateLeadBackground(lead.id, background);
+    
+    if (!success) {
+      return res.status(500).json({ error: 'Failed to update lead background' });
+    }
+    
+    res.json({ background });
+  } catch (error) {
+    console.error('Error generating lead background:', error);
+    res.status(500).json({ error: 'Failed to generate background' });
   }
 });
 

@@ -461,6 +461,13 @@ export function initDb(): void {
     // Already backfilled, ignore
   }
 
+  // Add background column if it doesn't exist (migration)
+  try {
+    database.exec(`ALTER TABLE leads ADD COLUMN background TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+
   // Lead scraping runs table for batch processing and resume capability
   database.exec(`
     CREATE TABLE IF NOT EXISTS lead_scraping_runs (
@@ -1964,6 +1971,7 @@ export interface Lead {
   connected_date?: string; // e.g., "Oct 18, 2017"
   address?: string; // Social media handles or custom addresses
   profile?: string; // Search profile used to find this lead (core, chiefs, etc.)
+  background?: string; // AI-generated professional background for email use
   scraped_at?: string;
   created_at?: string;
   deleted_at?: string;
@@ -1991,8 +1999,8 @@ export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at' | 'deleted_
   }
   
   const stmt = database.prepare(`
-    INSERT INTO leads (id, name, title, company, about, email, phone, website, location, profile_url, linkedin_id, worked_together, articles, birthday, connected_date, address, profile)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO leads (id, name, title, company, about, email, phone, website, location, profile_url, linkedin_id, worked_together, articles, birthday, connected_date, address, profile, background)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   try {
@@ -2013,7 +2021,8 @@ export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at' | 'deleted_
       lead.birthday || null,
       lead.connected_date || null,
       lead.address || null,
-      lead.profile || null
+      lead.profile || null,
+      lead.background || null
     );
     return true;
   } catch (error) {
@@ -2023,6 +2032,18 @@ export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at' | 'deleted_
     }
     throw error;
   }
+}
+
+export function updateLeadBackground(leadId: string, background: string): boolean {
+  const database = getDb();
+  const stmt = database.prepare(`
+    UPDATE leads 
+    SET background = ?
+    WHERE id = ? AND deleted_at IS NULL
+  `);
+  
+  const result = stmt.run(background, leadId);
+  return result.changes > 0;
 }
 
 export function leadExistsByUrl(profileUrl: string): boolean {

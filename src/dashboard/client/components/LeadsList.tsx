@@ -24,6 +24,7 @@ interface Lead {
   connected_date?: string;
   address?: string;
   profile?: string;
+  background?: string; // AI-generated professional background for email use
   scraped_at?: string;
   created_at?: string;
   deleted_at?: string;
