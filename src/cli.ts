@@ -158,7 +158,7 @@ yargs(hideBin(process.argv))
           alias: 'm',
           describe: 'Max profiles to scrape',
           type: 'number',
-          default: 50
+          default: 1000
         })
         .option('resume', {
           alias: 'r',

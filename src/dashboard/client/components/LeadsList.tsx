@@ -342,7 +342,7 @@ export function LeadsList() {
               <div className="space-y-2 text-sm">
                 <div className="bg-white rounded p-2 border border-gray-200">
                   <code className="text-xs">npm run leads:search -- --profile chiefs --max 100</code>
-                  <p className="text-gray-600 text-xs mt-1">Limit to 100 profiles (default: 50)</p>
+                  <p className="text-gray-600 text-xs mt-1">Limit to 100 profiles (default: 1000)</p>
                 </div>
 
                 <div className="bg-white rounded p-2 border border-gray-200">

@@ -1031,6 +1031,11 @@ export async function scrapeConnections(
           hasMorePages = false;
         }
       } else {
+        // Max profiles limit reached
+        if (options.maxProfiles && progress.profilesScraped >= options.maxProfiles) {
+          console.log(`\n🎯 Max profile limit reached (${options.maxProfiles} profiles)`);
+          console.log(`   Increase with: npm run leads:search -- --max <number>`);
+        }
         hasMorePages = false;
       }
     }
