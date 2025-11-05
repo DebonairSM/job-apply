@@ -34,7 +34,7 @@ const REFERRAL_BASE_URL = 'https://vsol.software/referral';
  */
 function encodeReferrerInfo(firstName: string, lastName: string): string {
   const data = `${REFERRAL_SALT}:${firstName}:${lastName}`;
-  return Buffer.from(data).toString('base64');
+  return btoa(data);
 }
 
 /**
