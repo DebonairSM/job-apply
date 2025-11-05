@@ -3,6 +3,7 @@ import { Icon } from './Icon';
 import { api } from '../lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useGenerateBackground } from '../hooks/useGenerateBackground';
+import { generateOutreachEmail, createMailtoLink, EmailContent } from '../../../ai/email-templates';
 
 interface Lead {
   id: string;
@@ -37,6 +38,10 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [copiedBackground, setCopiedBackground] = useState(false);
   const [currentBackground, setCurrentBackground] = useState(lead.background);
+  const [showEmailSection, setShowEmailSection] = useState(false);
+  const [includeReferral, setIncludeReferral] = useState(false);
+  const [copiedEmail, setCopiedEmail] = useState(false);
+  const [generatedEmail, setGeneratedEmail] = useState<EmailContent | null>(null);
   const queryClient = useQueryClient();
   const generateBackground = useGenerateBackground();
 
@@ -122,6 +127,78 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
         console.error('Error copying to clipboard:', error);
         alert('Failed to copy to clipboard. Please try again.');
       }
+    }
+  };
+
+  const handleGenerateEmail = () => {
+    if (!lead.email) {
+      alert('This lead does not have an email address.');
+      return;
+    }
+
+    try {
+      const email = generateOutreachEmail(lead, includeReferral);
+      setGeneratedEmail(email);
+      setShowEmailSection(true);
+    } catch (error) {
+      console.error('Error generating email:', error);
+      alert('Failed to generate email. Please ensure the lead has an email address.');
+    }
+  };
+
+  const handleToggleReferral = () => {
+    const newValue = !includeReferral;
+    setIncludeReferral(newValue);
+    
+    // Regenerate email with new referral setting
+    if (lead.email) {
+      try {
+        const email = generateOutreachEmail(lead, newValue);
+        setGeneratedEmail(email);
+      } catch (error) {
+        console.error('Error regenerating email:', error);
+      }
+    }
+  };
+
+  const handleCopyEmail = async () => {
+    if (generatedEmail) {
+      const fullEmail = `To: ${generatedEmail.to}\nSubject: ${generatedEmail.subject}\n\n${generatedEmail.body}`;
+      
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(fullEmail);
+          setCopiedEmail(true);
+          setTimeout(() => setCopiedEmail(false), 2000);
+        } else {
+          const textArea = document.createElement('textarea');
+          textArea.value = fullEmail;
+          textArea.style.position = 'fixed';
+          textArea.style.left = '-999999px';
+          textArea.style.top = '-999999px';
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          
+          try {
+            document.execCommand('copy');
+            setCopiedEmail(true);
+            setTimeout(() => setCopiedEmail(false), 2000);
+          } finally {
+            document.body.removeChild(textArea);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to copy email:', error);
+        alert('Failed to copy to clipboard. Please try again.');
+      }
+    }
+  };
+
+  const handleOpenEmailClient = () => {
+    if (generatedEmail) {
+      const mailtoLink = createMailtoLink(generatedEmail);
+      window.location.href = mailtoLink;
     }
   };
 
@@ -246,6 +323,114 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
             ) : !generateBackground.isPending && (
               <div className="p-3 bg-white rounded-md border border-blue-100 text-gray-500 text-sm">
                 Click "Generate" to create a professional email introduction based on this person's title and background.
+              </div>
+            )}
+          </div>
+
+          {/* Email Outreach Section */}
+          <div className="bg-gradient-to-r from-green-50 to-teal-50 rounded-lg p-4 space-y-3 border border-green-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Icon icon="email" size={20} className="text-green-600" />
+                <h3 className="font-semibold text-gray-900">Email Outreach</h3>
+              </div>
+              {!showEmailSection && (
+                <button
+                  onClick={handleGenerateEmail}
+                  disabled={!lead.email}
+                  className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm flex items-center gap-1 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  title={!lead.email ? 'No email address available' : 'Generate email'}
+                >
+                  <Icon icon="email" size={16} />
+                  Generate Email
+                </button>
+              )}
+            </div>
+
+            {!lead.email && !showEmailSection && (
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800 text-sm flex items-center gap-2">
+                <Icon icon="warning" size={16} />
+                No email address available for this lead
+              </div>
+            )}
+
+            {showEmailSection && generatedEmail && (
+              <div className="space-y-3">
+                {/* Email Preview */}
+                <div className="bg-white rounded-lg border border-green-100 p-3 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <Icon icon="person" size={16} className="text-gray-400 mt-0.5" />
+                    <div className="flex-1">
+                      <span className="text-xs font-medium text-gray-500">To:</span>
+                      <p className="text-sm text-gray-900">{generatedEmail.to}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-start gap-2">
+                    <Icon icon="subject" size={16} className="text-gray-400 mt-0.5" />
+                    <div className="flex-1">
+                      <span className="text-xs font-medium text-gray-500">Subject:</span>
+                      <p className="text-sm text-gray-900">{generatedEmail.subject}</p>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-2">
+                    <span className="text-xs font-medium text-gray-500">Body Preview:</span>
+                    <div className="mt-1 p-2 bg-gray-50 rounded text-xs text-gray-700 whitespace-pre-wrap max-h-48 overflow-y-auto font-mono">
+                      {generatedEmail.body.substring(0, 500)}
+                      {generatedEmail.body.length > 500 && '...'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Referral Checkbox */}
+                <div className="flex items-center">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={includeReferral}
+                      onChange={handleToggleReferral}
+                      className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 focus:ring-2"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">
+                      Include Referral Program
+                    </span>
+                  </label>
+                  {includeReferral && generatedEmail.referralLink && (
+                    <span className="ml-3 text-xs text-gray-500">
+                      Link: {generatedEmail.referralLink.substring(0, 30)}...
+                    </span>
+                  )}
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleOpenEmailClient}
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm"
+                  >
+                    <Icon icon="open_in_new" size={16} />
+                    Open in Email Client
+                  </button>
+                  <button
+                    onClick={handleCopyEmail}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors text-sm ${
+                      copiedEmail
+                        ? 'bg-green-600 text-white'
+                        : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                    }`}
+                  >
+                    <Icon icon={copiedEmail ? 'check' : 'content_copy'} size={16} />
+                    {copiedEmail ? 'Copied!' : 'Copy'}
+                  </button>
+                  <button
+                    onClick={() => setShowEmailSection(false)}
+                    className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-md hover:bg-gray-50 transition-colors text-sm border border-gray-300"
+                  >
+                    <Icon icon="close" size={16} />
+                    Hide
+                  </button>
+                </div>
               </div>
             )}
           </div>

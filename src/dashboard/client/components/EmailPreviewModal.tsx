@@ -10,6 +10,8 @@ interface Lead {
   about?: string;
   email?: string;
   worked_together?: string;
+  profile?: string; // Lead profile (chiefs, founders, directors, etc.)
+  background?: string; // AI-generated professional background for email use
 }
 
 interface EmailPreviewModalProps {

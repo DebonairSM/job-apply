@@ -11,6 +11,7 @@ export interface Lead {
   email?: string;
   worked_together?: string;
   background?: string; // AI-generated professional background for email use
+  profile?: string; // Lead profile (chiefs, founders, directors, etc.)
 }
 
 export interface EmailContent {
@@ -29,6 +30,8 @@ www.vsol.software`;
 
 const REFERRAL_SALT = 'VSOL';
 const REFERRAL_BASE_URL = 'https://vsol.software/referral';
+const SPREADSHEET_AUTOMATION_URL = 'https://vsol.software/agentic#featured-product';
+const BOOKING_URL = 'https://calendly.com/vsol-software/discovery'; // Update with actual booking URL
 
 /**
  * Encode referrer information using Base64 with salt
@@ -71,15 +74,30 @@ Anyone you refer who becomes a client will receive my thanks and recognition.`;
 
 /**
  * Generate personalized outreach email for a lead
+ * Routes to profile-specific template or falls back to generic template
  */
-export function generateOutreachEmail(lead: Lead, includeReferral?: boolean): EmailContent {
+export function generateOutreachEmail(lead: Lead, includeReferral?: boolean, profileKey?: string): EmailContent {
   if (!lead.email) {
     throw new Error(`Lead ${lead.name} does not have an email address`);
   }
 
+  // Use profileKey parameter if provided, otherwise use lead's profile, or default to generic
+  const profile = profileKey || lead.profile;
+
   const firstName = extractFirstName(lead.name);
-  const subject = generateSubject(lead);
-  let body = generateBody(lead, firstName);
+  let subject: string;
+  let body: string;
+
+  // Route to profile-specific template
+  if (profile === 'chiefs') {
+    subject = generateChiefsSubject(lead);
+    body = generateChiefsBody(lead, firstName);
+  } else {
+    // Default to generic template for all other profiles
+    subject = generateGenericSubject(lead);
+    body = generateGenericBody(lead, firstName);
+  }
+
   let referralLink: string | undefined;
 
   // Add referral section if requested
@@ -104,10 +122,14 @@ function extractFirstName(fullName: string): string {
   return parts[0] || fullName;
 }
 
+// =============================================================================
+// GENERIC TEMPLATE (default for all profiles except chiefs)
+// =============================================================================
+
 /**
- * Generate email subject line
+ * Generate email subject line for generic template
  */
-function generateSubject(lead: Lead): string {
+function generateGenericSubject(lead: Lead): string {
   if (lead.company) {
     return `Quick question about ${lead.company}'s workflow automation`;
   }
@@ -115,9 +137,9 @@ function generateSubject(lead: Lead): string {
 }
 
 /**
- * Generate personalized email body
+ * Generate personalized email body for generic template
  */
-function generateBody(lead: Lead, firstName: string): string {
+function generateGenericBody(lead: Lead, firstName: string): string {
   const intro = `Hello ${firstName},`;
   
   const personalizedContext = generatePersonalizedContext(lead);
@@ -129,6 +151,55 @@ It automates everyday workflows, especially those built around spreadsheets, usi
 It's a tailored, secure, open-source, local-first platform that can cut costs by up to 100x while giving organizations full control of their data. Over time, I also train an internal technical leader to build and test proof-of-concept features in a gated CI/CD pipeline.`;
   
   const closing = `Would you have a few minutes this week to talk?
+
+Best regards,
+
+${SIGNATURE}`;
+
+  return `${intro}
+
+${personalizedContext}
+
+${mainPitch}
+
+${closing}`;
+}
+
+// =============================================================================
+// CHIEFS TEMPLATE (C-level executives - Spreadsheet Automation focus)
+// =============================================================================
+
+/**
+ * Generate email subject line for chiefs profile
+ */
+function generateChiefsSubject(lead: Lead): string {
+  if (lead.company) {
+    return `Quick question about ${lead.company}'s spreadsheet workflows`;
+  }
+  return `Quick question about spreadsheet workflow automation`;
+}
+
+/**
+ * Generate personalized email body for chiefs profile
+ */
+function generateChiefsBody(lead: Lead, firstName: string): string {
+  const intro = `Hello ${firstName},`;
+  
+  const personalizedContext = generatePersonalizedContext(lead);
+  
+  const mainPitch = `I'd like to share our Spreadsheet Automation Platform with you.
+
+We transform manual spreadsheet workflows into automated systems with AI-generated interactive mockups delivered during discovery calls. We analyze your current processes, design streamlined solutions, and provide working demonstrations same-day. Complete with workflow documentation, ROI analysis, and deployment-ready prototypes.
+
+Our approach uses AI-assisted development to create tailored, secure, open-source, local-first solutions that can cut costs by up to 100x while giving organizations full control of their data. Over time, we also train an internal technical leader to build and test proof-of-concept features in a gated CI/CD pipeline.
+
+Learn more about the Spreadsheet Automation Platform:
+${SPREADSHEET_AUTOMATION_URL}`;
+  
+  const closing = `Would you have time this week to discuss how this could benefit ${lead.company || 'your organization'}?
+
+Or book a meeting directly:
+${BOOKING_URL}
 
 Best regards,
 
