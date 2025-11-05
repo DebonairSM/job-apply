@@ -13,6 +13,8 @@ interface Lead {
   company?: string;
   about?: string;
   email?: string;
+  phone?: string;
+  website?: string;
   location?: string;
   profile_url: string;
   linkedin_id?: string;

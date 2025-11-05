@@ -805,6 +805,8 @@ export async function scrapeConnections(
             if (location) console.log(`      Location: ${location}`);
             if (workedTogether) console.log(`      🤝 ${workedTogether}`);
             if (email) console.log(`      Email: ${email}`);
+            if (phone) console.log(`      📞 Phone: ${phone}`);
+            if (website) console.log(`      🌐 Website: ${website}`);
             if (birthday) console.log(`      🎂 Birthday: ${birthday}`);
             if (connectedDate) console.log(`      🤝 Connected: ${connectedDate}`);
             if (address) console.log(`      📍 Address: ${address}`);

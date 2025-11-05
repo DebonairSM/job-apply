@@ -10,6 +10,8 @@ interface Lead {
   company?: string;
   about?: string;
   email?: string;
+  phone?: string;
+  website?: string;
   location?: string;
   profile_url: string;
   linkedin_id?: string;
@@ -126,6 +128,30 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
               <div className="flex items-center gap-3 text-gray-500">
                 <Icon icon="email" size={20} className="text-gray-400" />
                 <span>No email available</span>
+              </div>
+            )}
+
+            {lead.phone && (
+              <div className="flex items-center gap-3">
+                <Icon icon="phone" size={20} className="text-blue-500" />
+                <a href={`tel:${lead.phone.replace(/[^0-9]/g, '')}`} className="text-blue-600 hover:text-blue-800">
+                  {lead.phone}
+                </a>
+              </div>
+            )}
+
+            {lead.website && (
+              <div className="flex items-center gap-3">
+                <Icon icon="language" size={20} className="text-purple-500" />
+                <a
+                  href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                >
+                  {lead.website}
+                  <Icon icon="open-in-new" size={16} />
+                </a>
               </div>
             )}
 
