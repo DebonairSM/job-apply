@@ -176,57 +176,87 @@ This project is developed with an "AI-first" approach where code is optimized fo
 - Handle loading and error states explicitly
 
 ## Testing Requirements
-- Write tests for new features, especially AI/ranking logic
-- Mock external dependencies (Playwright, LLM APIs)
-- Test edge cases (missing data, API failures, timeout scenarios)
+- Write tests for new features in both workflows (job ranking logic, lead scraping, AI generation)
+- Mock external dependencies (Playwright, LLM APIs, LinkedIn pages)
+- Test edge cases (missing data, API failures, timeout scenarios, CAPTCHA detection)
 - Use descriptive test names that explain the scenario
 - Keep tests isolated and repeatable
+- Test both job and lead workflows when modifying shared components (AI, database, dashboard)
 
 ## Documentation
-- Update docs/ when making architectural changes
-- Document new adapters and their specific requirements
-- Keep README.md current with setup instructions
-- Add JSDoc comments for exported functions
+- Update docs/ when making architectural changes to either workflow
+- Document new job adapters and lead scraping strategies
+- Keep README.md current with setup instructions for both workflows
+- Add JSDoc comments for exported functions with examples
 - Explain "why" in comments, not "what" (code shows what)
+- Document CLI commands and their options (jobs:search, leads:search)
+
+## CLI Commands
+- **Jobs**: `npm run jobs:search -- --profile <profile> [--max <number>]`
+  - Profiles: core, security, event-driven, performance, devops, backend, core-net, legacy-modernization
+  - Searches LinkedIn jobs, ranks, and queues high-scoring opportunities
+- **Leads**: `npm run leads:search -- --profile <profile> [--max <number>] [--degree <1st|2nd|3rd>]`
+  - Profiles: chiefs, core, security
+  - Scrapes LinkedIn People Search with connection degree filtering
+  - Default max: 1000 profiles (increased from 50)
+- **Dashboard**: `npm run dev` (starts both frontend and backend with hot reload)
+- **Scripts**: Various utility scripts in `scripts/` for database management, testing, and debugging
 
 ## File Organization
-- Place new adapters in src/adapters/
-- AI/LLM logic goes in src/ai/
-- Dashboard UI components in src/dashboard/client/components/
-- Backend API routes in src/dashboard/routes/
+- Job-specific adapters: `src/adapters/` (ATS systems like Greenhouse, Lever, Workday)
+- Lead scraping service: `src/services/lead-scraper.ts`
+- AI/LLM logic: `src/ai/` (ranker, mapper, background-generator, email-templates, rejection-analyzer)
+- Profile definitions: `src/ai/profiles.ts` (jobs), `src/ai/lead-profiles.ts` (leads)
+- CLI commands: `src/cli/` (job-search.ts, lead-search.ts)
+- Dashboard UI components: `src/dashboard/client/components/` (organize by feature: JobsList, LeadsList, etc.)
+- Backend API routes: `src/dashboard/routes/` (jobs.ts, leads.ts, headline.ts, etc.)
+- Database operations: `src/lib/db.ts` (all database queries and schemas)
 - Keep test files adjacent to what they test when possible
 
 ## Security & Privacy
 - Never commit credentials or API keys
 - Use environment variables for sensitive config
 - Sanitize user inputs before database storage
-- Don't log sensitive information (passwords, tokens)
-- Handle PII (names, emails) carefully in logs
+- Don't log sensitive information (passwords, tokens, LinkedIn session data)
+- Handle PII carefully in logs:
+  - Job data: applicant names, contact info in applications
+  - Lead data: names, emails, phones, birthdays, work history
+  - Minimize PII in error logs and debugging output
+  - Respect soft deletion (deleted_at) throughout the system
 
 ## Performance
-- Batch database operations when processing many jobs
-- Implement rate limiting for external APIs
-- Use connection pooling for database
-- Cache static data (profiles, configuration)
-- Avoid loading entire job list - paginate when possible
+- Batch database operations when processing many jobs or leads
+- Implement rate limiting for external APIs and LinkedIn scraping
+- Use connection pooling for database (shared by both workflows)
+- Cache static data (profiles, configuration, AI-generated content)
+- Paginate large lists (jobs, leads) - avoid loading all records at once
+- Cache AI-generated content (backgrounds, email templates) to avoid regeneration costs
+- Use random delays in lead scraping to avoid LinkedIn rate limits and detection
 
 ## Common Pitfalls to Avoid
-- Don't assume selectors will stay stable - job sites change often
-- Don't skip error handling in automation flows
+- Don't assume selectors will stay stable - LinkedIn and job sites change often
+- Don't skip error handling in automation flows (jobs and leads)
 - Don't forget to update both frontend and backend when changing data models
 - Don't ignore TypeScript errors - fix them properly
 - Don't add dependencies without considering bundle size
+- Don't mix job and lead logic in shared components - keep workflows separate but use common utilities
+- Don't forget to test LinkedIn scraping changes with real LinkedIn (not just mocks)
+- Don't assume lead data is complete - handle missing fields gracefully (email, phone, birthday)
 
 ## When Making Changes
-- Check if similar functionality already exists
-- Consider backward compatibility with existing database data
-- Update related tests
-- Check if documentation needs updating
-- Test manually in dashboard if UI is affected
+- Check if similar functionality already exists in either workflow (jobs or leads)
+- Consider backward compatibility with existing database data (jobs, applications, leads)
+- Update related tests for affected workflows
+- Check if documentation needs updating (README.md, docs/)
+- Test manually in dashboard if UI is affected (verify both jobs and leads sections if shared component)
+- If modifying LinkedIn automation: test with real LinkedIn to catch selector changes
+- If modifying AI prompts: verify output quality with sample data from both workflows
 
 ## System-Specific Features
 
-### Job Status Lifecycle
+### Jobs Workflow
+
+#### Job Status Lifecycle
 Six-state system: queued → applied → interview/rejected, plus skipped and reported
 - **queued**: High-scoring jobs ready for application
 - **applied**: Successfully submitted applications
@@ -235,7 +265,7 @@ Six-state system: queued → applied → interview/rejected, plus skipped and re
 - **skipped**: Low score or failed application
 - **reported**: Moved from queued for manual review, blocks auto-application
 
-### Rejection Learning System
+#### Rejection Learning System
 Located in `src/ai/rejection-analyzer.ts`, `rejection-filters.ts`, `weight-manager.ts`
 - Analyzes rejection reasons using keyword patterns and LLM
 - Adjusts profile category weights immediately (e.g., "too junior" → increase seniority weight)
@@ -244,7 +274,7 @@ Located in `src/ai/rejection-analyzer.ts`, `rejection-filters.ts`, `weight-manag
 - Dashboard displays active adjustments and learning history
 - When modifying: ensure backward compatibility with existing learning data
 
-### Job Ranking & Scoring
+#### Job Ranking & Scoring
 Located in `src/ai/ranker.ts` and `profiles.ts`
 - Current weights: Core Azure/API 20%, Security 15%, .NET 20%, Event-Driven 10%, Performance 10%, Frontend 10%, Legacy Modernization 5%, DevOps 0%
 - MIN_FIT_SCORE default: 70 (configurable in .env)
@@ -252,14 +282,14 @@ Located in `src/ai/ranker.ts` and `profiles.ts`
 - Available profiles: core, security, event-driven, performance, devops, backend, core-net, legacy-modernization
 - When changing weights: consider impact on existing queued jobs, may need re-scoring
 
-### AI Content Generation
+#### AI Content Generation for Jobs
 - **Headlines** (`src/dashboard/routes/headline.ts`): One-sentence professional summaries for applications
 - **Cover Letters** (`src/dashboard/routes/cover-letter.ts`): Job-specific letters based on fit analysis
 - Both use RAG context from resumes in `resumes/` folder
 - Generated on-demand via dashboard, not pre-generated during search
 - Use structured prompts with clear instructions and examples
 
-### Intelligent Field Mapping
+#### Intelligent Field Mapping
 Located in `src/ai/mapper.ts`
 - Three-tier system: heuristics (fast) → cache (medium) → AI (accurate)
 - Heuristics: Pattern matching for common fields (email, phone, name)
@@ -267,7 +297,7 @@ Located in `src/ai/mapper.ts`
 - AI: Semantic understanding for complex or ambiguous fields
 - When modifying: test with all three tiers, ensure cache invalidation works
 
-### Selector Learning System
+#### Selector Learning System
 Located in `tests/learning-system/`
 - Captures successful CSS selectors from form fills
 - Stores in database for reuse
@@ -275,7 +305,7 @@ Located in `tests/learning-system/`
 - Run tests with: `npm run test:learning`
 - When adding new adapters: ensure they integrate with learning system
 
-### ATS Adapters
+#### ATS Adapters
 Located in `src/adapters/`
 - Must extend BaseAdapter interface
 - Implement: detectJobBoard(), fillApplication()
@@ -285,13 +315,82 @@ Located in `src/adapters/`
 - **Workday**: Uses iframes, slow loading, complex navigation
 - Generic fallback for unknown boards
 
+### Leads Workflow
+
+#### Lead Scraping System
+Located in `src/services/lead-scraper.ts`
+- Scrapes LinkedIn People Search with filters (connection degree, location, title)
+- Connection degree filtering: 1st (direct), 2nd (connections of connections), 3rd+ (extended network)
+- Default max profiles: 1000 (configurable with --max flag)
+- Rate limiting and resilience: random delays, CAPTCHA detection, session management
+- Resume capability: can restart interrupted scraping runs
+- When modifying: test with real LinkedIn to catch selector changes
+
+#### Lead Profiles and Search Strategies
+Located in `src/ai/lead-profiles.ts` and `src/cli/lead-search.ts`
+- Profile-based searches targeting specific professional segments
+- **chiefs**: C-level executives (CTO, CIO, CISO, VP Engineering)
+- **core**: Technical leaders and architects in target technology stack
+- **security**: Security-focused professionals (AppSec, CloudSec, DevSecOps)
+- Each profile defines title keywords for filtering during scraping
+- Profiles reuse job search keyword categories for consistency
+- When adding profiles: follow established naming pattern, define clear target personas
+
+#### Lead Data Model
+Located in `src/lib/db.ts` (Lead interface)
+- Core fields: name, title, company, about, location, profile_url
+- Contact info: email, phone, website (social media handles)
+- Relationship data: worked_together (previous collaboration indicator)
+- Engagement hooks: birthday (format: "January 1"), connected_date
+- Tracking: profile (search strategy used), email_status, scraped_at
+- AI-generated: background (professional context for outreach)
+- Soft deletion: deleted_at field for recoverable removal
+- When extending schema: ensure backward compatibility with existing leads
+
+#### AI Background Generation
+Located in `src/ai/background-generator.ts`
+- Generates professional context summaries from lead profile data
+- Uses structured prompts focusing on title, company, about, and work history
+- Two-paragraph format: professional role context + relationship building angle
+- Cached in database to avoid regeneration costs
+- Used as RAG context for email template generation
+- When modifying: test with leads having varying amounts of profile data
+
+#### Email Template System
+Located in `src/ai/email-templates.ts`
+- Generates personalized introduction and follow-up emails
+- Template types: introduction, follow-up, birthday greeting
+- Uses lead background, profile data, and relationship context
+- Structured prompts with clear tone and length guidelines
+- Generated on-demand via dashboard, not pre-generated
+- When adding templates: follow established structure, include examples in prompts
+
+#### Lead Status and Relationship Tracking
+- **email_status** field: not_contacted (default), email_sent, replied, meeting_scheduled
+- Manual status updates through dashboard UI
+- Birthday reminders: queries upcoming birthdays (next 7 days) for engagement opportunities
+- Soft deletion: preserves lead data while removing from active lists
+- When adding status values: update Lead interface and all status-dependent queries
+
+#### Lead Scraping Runs
+Located in `src/lib/db.ts` (LeadScrapingRun interface)
+- Tracks each scraping session: started_at, completed_at, status
+- Progress metrics: profiles_scraped, profiles_added
+- Configuration: filter_titles (JSON array), max_profiles
+- Resume support: last_profile_url enables continuation after interruption
+- Status values: in_progress, completed, stopped
+- Dashboard displays run history and allows resuming stopped runs
+- When modifying: ensure run resumption logic remains accurate
+
 ### Dashboard Features
 Frontend: `src/dashboard/client/`, Backend: `src/dashboard/`
 - Auto-refreshes every 5 seconds using TanStack Query
 - HTTPS on localhost (ports 3000/3001)
-- Routes: `/stats`, `/jobs`, `/runs`, `/analytics`, `/headline`, `/cover-letter`
+- **Jobs Routes**: `/stats`, `/jobs`, `/runs`, `/analytics`, `/headline`, `/cover-letter`
+- **Leads Routes**: `/leads`, `/leads/:id`, email template generation, birthday reminders
+- Lead scraping modal: start new scraping runs with profile and filter selection
 - Uses React contexts for navigation state
-- Custom hooks in `hooks/` for data fetching
+- Custom hooks in `hooks/` for data fetching (useJobs, useLeads, useUpcomingBirthdays)
 - When adding features: update both frontend and backend, ensure HTTPS works
 
 ### MCP Servers Integration
@@ -310,12 +409,14 @@ Frontend: `src/dashboard/client/`, Backend: `src/dashboard/`
 - When adding tests: follow existing patterns, keep isolated
 
 ### Data Storage
-- `data/app.db`: SQLite database (jobs, applications, learning data)
-- `resumes/`: PDF/DOCX files for RAG context
-- `storage/storageState.json`: LinkedIn session (gitignored)
+- `data/app.db`: SQLite database (jobs, applications, leads, scraping runs, learning data)
+  - Jobs tables: jobs, applications, scraping_runs, rejection_learning, field_mappings
+  - Leads tables: leads, lead_scraping_runs
+- `resumes/`: PDF/DOCX files for RAG context (used for both job applications and lead outreach)
+- `storage/storageState.json`: LinkedIn session (gitignored, shared by job and lead scrapers)
 - `artifacts/`: Screenshots and Playwright traces for debugging
 - `dist/`: Built dashboard assets
-- When modifying schema: handle migration carefully (SQLite limitations)
+- When modifying schema: handle migration carefully (SQLite limitations), test both workflows
 
 ### Configuration Files
 - `.env`: Environment variables (MIN_FIT_SCORE, LLM_MODEL, HEADLESS, ENABLE_TRACING)
