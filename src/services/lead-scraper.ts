@@ -520,6 +520,8 @@ export async function scrapeConnections(
           let birthday: string | undefined;
           let connectedDate: string | undefined;
           let address: string | undefined;
+          let phone: string | undefined;
+          let website: string | undefined;
           
           try {
             // Look for contact info button
@@ -546,6 +548,41 @@ export async function scrapeConnections(
                     break;
                   }
                 }
+              }
+
+              // Extract phone
+              try {
+                const phoneSection = page.locator('section.pv-contact-info__contact-type:has(svg[data-test-icon="phone-handset-medium"])');
+                const phoneCount = await phoneSection.count();
+                if (phoneCount > 0) {
+                  const phoneText = await phoneSection.locator('span.t-14.t-black.t-normal, div.t-14').first().innerText({ timeout: 1000 }).catch(() => null);
+                  if (phoneText && phoneText.trim()) {
+                    phone = phoneText.trim();
+                  }
+                }
+              } catch (e) {
+                // Phone extraction is optional
+              }
+
+              // Extract website
+              try {
+                const websiteSection = page.locator('section.pv-contact-info__contact-type:has(svg[data-test-icon="link-medium"])');
+                const websiteCount = await websiteSection.count();
+                if (websiteCount > 0) {
+                  // Try to get the link first
+                  const websiteLink = await websiteSection.locator('a').first().getAttribute('href', { timeout: 1000 }).catch(() => null);
+                  if (websiteLink) {
+                    website = websiteLink.trim();
+                  } else {
+                    // Fallback to text content if no link
+                    const websiteText = await websiteSection.locator('span.t-14.t-black.t-normal, div.t-14').first().innerText({ timeout: 1000 }).catch(() => null);
+                    if (websiteText && websiteText.trim()) {
+                      website = websiteText.trim();
+                    }
+                  }
+                }
+              } catch (e) {
+                // Website extraction is optional
               }
 
               // Extract birthday
@@ -746,6 +783,8 @@ export async function scrapeConnections(
             company: company || undefined,
             about: about || undefined,
             email,
+            phone,
+            website,
             location: location || undefined,
             profile_url: profileUrl,
             linkedin_id: linkedinId,

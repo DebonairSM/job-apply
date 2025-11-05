@@ -433,6 +433,20 @@ export function initDb(): void {
     // Column already exists, ignore
   }
 
+  // Add phone column if it doesn't exist (migration)
+  try {
+    database.exec(`ALTER TABLE leads ADD COLUMN phone TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+
+  // Add website column if it doesn't exist (migration)
+  try {
+    database.exec(`ALTER TABLE leads ADD COLUMN website TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+
   // Lead scraping runs table for batch processing and resume capability
   database.exec(`
     CREATE TABLE IF NOT EXISTS lead_scraping_runs (
@@ -1925,6 +1939,8 @@ export interface Lead {
   company?: string;
   about?: string;
   email?: string;
+  phone?: string; // e.g., "414-276-1122 (Work)"
+  website?: string; // e.g., "x.com/wmwillwilliam"
   location?: string;
   profile_url: string;
   linkedin_id?: string;
@@ -1960,8 +1976,8 @@ export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at' | 'deleted_
   }
   
   const stmt = database.prepare(`
-    INSERT INTO leads (id, name, title, company, about, email, location, profile_url, linkedin_id, worked_together, articles, birthday, connected_date, address)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO leads (id, name, title, company, about, email, phone, website, location, profile_url, linkedin_id, worked_together, articles, birthday, connected_date, address)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   try {
@@ -1972,6 +1988,8 @@ export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at' | 'deleted_
       lead.company || null,
       lead.about || null,
       lead.email || null,
+      lead.phone || null,
+      lead.website || null,
       lead.location || null,
       lead.profile_url,
       lead.linkedin_id || null,
