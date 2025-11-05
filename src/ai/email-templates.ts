@@ -29,6 +29,7 @@ export interface EmailContext {
   productName: string;
   productUrl: string;
   calendlyUrl: string;
+  referralUrl?: string;
 }
 
 export interface EmailOutput {
@@ -36,6 +37,9 @@ export interface EmailOutput {
   bodyText: string;
   bodyHtml?: string;
 }
+
+// Alias to match original specification naming
+export type OutreachEmail = EmailOutput;
 
 // =============================================================================
 // LEGACY COMPATIBILITY TYPES

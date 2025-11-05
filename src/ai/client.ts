@@ -153,6 +153,45 @@ export async function askOllama<T>(
       cleanedText = cleanedText.replace(/:\s*\+(\d+)/g, ': $1'); // Fix +0 -> 0
       cleanedText = cleanedText.replace(/:\s*\+(\d+\.\d+)/g, ': $1'); // Fix +0.5 -> 0.5
       
+      // Fix unquoted array elements (e.g., [".NET", SQL Server] -> [".NET", "SQL Server"])
+      // This handles cases where LLM forgets quotes around technical terms like "SQL Server", "C#", etc.
+      // Strategy: Match anything between array delimiters that isn't already quoted or a primitive
+      // Run multiple times since replacements change string length and affect subsequent match positions
+      let prevText = '';
+      let maxIterations = 10; // Prevent infinite loops
+      while (cleanedText !== prevText && maxIterations-- > 0) {
+        prevText = cleanedText;
+        cleanedText = cleanedText.replace(
+          /([\[,]\s*)([^",\[\]]+)(\s*[\],])/g,
+          (match, prefix, content, suffix) => {
+            // If the match contains a quote, it's likely part of a properly quoted string - skip it
+            if (match.includes('"')) {
+              return match;
+            }
+            
+            const trimmedContent = content.trim();
+            
+            // Don't quote JSON primitives
+            if (trimmedContent === 'true' || trimmedContent === 'false' || trimmedContent === 'null') {
+              return match;
+            }
+            
+            // Don't quote pure numbers (including scientific notation)
+            if (/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(trimmedContent)) {
+              return match;
+            }
+            
+            // Don't quote if it's empty or only whitespace
+            if (!trimmedContent) {
+              return match;
+            }
+            
+            // Quote the content
+            return `${prefix}"${trimmedContent}"${suffix}`;
+          }
+        );
+      }
+      
       // Fix unquoted or single-quoted property names
       // We need to handle three cases separately for reliability
       

@@ -6,7 +6,8 @@ import {
   LeadProfile,
   EmailContext,
   Lead,
-  EmailContent
+  EmailContent,
+  OutreachEmail
 } from '../../src/ai/email-templates';
 
 /**
