@@ -1,6 +1,45 @@
 /**
  * Email template generation for lead outreach
+ * 
+ * This system provides:
+ * - Type-safe email generation with LeadProfile and EmailContext
+ * - Natural, conversational copy with smooth transitions
+ * - Backward compatibility with existing Lead interface
+ * - Profile-specific templates (chiefs, generic)
  */
+
+// =============================================================================
+// NEW TYPE-SAFE API
+// =============================================================================
+
+export interface LeadProfile {
+  firstName: string;
+  lastName?: string;
+  roleTitle: string;
+  companyName: string;
+  industry?: string;
+  keyInitiatives?: string[];
+  primaryPainPoint?: string;
+  city?: string;
+  stateOrRegion?: string;
+}
+
+export interface EmailContext {
+  lead: LeadProfile;
+  productName: string;
+  productUrl: string;
+  calendlyUrl: string;
+}
+
+export interface EmailOutput {
+  subject: string;
+  bodyText: string;
+  bodyHtml?: string;
+}
+
+// =============================================================================
+// LEGACY COMPATIBILITY TYPES
+// =============================================================================
 
 export interface Lead {
   id: string;
@@ -21,6 +60,10 @@ export interface EmailContent {
   referralLink?: string;
 }
 
+// =============================================================================
+// CONSTANTS
+// =============================================================================
+
 const SIGNATURE = `Rommel Bandeira
 Service Manager | Agent Master
 VSol Software
@@ -31,7 +74,279 @@ www.vsol.software`;
 const REFERRAL_SALT = 'VSOL';
 const REFERRAL_BASE_URL = 'https://vsol.software/referral';
 const SPREADSHEET_AUTOMATION_URL = 'https://vsol.software/agentic#featured-product';
-const BOOKING_URL = 'https://calendly.com/vsol-software/discovery'; // Update with actual booking URL
+const BOOKING_URL = 'https://calendly.com/vsol-software/discovery';
+
+// =============================================================================
+// NEW EMAIL BUILDER API
+// =============================================================================
+
+/**
+ * Build outreach email with improved copy and natural transitions
+ * 
+ * @param ctx Email context with lead profile and product info
+ * @param template Which template to use ('chiefs' or 'generic')
+ * @returns Email with subject and body text
+ */
+export function buildOutreachEmail(
+  ctx: EmailContext,
+  template: 'chiefs' | 'generic' = 'generic'
+): EmailOutput {
+  if (template === 'chiefs') {
+    return buildChiefsEmail(ctx);
+  }
+  return buildGenericEmail(ctx);
+}
+
+/**
+ * Build chiefs template (C-level executives, spreadsheet automation focus)
+ */
+function buildChiefsEmail(ctx: EmailContext): EmailOutput {
+  const { lead } = ctx;
+  
+  // Subject line
+  const subject = `Quick question about ${lead.companyName}'s spreadsheet workflows`;
+  
+  // Opening - problem framing
+  const opening = buildProblemFraming(lead, 'chiefs');
+  
+  // Product pitch with natural bridge
+  const pitch = `That's why we built our Spreadsheet Automation Platform.
+
+We transform manual spreadsheet workflows into automated systems. During discovery calls, we analyze your current processes and design streamlined solutions. You see AI-generated interactive mockups in real time. Same-day working demonstrations show exactly how the system will work.
+
+Every engagement includes workflow documentation, ROI analysis, and deployment-ready prototypes.
+
+Our approach uses AI-assisted development to create tailored solutions. They're secure, open-source, and local-first, giving your organization full control of its data. The platform can reduce infrastructure costs significantly while improving reliability.
+
+Over time, we train an internal technical leader to build and test new features in a gated CI/CD pipeline.
+
+Learn more about the Spreadsheet Automation Platform:
+${ctx.productUrl}`;
+  
+  // Call to action (softened, dual options)
+  const cta = `Is a brief conversation this week worth exploring?
+
+You can reply to this email or book a meeting directly:
+${ctx.calendlyUrl}`;
+  
+  // Assemble body
+  const bodyText = `Hello ${lead.firstName},
+
+${opening}
+
+${pitch}
+
+${cta}
+
+Best regards,
+
+${SIGNATURE}`;
+
+  return { subject, bodyText };
+}
+
+/**
+ * Build generic template (default for all profiles)
+ */
+function buildGenericEmail(ctx: EmailContext): EmailOutput {
+  const { lead } = ctx;
+  
+  // Subject line
+  const subject = `Quick question about ${lead.companyName}'s workflow automation`;
+  
+  // Opening - problem framing
+  const opening = buildProblemFraming(lead, 'generic');
+  
+  // Product pitch with natural bridge
+  const pitch = `I've been developing a new business model that addresses this challenge.
+
+It automates everyday workflows, especially those built around spreadsheets, using AI-assisted development. We deliver high-fidelity mockups and an MVP in one week at no cost. Then we evolve the system with local-first AI insights that continuously improve performance.
+
+The platform is tailored, secure, open-source, and local-first. It can reduce infrastructure costs significantly while giving organizations full control of their data.
+
+Over time, we also train an internal technical leader to build and test proof-of-concept features in a gated CI/CD pipeline.`;
+  
+  // Call to action (softened)
+  const cta = `Is a brief conversation this week worth exploring?`;
+  
+  // Assemble body
+  const bodyText = `Hello ${lead.firstName},
+
+${opening}
+
+${pitch}
+
+${cta}
+
+Best regards,
+
+${SIGNATURE}`;
+
+  return { subject, bodyText };
+}
+
+/**
+ * Build problem framing paragraph based on available lead data
+ * Uses pain point if available, falls back to role-appropriate generic statement
+ */
+function buildProblemFraming(lead: LeadProfile, template: 'chiefs' | 'generic'): string {
+  // If we have a specific pain point, use it directly
+  if (lead.primaryPainPoint) {
+    return lead.primaryPainPoint;
+  }
+  
+  // Otherwise, generate role-appropriate pain point
+  const roleType = categorizeRole(lead.roleTitle);
+  
+  if (template === 'chiefs') {
+    // Spreadsheet automation focus for C-level
+    if (roleType === 'executive') {
+      return `Teams leading digital transformation often struggle to keep manual spreadsheet workflows aligned with fast-moving business data. Critical decisions get delayed while staff reconcile inconsistent files.`;
+    } else if (roleType === 'operations') {
+      return `Operations teams rely heavily on spreadsheets to track workflows, but manual updates create bottlenecks. Data gets out of sync, errors multiply, and stakeholders lose confidence in reports.`;
+    } else {
+      return `Many organizations still run core workflows through spreadsheets. Manual updates slow everything down, create errors, and make it hard to get reliable insights when you need them.`;
+    }
+  } else {
+    // Generic workflow automation
+    if (roleType === 'executive') {
+      return `Organizations often struggle to automate workflows that have evolved organically over time. Teams spend hours on manual tasks that could be automated, but custom development feels too expensive or slow.`;
+    } else if (roleType === 'technical') {
+      return `Technical teams see inefficiencies in manual workflows but lack bandwidth to build custom automation. Traditional development is too slow, and low-code platforms lack the flexibility needed for complex processes.`;
+    } else {
+      return `Many workflows still depend on manual steps that waste time and create errors. Automating them seems expensive or complicated, so teams keep doing things the old way.`;
+    }
+  }
+}
+
+/**
+ * Categorize role type for appropriate pain point framing
+ */
+function categorizeRole(roleTitle: string): 'executive' | 'technical' | 'operations' | 'general' {
+  const roleLower = roleTitle.toLowerCase();
+  
+  if (roleLower.includes('cto') || 
+      roleLower.includes('cio') || 
+      roleLower.includes('chief') || 
+      roleLower.includes('vp') ||
+      roleLower.includes('vice president') ||
+      roleLower.includes('president') ||
+      roleLower.includes('director')) {
+    return 'executive';
+  }
+  
+  if (roleLower.includes('engineer') || 
+      roleLower.includes('architect') || 
+      roleLower.includes('developer') ||
+      roleLower.includes('technical') ||
+      roleLower.includes('tech lead')) {
+    return 'technical';
+  }
+  
+  if (roleLower.includes('operations') || 
+      roleLower.includes('manager') || 
+      roleLower.includes('coordinator')) {
+    return 'operations';
+  }
+  
+  return 'general';
+}
+
+// =============================================================================
+// BACKWARD COMPATIBILITY LAYER
+// =============================================================================
+
+/**
+ * Generate personalized outreach email for a lead (legacy API)
+ * Routes to profile-specific template or falls back to generic template
+ * 
+ * @deprecated Use buildOutreachEmail with EmailContext for new code
+ */
+export function generateOutreachEmail(lead: Lead, includeReferral?: boolean, profileKey?: string): EmailContent {
+  if (!lead.email) {
+    throw new Error(`Lead ${lead.name} does not have an email address`);
+  }
+
+  // Use profileKey parameter if provided, otherwise use lead's profile
+  const profile = profileKey || lead.profile;
+  const firstName = extractFirstName(lead.name);
+  
+  let subject: string;
+  let body: string;
+
+  // Check if we have AI-generated background to use
+  if (lead.background) {
+    // Use AI-generated background with new email builder
+    const leadProfile = convertLeadToProfile(lead);
+    leadProfile.primaryPainPoint = lead.background; // Use background as pain point
+    
+    const ctx: EmailContext = {
+      lead: leadProfile,
+      productName: profile === 'chiefs' ? 'Spreadsheet Automation Platform' : 'Workflow Automation Platform',
+      productUrl: SPREADSHEET_AUTOMATION_URL,
+      calendlyUrl: BOOKING_URL
+    };
+    
+    const template = profile === 'chiefs' ? 'chiefs' : 'generic';
+    const emailOutput = buildOutreachEmail(ctx, template);
+    
+    subject = emailOutput.subject;
+    body = emailOutput.bodyText;
+  } else {
+    // Fall back to old template generation for backward compatibility
+    if (profile === 'chiefs') {
+      subject = generateChiefsSubject(lead);
+      body = generateChiefsBody(lead, firstName);
+    } else {
+      subject = generateGenericSubject(lead);
+      body = generateGenericBody(lead, firstName);
+    }
+  }
+
+  let referralLink: string | undefined;
+
+  // Add referral section if requested
+  if (includeReferral) {
+    referralLink = generateReferralLink(lead);
+    body = addReferralSection(body, referralLink);
+  }
+
+  return {
+    to: lead.email,
+    subject,
+    body,
+    referralLink
+  };
+}
+
+/**
+ * Convert legacy Lead to new LeadProfile
+ */
+function convertLeadToProfile(lead: Lead): LeadProfile {
+  const parts = lead.name.trim().split(/\s+/);
+  const firstName = parts[0] || lead.name;
+  const lastName = parts.slice(1).join(' ') || undefined;
+  
+  return {
+    firstName,
+    lastName,
+    roleTitle: lead.title || 'Professional',
+    companyName: lead.company || 'your organization',
+    industry: undefined, // Not available in legacy Lead
+    keyInitiatives: undefined,
+    primaryPainPoint: undefined,
+    city: undefined,
+    stateOrRegion: undefined
+  };
+}
+
+/**
+ * Extract first name from full name
+ */
+function extractFirstName(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  return parts[0] || fullName;
+}
 
 /**
  * Encode referrer information using Base64 with salt
@@ -72,58 +387,8 @@ Anyone you refer who becomes a client will receive my thanks and recognition.`;
   return body + '\n\n' + referralSection;
 }
 
-/**
- * Generate personalized outreach email for a lead
- * Routes to profile-specific template or falls back to generic template
- */
-export function generateOutreachEmail(lead: Lead, includeReferral?: boolean, profileKey?: string): EmailContent {
-  if (!lead.email) {
-    throw new Error(`Lead ${lead.name} does not have an email address`);
-  }
-
-  // Use profileKey parameter if provided, otherwise use lead's profile, or default to generic
-  const profile = profileKey || lead.profile;
-
-  const firstName = extractFirstName(lead.name);
-  let subject: string;
-  let body: string;
-
-  // Route to profile-specific template
-  if (profile === 'chiefs') {
-    subject = generateChiefsSubject(lead);
-    body = generateChiefsBody(lead, firstName);
-  } else {
-    // Default to generic template for all other profiles
-    subject = generateGenericSubject(lead);
-    body = generateGenericBody(lead, firstName);
-  }
-
-  let referralLink: string | undefined;
-
-  // Add referral section if requested
-  if (includeReferral) {
-    referralLink = generateReferralLink(lead);
-    body = addReferralSection(body, referralLink);
-  }
-
-  return {
-    to: lead.email,
-    subject,
-    body,
-    referralLink
-  };
-}
-
-/**
- * Extract first name from full name
- */
-function extractFirstName(fullName: string): string {
-  const parts = fullName.trim().split(/\s+/);
-  return parts[0] || fullName;
-}
-
 // =============================================================================
-// GENERIC TEMPLATE (default for all profiles except chiefs)
+// LEGACY TEMPLATE FUNCTIONS (for backward compatibility when no AI background)
 // =============================================================================
 
 /**
@@ -164,10 +429,6 @@ ${mainPitch}
 
 ${closing}`;
 }
-
-// =============================================================================
-// CHIEFS TEMPLATE (C-level executives - Spreadsheet Automation focus)
-// =============================================================================
 
 /**
  * Generate email subject line for chiefs profile
@@ -224,8 +485,6 @@ function generatePersonalizedContext(lead: Lead): string {
   }
   
   // Fallback to old logic if background hasn't been generated yet
-  const parts: string[] = [];
-  
   // Build the context sentence
   let contextSentence = 'Given your background';
   
@@ -292,6 +551,10 @@ function extractRelevantExperience(about?: string): string | null {
   return null;
 }
 
+// =============================================================================
+// UTILITY FUNCTIONS
+// =============================================================================
+
 /**
  * Create mailto link with proper URL encoding
  */
@@ -326,4 +589,3 @@ export function generateBulkEmails(leads: Lead[], referralEnabled?: Map<string, 
     })
     .filter((email): email is EmailContent => email !== null);
 }
-
