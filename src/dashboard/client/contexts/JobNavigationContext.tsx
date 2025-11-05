@@ -1,30 +1,21 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 interface JobNavigationContextType {
   navigateToJob: (jobId: string) => void;
-  clearNavigation: () => void;
-  targetJobId: string | null;
 }
 
 const JobNavigationContext = createContext<JobNavigationContextType | undefined>(undefined);
 
 export function JobNavigationProvider({ children }: { children: ReactNode }) {
-  const [targetJobId, setTargetJobId] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   const navigateToJob = (jobId: string) => {
-    setTargetJobId(jobId);
-  };
-
-  const clearNavigation = () => {
-    setTargetJobId(null);
+    navigate(`/jobs?jobId=${jobId}`);
   };
 
   return (
-    <JobNavigationContext.Provider value={{
-      navigateToJob,
-      clearNavigation,
-      targetJobId
-    }}>
+    <JobNavigationContext.Provider value={{ navigateToJob }}>
       {children}
     </JobNavigationContext.Provider>
   );

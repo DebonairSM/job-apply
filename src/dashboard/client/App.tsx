@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Dashboard } from './components/Dashboard';
 import { JobsList } from './components/JobsList';
@@ -6,7 +7,7 @@ import { LeadsList } from './components/LeadsList';
 import { ActivityLog } from './components/ActivityLog';
 import { Automation } from './components/Automation';
 import { Settings } from './components/Settings';
-import { JobNavigationProvider, useJobNavigation } from './contexts/JobNavigationContext';
+import { JobNavigationProvider } from './contexts/JobNavigationContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { Icon } from './components/Icon';
 
@@ -18,28 +19,28 @@ interface NavItem {
   id: View;
   label: string;
   icon: string;
+  path: string;
 }
 
 const navItems: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: 'dashboard' },
-  { id: 'jobs', label: 'Jobs', icon: 'work' },
-  { id: 'leads', label: 'Leads', icon: 'group' },
-  { id: 'activity', label: 'Activity', icon: 'list-alt' },
-  { id: 'automation', label: 'Automation', icon: 'precision-manufacturing' },
-  { id: 'settings', label: 'Settings', icon: 'settings' },
+  { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/' },
+  { id: 'jobs', label: 'Jobs', icon: 'work', path: '/jobs' },
+  { id: 'leads', label: 'Leads', icon: 'group', path: '/leads' },
+  { id: 'activity', label: 'Activity', icon: 'list-alt', path: '/activity' },
+  { id: 'automation', label: 'Automation', icon: 'precision-manufacturing', path: '/automation' },
+  { id: 'settings', label: 'Settings', icon: 'settings', path: '/settings' },
 ];
 
 function AppContent() {
-  const [currentView, setCurrentView] = useState<View>('dashboard');
+  const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const { targetJobId, clearNavigation } = useJobNavigation();
 
-  // Auto-navigate to jobs view when a job is targeted
-  React.useEffect(() => {
-    if (targetJobId && currentView !== 'jobs') {
-      setCurrentView('jobs');
-    }
-  }, [targetJobId, currentView]);
+  // Determine current view from URL path
+  const getCurrentView = (): string => {
+    const path = location.pathname;
+    if (path === '/') return 'Dashboard';
+    return path.substring(1).charAt(0).toUpperCase() + path.substring(2);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -71,28 +72,31 @@ function AppContent() {
         {/* Navigation Items */}
         <nav className="mt-4 px-2">
           <ul className="space-y-1">
-            {navItems.map((item) => (
-              <li key={item.id}>
-                <button
-                  onClick={() => setCurrentView(item.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                    currentView === item.id
-                      ? 'bg-blue-50 text-blue-600 shadow-sm'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  }`}
-                  title={!isSidebarOpen ? item.label : undefined}
-                >
-                  <Icon 
-                    icon={item.icon} 
-                    size={24} 
-                    className={currentView === item.id ? 'text-blue-600' : 'text-gray-600'} 
-                  />
-                  {isSidebarOpen && (
-                    <span className="font-medium">{item.label}</span>
-                  )}
-                </button>
-              </li>
-            ))}
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.path;
+              return (
+                <li key={item.id}>
+                  <Link
+                    to={item.path}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                      isActive
+                        ? 'bg-blue-50 text-blue-600 shadow-sm'
+                        : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+                    title={!isSidebarOpen ? item.label : undefined}
+                  >
+                    <Icon 
+                      icon={item.icon} 
+                      size={24} 
+                      className={isActive ? 'text-blue-600' : 'text-gray-600'} 
+                    />
+                    {isSidebarOpen && (
+                      <span className="font-medium">{item.label}</span>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </nav>
 
@@ -118,7 +122,7 @@ function AppContent() {
       <main className="flex-1 overflow-auto">
         {/* Top Bar */}
         <div className="bg-white shadow-sm border-b border-gray-200 h-16 flex items-center justify-between px-6">
-          <h2 className="text-xl font-semibold text-gray-800 capitalize">{currentView}</h2>
+          <h2 className="text-xl font-semibold text-gray-800 capitalize">{getCurrentView()}</h2>
           <div className="flex items-center gap-4">
             <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors" title="Notifications">
               <Icon icon="notifications" size={24} className="text-gray-600" />
@@ -131,12 +135,14 @@ function AppContent() {
 
         {/* Content Area */}
         <div className="p-6">
-          {currentView === 'dashboard' && <Dashboard />}
-          {currentView === 'jobs' && <JobsList />}
-          {currentView === 'leads' && <LeadsList />}
-          {currentView === 'activity' && <ActivityLog />}
-          {currentView === 'automation' && <Automation />}
-          {currentView === 'settings' && <Settings />}
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/jobs" element={<JobsList />} />
+            <Route path="/leads" element={<LeadsList />} />
+            <Route path="/activity" element={<ActivityLog />} />
+            <Route path="/automation" element={<Automation />} />
+            <Route path="/settings" element={<Settings />} />
+          </Routes>
         </div>
       </main>
     </div>
@@ -145,13 +151,15 @@ function AppContent() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ToastProvider>
-        <JobNavigationProvider>
-          <AppContent />
-        </JobNavigationProvider>
-      </ToastProvider>
-    </QueryClientProvider>
+    <BrowserRouter>
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>
+          <JobNavigationProvider>
+            <AppContent />
+          </JobNavigationProvider>
+        </ToastProvider>
+      </QueryClientProvider>
+    </BrowserRouter>
   );
 }
 

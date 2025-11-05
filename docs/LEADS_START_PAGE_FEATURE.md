@@ -107,6 +107,6 @@ When a scraping session gets stuck:
 ## See Also
 
 - `docs/LEAD_PROFILES_GUIDE.md` - List of available profiles
-- `docs/LEADS_CLI_REFERENCE_UI.md` - Complete CLI reference
+- `docs/LEADS_CLI_REFERENCE.md` - Complete CLI reference
 - `docs/LINKEDIN_SCRAPER_LAZY_LOADING_FIX.md` - Recovery system details
 

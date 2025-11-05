@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useJobs } from '../hooks/useJobs';
 import { api } from '../lib/api';
 import { Job } from '../lib/types';
 import { JobDetailsPanel } from './JobDetailsPanel';
 import { SkippedJobsPanel } from './SkippedJobsPanel';
-import { useJobNavigation } from '../contexts/JobNavigationContext';
 import { formatRelativeTime } from '../lib/dateUtils';
 import { formatRank } from '../lib/formatUtils';
 import { useToastContext } from '../contexts/ToastContext';
@@ -43,7 +43,8 @@ export function JobsList() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [showSkippedPanel, setShowSkippedPanel] = useState<boolean>(false);
   
-  const { targetJobId, clearNavigation } = useJobNavigation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const targetJobId = searchParams.get('jobId');
   
   const { data, isLoading, refetch } = useJobs({
     status: statusFilter || undefined,
@@ -79,10 +80,12 @@ export function JobsList() {
     if (targetJobId) {
       setClickedJobId(targetJobId);
       setExpandedJobIds(prev => new Set(prev).add(targetJobId));
-      // Clear the navigation target after handling it
-      clearNavigation();
+      // Clear the jobId param from URL after handling it
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('jobId');
+      setSearchParams(newParams, { replace: true });
     }
-  }, [targetJobId, clearNavigation]);
+  }, [targetJobId, searchParams, setSearchParams]);
 
   // Save clicked job ID to localStorage when it changes
   useEffect(() => {
