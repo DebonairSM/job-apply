@@ -3,8 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { LeadDetail } from './LeadDetail';
 import { Icon } from './Icon';
-import { EmailPreviewModal } from './EmailPreviewModal';
-import { generateBulkEmails, EmailContent } from '../../../ai/email-templates';
+import { LeadScrapeModal, ScrapeConfig } from './LeadScrapeModal';
 
 interface Lead {
   id: string;
@@ -25,6 +24,7 @@ interface Lead {
   address?: string;
   profile?: string;
   background?: string; // AI-generated professional background for email use
+  email_status?: 'not_contacted' | 'email_sent' | 'replied' | 'meeting_scheduled';
   scraped_at?: string;
   created_at?: string;
   deleted_at?: string;
@@ -66,10 +66,8 @@ export function LeadsList() {
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showRuns, setShowRuns] = useState(false);
   const [showCLIReference, setShowCLIReference] = useState(false);
-  const [selectedLeadIds, setSelectedLeadIds] = useState<Set<string>>(new Set());
-  const [generatedEmails, setGeneratedEmails] = useState<EmailContent[] | null>(null);
-  const [selectedLeadsForEmail, setSelectedLeadsForEmail] = useState<Lead[]>([]);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
+  const [showScrapeModal, setShowScrapeModal] = useState(false);
 
   // Fetch leads
   const { data: leadsData, isLoading: leadsLoading, refetch: refetchLeads } = useQuery({
@@ -126,53 +124,33 @@ export function LeadsList() {
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
   };
 
-  // Selection handlers
-  const handleToggleSelectAll = () => {
-    if (selectedLeadIds.size === leads.length && leads.length > 0) {
-      setSelectedLeadIds(new Set());
-    } else {
-      setSelectedLeadIds(new Set(leads.map(lead => lead.id)));
+  const getStatusColor = (status?: string) => {
+    switch (status) {
+      case 'email_sent':
+        return 'bg-blue-100 text-blue-800';
+      case 'replied':
+        return 'bg-green-100 text-green-800';
+      case 'meeting_scheduled':
+        return 'bg-purple-100 text-purple-800';
+      case 'not_contacted':
+      default:
+        return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const handleToggleSelectLead = (leadId: string) => {
-    const newSelected = new Set(selectedLeadIds);
-    if (newSelected.has(leadId)) {
-      newSelected.delete(leadId);
-    } else {
-      newSelected.add(leadId);
+  const getStatusLabel = (status?: string) => {
+    switch (status) {
+      case 'not_contacted':
+        return 'Not Contacted';
+      case 'email_sent':
+        return 'Email Sent';
+      case 'replied':
+        return 'Replied';
+      case 'meeting_scheduled':
+        return 'Meeting Scheduled';
+      default:
+        return 'Not Contacted';
     }
-    setSelectedLeadIds(newSelected);
-  };
-
-  const handleClearSelection = () => {
-    setSelectedLeadIds(new Set());
-  };
-
-  // Email generation handler
-  const handleGenerateEmails = () => {
-    const selectedLeads = leads.filter(lead => selectedLeadIds.has(lead.id));
-    const leadsWithEmail = selectedLeads.filter(lead => lead.email);
-    const leadsWithoutEmail = selectedLeads.filter(lead => !lead.email);
-
-    if (leadsWithoutEmail.length > 0) {
-      const message = `${leadsWithoutEmail.length} selected lead(s) don't have email addresses and will be skipped:\n${leadsWithoutEmail.map(l => `- ${l.name}`).join('\n')}`;
-      alert(message);
-    }
-
-    if (leadsWithEmail.length === 0) {
-      alert('None of the selected leads have email addresses.');
-      return;
-    }
-
-    const emails = generateBulkEmails(leadsWithEmail);
-    setSelectedLeadsForEmail(leadsWithEmail);
-    setGeneratedEmails(emails);
-  };
-
-  const handleCloseEmailModal = () => {
-    setGeneratedEmails(null);
-    setSelectedLeadsForEmail([]);
   };
 
   const handleCleanupIncomplete = async () => {
@@ -203,8 +181,20 @@ export function LeadsList() {
     }
   };
 
-  const isAllSelected = leads.length > 0 && selectedLeadIds.size === leads.length;
-  const isSomeSelected = selectedLeadIds.size > 0 && selectedLeadIds.size < leads.length;
+  const handleStartScraping = async (config: ScrapeConfig) => {
+    try {
+      const response = await api.post('/leads/start-scrape', config);
+      const result = response.data;
+      
+      alert(`Scraping started successfully!\n\nRun ID: ${result.runId}\n${result.message}\n\nCheck the "Scraping Runs" section below for progress.`);
+      
+      // Close modal and refetch runs
+      setShowScrapeModal(false);
+    } catch (error) {
+      console.error('Error starting scrape:', error);
+      throw new Error('Failed to start scraping. Check the console for details.');
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -259,6 +249,17 @@ export function LeadsList() {
             <Icon icon="article" size={32} className="text-purple-500" />
           </div>
         </div>
+      </div>
+
+      {/* Start Scraping Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={() => setShowScrapeModal(true)}
+          className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
+        >
+          <Icon icon="play_arrow" size={24} />
+          <span className="font-semibold">Start Scraping</span>
+        </button>
       </div>
 
       {/* CLI Reference */}
@@ -468,36 +469,6 @@ export function LeadsList() {
         </div>
       </div>
 
-      {/* Bulk Action Bar */}
-      {selectedLeadIds.size > 0 && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg shadow p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Icon icon="check_circle" size={24} className="text-blue-600" />
-              <span className="font-semibold text-blue-900">
-                {selectedLeadIds.size} lead{selectedLeadIds.size !== 1 ? 's' : ''} selected
-              </span>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={handleGenerateEmails}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-              >
-                <Icon icon="email" size={20} />
-                <span>Generate Outreach Emails</span>
-              </button>
-              <button
-                onClick={handleClearSelection}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
-              >
-                <Icon icon="close" size={20} />
-                <span>Clear Selection</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Leads Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
@@ -516,18 +487,6 @@ export function LeadsList() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-4 py-3 text-left w-12">
-                    <input
-                      type="checkbox"
-                      checked={isAllSelected}
-                      ref={(el) => {
-                        if (el) el.indeterminate = isSomeSelected;
-                      }}
-                      onChange={handleToggleSelectAll}
-                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
-                      aria-label="Select all leads"
-                    />
-                  </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
@@ -535,6 +494,7 @@ export function LeadsList() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Profile</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Worked Together</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Scraped</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
@@ -543,18 +503,9 @@ export function LeadsList() {
                 {leads.map((lead) => (
                   <tr
                     key={lead.id}
-                    className={`hover:bg-gray-50 cursor-pointer ${selectedLeadIds.has(lead.id) ? 'bg-blue-50' : ''}`}
+                    className="hover:bg-gray-50 cursor-pointer"
                     onClick={() => handleRowClick(lead)}
                   >
-                    <td className="px-4 py-3 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={selectedLeadIds.has(lead.id)}
-                        onChange={() => handleToggleSelectLead(lead.id)}
-                        className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer"
-                        aria-label={`Select ${lead.name}`}
-                      />
-                    </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="font-medium text-gray-900">{lead.name}</div>
                     </td>
@@ -595,6 +546,11 @@ export function LeadsList() {
                       ) : (
                         <span className="text-sm text-gray-400">No email</span>
                       )}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(lead.email_status)}`}>
+                        {getStatusLabel(lead.email_status)}
+                      </span>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                       {lead.scraped_at ? new Date(lead.scraped_at).toLocaleDateString() : '-'}
@@ -733,12 +689,11 @@ export function LeadsList() {
         />
       )}
 
-      {/* Email Preview Modal */}
-      {generatedEmails && (
-        <EmailPreviewModal
-          emails={generatedEmails}
-          leads={selectedLeadsForEmail}
-          onClose={handleCloseEmailModal}
+      {/* Lead Scrape Modal */}
+      {showScrapeModal && (
+        <LeadScrapeModal
+          onClose={() => setShowScrapeModal(false)}
+          onStart={handleStartScraping}
         />
       )}
     </div>

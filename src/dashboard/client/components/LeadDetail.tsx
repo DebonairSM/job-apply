@@ -3,7 +3,7 @@ import { Icon } from './Icon';
 import { api } from '../lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useGenerateBackground } from '../hooks/useGenerateBackground';
-import { generateOutreachEmail, createMailtoLink, EmailContent } from '../../../ai/email-templates';
+import { generateOutreachEmail, createMailtoLink, generateHtmlEmail, EmailContent } from '../../../ai/email-templates';
 
 interface Lead {
   id: string;
@@ -24,6 +24,7 @@ interface Lead {
   address?: string;
   profile?: string;
   background?: string; // AI-generated professional background for email use
+  email_status?: 'not_contacted' | 'email_sent' | 'replied' | 'meeting_scheduled';
   scraped_at?: string;
   created_at?: string;
   deleted_at?: string;
@@ -42,6 +43,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   const [includeReferral, setIncludeReferral] = useState(false);
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [generatedEmail, setGeneratedEmail] = useState<EmailContent | null>(null);
+  const [emailStatus, setEmailStatus] = useState<string>(lead.email_status || 'not_contacted');
   const queryClient = useQueryClient();
   const generateBackground = useGenerateBackground();
 
@@ -162,36 +164,53 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   };
 
   const handleCopyEmail = async () => {
-    if (generatedEmail) {
-      const fullEmail = `To: ${generatedEmail.to}\nSubject: ${generatedEmail.subject}\n\n${generatedEmail.body}`;
+    if (!generatedEmail) return;
+    
+    try {
+      // Generate HTML version of the email
+      const htmlEmail = generateHtmlEmail(lead, includeReferral);
+      const plainTextEmail = `To: ${generatedEmail.to}\nSubject: ${generatedEmail.subject}\n\n${generatedEmail.body}`;
       
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          await navigator.clipboard.writeText(fullEmail);
+      // Try modern clipboard API with HTML support
+      if (navigator.clipboard && navigator.clipboard.write) {
+        const htmlBlob = new Blob([htmlEmail], { type: 'text/html' });
+        const textBlob = new Blob([plainTextEmail], { type: 'text/plain' });
+        
+        const clipboardItem = new ClipboardItem({
+          'text/html': htmlBlob,
+          'text/plain': textBlob
+        });
+        
+        await navigator.clipboard.write([clipboardItem]);
+        setCopiedEmail(true);
+        setTimeout(() => setCopiedEmail(false), 2000);
+      } else if (navigator.clipboard && navigator.clipboard.writeText) {
+        // Fallback to plain text if HTML copy not supported
+        await navigator.clipboard.writeText(plainTextEmail);
+        setCopiedEmail(true);
+        setTimeout(() => setCopiedEmail(false), 2000);
+      } else {
+        // Legacy fallback
+        const textArea = document.createElement('textarea');
+        textArea.value = plainTextEmail;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+          document.execCommand('copy');
           setCopiedEmail(true);
           setTimeout(() => setCopiedEmail(false), 2000);
-        } else {
-          const textArea = document.createElement('textarea');
-          textArea.value = fullEmail;
-          textArea.style.position = 'fixed';
-          textArea.style.left = '-999999px';
-          textArea.style.top = '-999999px';
-          document.body.appendChild(textArea);
-          textArea.focus();
-          textArea.select();
-          
-          try {
-            document.execCommand('copy');
-            setCopiedEmail(true);
-            setTimeout(() => setCopiedEmail(false), 2000);
-          } finally {
-            document.body.removeChild(textArea);
-          }
+        } finally {
+          document.body.removeChild(textArea);
         }
-      } catch (error) {
-        console.error('Failed to copy email:', error);
-        alert('Failed to copy to clipboard. Please try again.');
       }
+    } catch (error) {
+      console.error('Failed to copy email:', error);
+      alert('Failed to copy to clipboard. Please try again.');
     }
   };
 
@@ -199,6 +218,48 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
     if (generatedEmail) {
       const mailtoLink = createMailtoLink(generatedEmail);
       window.location.href = mailtoLink;
+    }
+  };
+
+  const handleStatusChange = async (newStatus: string) => {
+    try {
+      await api.patch(`/leads/${lead.id}/status`, { status: newStatus });
+      setEmailStatus(newStatus);
+      // Invalidate queries to refresh the list
+      await queryClient.invalidateQueries({ queryKey: ['leads'] });
+    } catch (error) {
+      console.error('Error updating lead status:', error);
+      alert('Failed to update status. Please try again.');
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'not_contacted':
+        return 'text-gray-600 bg-gray-100';
+      case 'email_sent':
+        return 'text-blue-600 bg-blue-100';
+      case 'replied':
+        return 'text-green-600 bg-green-100';
+      case 'meeting_scheduled':
+        return 'text-purple-600 bg-purple-100';
+      default:
+        return 'text-gray-600 bg-gray-100';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'not_contacted':
+        return 'Not Contacted';
+      case 'email_sent':
+        return 'Email Sent';
+      case 'replied':
+        return 'Replied';
+      case 'meeting_scheduled':
+        return 'Meeting Scheduled';
+      default:
+        return status;
     }
   };
 
@@ -430,6 +491,41 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
                     <Icon icon="close" size={16} />
                     Hide
                   </button>
+                </div>
+
+                {/* Email Status Tracking */}
+                <div className="pt-4 mt-4 border-t border-gray-200">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Email Status</h4>
+                  
+                  <div className="flex items-center gap-3">
+                    {/* Current Status Badge */}
+                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(emailStatus)}`}>
+                      {getStatusLabel(emailStatus)}
+                    </div>
+
+                    {/* Quick Action: Mark as Sent */}
+                    {emailStatus === 'not_contacted' && (
+                      <button
+                        onClick={() => handleStatusChange('email_sent')}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+                      >
+                        <Icon icon="send" size={16} />
+                        Sent Initial Email
+                      </button>
+                    )}
+
+                    {/* Status Dropdown */}
+                    <select
+                      value={emailStatus}
+                      onChange={(e) => handleStatusChange(e.target.value)}
+                      className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="not_contacted">Not Contacted</option>
+                      <option value="email_sent">Email Sent</option>
+                      <option value="replied">Replied</option>
+                      <option value="meeting_scheduled">Meeting Scheduled</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             )}

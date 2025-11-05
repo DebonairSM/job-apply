@@ -9,6 +9,7 @@ export interface LeadScraperOptions {
   resumeRunId?: number;
   startPage?: number;
   profile?: string;
+  degree?: '1st' | '2nd' | '3rd';
 }
 
 interface ScrapingProgress {
@@ -18,11 +19,13 @@ interface ScrapingProgress {
 }
 
 /**
- * Build a LinkedIn People Search URL with page number
+ * Build a LinkedIn People Search URL with page number and connection degree
  * @param pageNumber The page number to navigate to (1-based)
+ * @param degree Connection degree ('1st', '2nd', or '3rd')
+ * @param baseUrl Optional base URL to use
  * @returns Full search URL with page parameter
  */
-function buildSearchUrl(pageNumber: number, baseUrl?: string): string {
+function buildSearchUrl(pageNumber: number, degree: '1st' | '2nd' | '3rd' = '1st', baseUrl?: string): string {
   const defaultBaseUrl = 'https://www.linkedin.com/search/results/people/';
 
   let url: URL;
@@ -34,8 +37,17 @@ function buildSearchUrl(pageNumber: number, baseUrl?: string): string {
 
   const params = url.searchParams;
 
+  // Map connection degree to LinkedIn network filter
+  // F = 1st degree (direct connections)
+  // S = 2nd degree (connections of connections)
+  // O = 3rd+ degree (extended network)
   if (!params.has('network')) {
-    params.set('network', '["F"]');
+    const networkMap = {
+      '1st': '["F"]',
+      '2nd': '["S"]',
+      '3rd': '["O"]'
+    };
+    params.set('network', networkMap[degree]);
   }
 
   if (!params.has('geoUrn')) {
@@ -54,7 +66,10 @@ export async function scrapeConnections(
   options: LeadScraperOptions,
   shouldStopNow: () => boolean
 ): Promise<ScrapingProgress> {
+  const degree = options.degree || '1st';
+  
   console.log('🔍 Starting LinkedIn lead scraper (People Search)...');
+  console.log(`   Connection Degree: ${degree}`);
   console.log(`   Max Profiles: ${options.maxProfiles || 'unlimited'}`);
   console.log(`   Location: United States (default)`);
   if (options.filterTitles && options.filterTitles.length > 0) {
@@ -73,10 +88,17 @@ export async function scrapeConnections(
   try {
     // Build People Search URL with filters
     // network=["F"] = 1st degree connections
+    // network=["S"] = 2nd degree connections
+    // network=["O"] = 3rd+ degree connections
     // geoUrn=["103644278"] = United States
-    const searchUrl = 'https://www.linkedin.com/search/results/people/?network=%5B%22F%22%5D&geoUrn=%5B%22103644278%22%5D';
+    const networkMap = {
+      '1st': 'F',
+      '2nd': 'S',
+      '3rd': 'O'
+    };
+    const searchUrl = `https://www.linkedin.com/search/results/people/?network=%5B%22${networkMap[degree]}%22%5D&geoUrn=%5B%22103644278%22%5D`;
     
-    console.log('📄 Navigating to People Search (filtered: 1st connections, US)...');
+    console.log(`📄 Navigating to People Search (filtered: ${degree} connections, US)...`);
     await page.goto(searchUrl, {
       waitUntil: 'domcontentloaded'
     });
@@ -103,7 +125,7 @@ export async function scrapeConnections(
       let startPageResolved = false;
 
       // First attempt: navigate directly via page query parameter
-      const directNavigationUrl = buildSearchUrl(requestedStartPage, currentSearchUrl || undefined);
+      const directNavigationUrl = buildSearchUrl(requestedStartPage, degree, currentSearchUrl || undefined);
       try {
         await page.goto(directNavigationUrl, {
           waitUntil: 'domcontentloaded'
@@ -869,7 +891,7 @@ export async function scrapeConnections(
                 await page.goto(currentSearchUrl, { waitUntil: 'domcontentloaded' });
               } else {
                 // Fallback: construct URL with page number
-                const searchUrlWithPage = buildSearchUrl(currentPage, currentSearchUrl || undefined);
+                const searchUrlWithPage = buildSearchUrl(currentPage, degree, currentSearchUrl || undefined);
                 await page.goto(searchUrlWithPage, { waitUntil: 'domcontentloaded' });
               }
               await page.waitForTimeout(3000);

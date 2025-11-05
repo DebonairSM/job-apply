@@ -468,6 +468,13 @@ export function initDb(): void {
     // Column already exists, ignore
   }
 
+  // Add email_status column if it doesn't exist (migration)
+  try {
+    database.exec(`ALTER TABLE leads ADD COLUMN email_status TEXT DEFAULT 'not_contacted'`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+
   // Lead scraping runs table for batch processing and resume capability
   database.exec(`
     CREATE TABLE IF NOT EXISTS lead_scraping_runs (
@@ -1972,6 +1979,7 @@ export interface Lead {
   address?: string; // Social media handles or custom addresses
   profile?: string; // Search profile used to find this lead (core, chiefs, etc.)
   background?: string; // AI-generated professional background for email use
+  email_status?: 'not_contacted' | 'email_sent' | 'replied' | 'meeting_scheduled';
   scraped_at?: string;
   created_at?: string;
   deleted_at?: string;
@@ -2043,6 +2051,18 @@ export function updateLeadBackground(leadId: string, background: string): boolea
   `);
   
   const result = stmt.run(background, leadId);
+  return result.changes > 0;
+}
+
+export function updateLeadStatus(leadId: string, status: string): boolean {
+  const database = getDb();
+  const stmt = database.prepare(`
+    UPDATE leads 
+    SET email_status = ?
+    WHERE id = ? AND deleted_at IS NULL
+  `);
+  
+  const result = stmt.run(status, leadId);
   return result.changes > 0;
 }
 

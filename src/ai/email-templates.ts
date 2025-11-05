@@ -560,6 +560,33 @@ function extractRelevantExperience(about?: string): string | null {
 // =============================================================================
 
 /**
+ * Generate HTML-formatted email for rich clipboard copy
+ * Converts markdown-style formatting to HTML: **bold**, URLs to links
+ */
+export function generateHtmlEmail(lead: Lead, includeReferral?: boolean): string {
+  const email = generateOutreachEmail(lead, includeReferral);
+  
+  // Convert email body to HTML
+  let htmlBody = email.body
+    // Convert **bold** to <strong>bold</strong>
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    // Convert URLs to clickable links
+    .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1">$1</a>')
+    // Convert email addresses to mailto links
+    .replace(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g, '<a href="mailto:$1">$1</a>')
+    // Convert line breaks to <br> tags
+    .replace(/\n/g, '<br>');
+  
+  // Wrap in basic HTML structure with styling
+  return `<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333;">
+<p><strong>To:</strong> ${email.to}</p>
+<p><strong>Subject:</strong> ${email.subject}</p>
+<hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+<div>${htmlBody}</div>
+</div>`;
+}
+
+/**
  * Create mailto link with proper URL encoding
  */
 export function createMailtoLink(email: EmailContent): string {

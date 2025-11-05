@@ -11,6 +11,7 @@ export interface LeadSearchOptions {
   max?: number;
   resume?: number;
   startPage?: number;
+  degree?: '1st' | '2nd' | '3rd';
 }
 
 export async function leadSearchCommand(opts: LeadSearchOptions): Promise<void> {
@@ -21,6 +22,7 @@ export async function leadSearchCommand(opts: LeadSearchOptions): Promise<void> 
 
   const config = loadConfig();
   const maxProfiles = opts.max || 50;
+  const degree = opts.degree || '1st';
   
   // Determine filter titles: use profile if specified, otherwise parse titles option
   let filterTitles: string[] | undefined;
@@ -34,15 +36,18 @@ export async function leadSearchCommand(opts: LeadSearchOptions): Promise<void> 
     }
     filterTitles = profile.titles;
     console.log('🔍 Starting LinkedIn lead scraper...');
+    console.log(`   Connection Degree: ${degree}`);
     console.log(`   Profile: ${profile.name}`);
     console.log(`   Description: ${profile.description}`);
     console.log(`   Title Filters (${profile.titles.length}): ${profile.titles.slice(0, 5).join(', ')}${profile.titles.length > 5 ? '...' : ''}`);
   } else if (opts.titles) {
     filterTitles = opts.titles.split(',').map(t => t.trim());
     console.log('🔍 Starting LinkedIn lead scraper...');
+    console.log(`   Connection Degree: ${degree}`);
     console.log(`   Title Filters: ${filterTitles.join(', ')}`);
   } else {
     console.log('🔍 Starting LinkedIn lead scraper...');
+    console.log(`   Connection Degree: ${degree}`);
     console.log('   Title Filters: None (all connections)');
   }
   
@@ -133,7 +138,8 @@ export async function leadSearchCommand(opts: LeadSearchOptions): Promise<void> 
       maxProfiles,
       resumeRunId: opts.resume,
       startPage: opts.startPage,
-      profile: opts.profile
+      profile: opts.profile,
+      degree
     }, shouldStopNow);
 
     // Mark run as completed or stopped

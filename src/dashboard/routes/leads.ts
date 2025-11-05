@@ -1,6 +1,12 @@
 import express from 'express';
-import { getLeads, getLeadsCount, getLeadById, getLeadStats, getScrapingRuns, getScrapingRun, softDeleteLead, getLeadsWithUpcomingBirthdays, deleteIncompleteLeads, updateLeadBackground } from '../../lib/db.js';
+import { spawn } from 'child_process';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import { getLeads, getLeadsCount, getLeadById, getLeadStats, getScrapingRuns, getScrapingRun, softDeleteLead, getLeadsWithUpcomingBirthdays, deleteIncompleteLeads, updateLeadBackground, updateLeadStatus, createScrapingRun } from '../../lib/db.js';
 import { generateLeadBackground } from '../../ai/background-generator.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const router = express.Router();
 
@@ -168,6 +174,129 @@ router.post('/:id/generate-background', async (req, res) => {
   } catch (error) {
     console.error('Error generating lead background:', error);
     res.status(500).json({ error: 'Failed to generate background' });
+  }
+});
+
+// PATCH /api/leads/:id/status - Update lead email status
+router.patch('/:id/status', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    
+    const validStatuses = ['not_contacted', 'email_sent', 'replied', 'meeting_scheduled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+    
+    const updated = updateLeadStatus(id, status);
+    if (!updated) {
+      return res.status(404).json({ error: 'Lead not found' });
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating lead status:', error);
+    res.status(500).json({ error: 'Failed to update status' });
+  }
+});
+
+// POST /api/leads/start-scrape - Start a new lead scraping run
+router.post('/start-scrape', (req, res) => {
+  try {
+    const { degree = '1st', profile, titles, max = 50, startPage, resume } = req.body;
+    
+    // Validate degree
+    if (!['1st', '2nd', '3rd'].includes(degree)) {
+      return res.status(400).json({ error: 'Invalid connection degree. Must be 1st, 2nd, or 3rd.' });
+    }
+    
+    // Validate that either profile or titles is provided (or neither for all)
+    if (profile && titles) {
+      return res.status(400).json({ error: 'Cannot use both profile and titles. Choose one.' });
+    }
+    
+    // Create scraping run in database if not resuming
+    let runId: number;
+    if (resume) {
+      runId = parseInt(resume.toString(), 10);
+      const existingRun = getScrapingRun(runId);
+      if (!existingRun) {
+        return res.status(404).json({ error: `Scraping run ${runId} not found` });
+      }
+    } else {
+      // Determine filter titles for database record
+      let filterTitlesArray: string[] | undefined;
+      if (profile) {
+        // Profile will be resolved by CLI, we don't have access to LEAD_PROFILES here
+        // Store the profile name in a special format
+        filterTitlesArray = [`profile:${profile}`];
+      } else if (titles) {
+        filterTitlesArray = titles.split(',').map((t: string) => t.trim());
+      }
+      
+      runId = createScrapingRun({
+        status: 'in_progress',
+        profiles_scraped: 0,
+        profiles_added: 0,
+        filter_titles: filterTitlesArray ? JSON.stringify(filterTitlesArray) : undefined,
+        max_profiles: max
+      });
+    }
+    
+    // Build CLI command arguments
+    const args = ['dist/cli.js', 'leads:search'];
+    
+    // Add degree
+    args.push('--degree', degree);
+    
+    // Add profile or titles
+    if (profile) {
+      args.push('--profile', profile);
+    } else if (titles) {
+      args.push('--titles', titles);
+    }
+    
+    // Add max
+    args.push('--max', max.toString());
+    
+    // Add optional parameters
+    if (startPage) {
+      args.push('--start-page', startPage.toString());
+    }
+    
+    if (resume) {
+      args.push('--resume', resume.toString());
+    }
+    
+    // Spawn the CLI process in detached mode
+    const cliPath = join(__dirname, '..', '..', '..');
+    const child = spawn('node', args, {
+      cwd: cliPath,
+      detached: true,
+      stdio: 'ignore', // Ignore stdio to allow parent to exit
+      shell: process.platform === 'win32' // Use shell on Windows
+    });
+    
+    // Allow parent process to exit independently
+    child.unref();
+    
+    // Log the spawned process
+    console.log(`🚀 Started lead scraping process (PID: ${child.pid})`);
+    console.log(`   Connection Degree: ${degree}`);
+    console.log(`   Run ID: ${runId}`);
+    if (profile) console.log(`   Profile: ${profile}`);
+    if (titles) console.log(`   Titles: ${titles}`);
+    console.log(`   Max: ${max}`);
+    
+    res.json({
+      success: true,
+      runId,
+      message: `Lead scraping started in the background with connection degree: ${degree}`,
+      pid: child.pid
+    });
+  } catch (error) {
+    console.error('Error starting scrape:', error);
+    res.status(500).json({ error: 'Failed to start scraping process' });
   }
 });
 

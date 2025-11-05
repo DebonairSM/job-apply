@@ -140,9 +140,16 @@ yargs(hideBin(process.argv))
   )
   .command(
     'leads:search',
-    'Scrape LinkedIn 1st degree connections',
+    'Scrape LinkedIn connections by degree',
     (yargs) => {
       return yargs
+        .option('degree', {
+          alias: 'd',
+          describe: 'Connection degree',
+          choices: ['1st', '2nd', '3rd'] as const,
+          type: 'string',
+          default: '1st'
+        })
         .option('profile', {
           alias: 'p',
           describe: 'Use predefined lead profile',
@@ -179,6 +186,7 @@ yargs(hideBin(process.argv))
     },
     async (argv) => {
       await leadSearchCommand({
+        degree: argv.degree as '1st' | '2nd' | '3rd',
         profile: argv.profile,
         titles: argv.titles,
         max: argv.max,

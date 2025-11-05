@@ -1,15 +1,28 @@
-# Job Application Automation Project Rules
+# Opportunity Scraper System Project Rules
 
 ## Project Context
-This is a TypeScript/Node.js application that automates job applications on LinkedIn and other job boards using local AI (Ollama + Llama 3.1 8B). Key features:
+This is a TypeScript/Node.js application that automates professional opportunity discovery and workflow management using local AI (Ollama + Llama 3.1 8B). The system manages two parallel workflows: **Jobs** (application automation) and **Leads** (relationship building).
 
+### Jobs Workflow Features
 - **AI-Powered Job Ranking**: Weighted multi-category scoring (Azure/API 20%, Security 15%, .NET 20%, Event-Driven 10%, Performance 10%, Frontend 10%, Legacy Modernization 5%)
 - **Rejection Learning System**: Automatically adjusts weights and filters based on rejection reasons using keyword patterns and LLM analysis
 - **Intelligent Form Automation**: Three-tier mapping system (heuristics → cache → AI) with ATS detection for Greenhouse, Lever, Workday
 - **Selector Learning System**: Captures and learns CSS selectors from successful form fills
-- **AI Content Generation**: Professional headlines and cover letters generated per application
-- **Real-Time Dashboard**: React + Express with TanStack Query, HTTPS, auto-refresh monitoring
-- **Profile-Based Search**: Pre-defined Boolean search queries for targeted job discovery
+- **Job Status Lifecycle**: Six-state tracking (queued, applied, interview, rejected, skipped, reported)
+
+### Leads Workflow Features
+- **LinkedIn Lead Scraping**: Automated People Search scraping with connection degree filtering (1st, 2nd, 3rd)
+- **Profile-Based Discovery**: Pre-defined search strategies targeting specific professional segments (chiefs, core, security, etc.)
+- **Contact Enrichment**: Extracts emails, phones, birthdays, work history, and social profiles
+- **AI Background Generation**: Creates professional context summaries for personalized outreach
+- **Email Template Generation**: AI-powered introduction and follow-up templates based on lead background
+- **Relationship Tracking**: Status management (not_contacted, email_sent, replied, meeting_scheduled)
+- **Birthday Reminders**: Tracks upcoming birthdays for engagement opportunities
+
+### Shared Infrastructure
+- **Real-Time Dashboard**: React + Express with TanStack Query, HTTPS, auto-refresh monitoring for both jobs and leads
+- **Profile-Based Search**: Reusable search strategies across both workflows
+- **AI Content Generation**: Headlines, cover letters, backgrounds, and email templates
 - **MCP Servers**: Playwright, Context7, and Azure MCP integrations for debugging and deployment
 
 ### Tech Stack
@@ -22,6 +35,101 @@ This is a TypeScript/Node.js application that automates job applications on Link
 - TanStack Query (data fetching and caching)
 - Tailwind CSS (styling)
 - Zod (validation)
+
+## AI-First Development Principles
+
+This project is developed with an "AI-first" approach where code is optimized for AI comprehension, maintenance, and extension. As the codebase grows, AI assistants should be able to understand context, make changes confidently, and maintain consistency.
+
+### Explicit Over Implicit
+- Use descriptive, full-word names for variables, functions, and types (avoid abbreviations)
+- Prefer `userProfileData` over `upd` or `data`
+- Prefer `calculateJobFitScore` over `calcScore` or `getScore`
+- Make relationships explicit: `getJobsByStatus('queued')` not `getJobs('q')`
+- Avoid clever tricks or terse code - clarity beats brevity
+
+### Strong, Explicit Typing
+- Always export types and interfaces alongside implementations
+- Define types for complex objects rather than inline type annotations
+- Use discriminated unions for state machines (job status, application state)
+- Annotate function parameters and return types explicitly, even when inferable
+- Create type aliases for commonly used complex types
+
+### Self-Documenting Structure
+- Break complex functions into smaller, named helper functions
+- Each function should do one thing with a clear name
+- Use early returns to reduce nesting and clarify flow
+- Group related functionality in clearly named files/modules
+- File names should describe contents: `rejection-analyzer.ts` not `analyzer.ts`
+
+### Context-Rich Comments
+- Explain "why" decisions were made, not "what" the code does
+- Document assumptions and constraints: "LinkedIn rate limits to 100 requests/hour"
+- Note gotchas and edge cases: "Workday uses iframes, requires special handling"
+- Reference related code or issues: "See lead-scraper.ts for similar pagination logic"
+- Add JSDoc for exported functions with examples when helpful
+
+### Predictable Patterns
+- Establish patterns and follow them consistently throughout the codebase
+- If adapters extend BaseAdapter, all adapters should follow this pattern
+- If one route uses Zod validation, all routes should
+- If one service uses try-catch-finally, all should
+- Document patterns in this file so AI can follow them
+
+### Explicit Error Handling
+- Handle errors at each layer with context-specific messages
+- Use custom error classes that carry context (jobId, url, step)
+- Log errors with enough information for debugging
+- Avoid generic catch-all error handlers
+- Make error paths as explicit as success paths
+
+### Clear State Management
+- Make state transitions explicit and documented
+- Use enums or const objects for state values, not magic strings
+- Document valid state transitions: "queued can become applied, skipped, or reported"
+- Validate state before transitions
+- Store state history when debugging is needed
+
+### Modular Architecture
+- Extract reusable logic into clearly named utilities
+- Keep business logic separate from UI/presentation
+- Database queries in data layer, business logic in services, UI in components
+- Avoid circular dependencies
+- Each module should have a single, clear responsibility
+
+### Examples and Patterns Over Documentation
+- Include example usage in JSDoc comments
+- Provide sample data structures in type definitions
+- Show common patterns in comments: "// Example: { jobId: '123', status: 'queued' }"
+- Keep a patterns file or section showing common approaches
+- When adding new features, model them after existing similar features
+
+### Database Schema Documentation
+- Comment table purposes and relationships in schema
+- Document column constraints and their business reasons
+- Note migration considerations when schema changes
+- Include sample queries for common operations
+- Make foreign key relationships explicit in code
+
+### Testable Design
+- Write code that's easy to mock and test
+- Avoid global state that makes testing hard
+- Make dependencies injectable or mockable
+- Keep side effects isolated and explicit
+- Each function should be testable in isolation
+
+### Progressive Disclosure
+- Start with high-level overview comments in complex files
+- Use section headers in long files to break into logical chunks
+- Layer detail: summary at top, specifics below
+- Help AI understand the forest before the trees
+- Make it easy to find relevant code quickly
+
+### Consistent Formatting
+- Follow established code formatting (TypeScript/React conventions)
+- Use consistent indentation and spacing
+- Group imports logically (external, internal, types)
+- Keep similar code structures aligned for easy scanning
+- Use formatting to emphasize structure
 
 ## Code Style & Patterns
 
