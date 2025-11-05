@@ -50,10 +50,30 @@ export function CoverLetterModal({ job, isOpen, onClose }: CoverLetterModalProps
 
   const copyToClipboard = async () => {
     try {
-      await navigator.clipboard.writeText(coverLetter);
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(coverLetter);
+      } else {
+        // Fallback to older method
+        const textArea = document.createElement('textarea');
+        textArea.value = coverLetter;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+          document.execCommand('copy');
+        } finally {
+          document.body.removeChild(textArea);
+        }
+      }
       // Could add a toast notification here
     } catch (err) {
       console.error('Failed to copy to clipboard:', err);
+      alert('Failed to copy to clipboard. Please try again.');
     }
   };
 

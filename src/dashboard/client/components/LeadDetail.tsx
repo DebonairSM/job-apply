@@ -36,6 +36,7 @@ interface LeadDetailProps {
 export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [copiedBackground, setCopiedBackground] = useState(false);
+  const [currentBackground, setCurrentBackground] = useState(lead.background);
   const queryClient = useQueryClient();
   const generateBackground = useGenerateBackground();
 
@@ -45,10 +46,20 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
   };
 
+  // Update local state when lead prop changes
+  useEffect(() => {
+    setCurrentBackground(lead.background);
+  }, [lead.background]);
+
   // Auto-generate background on mount if it's empty
   useEffect(() => {
     if (!lead.background && (lead.title || lead.about)) {
-      generateBackground.mutate(lead.id);
+      generateBackground.mutate(lead.id, {
+        onSuccess: (generatedBackground) => {
+          // Update local state immediately with the generated background
+          setCurrentBackground(generatedBackground);
+        },
+      });
     }
   }, [lead.id]);
 
@@ -72,17 +83,44 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   };
 
   const handleGenerateBackground = () => {
-    generateBackground.mutate(lead.id);
+    generateBackground.mutate(lead.id, {
+      onSuccess: (generatedBackground) => {
+        // Update local state immediately with the generated background
+        setCurrentBackground(generatedBackground);
+      },
+    });
   };
 
   const handleCopyBackground = async () => {
-    if (lead.background) {
+    if (currentBackground) {
       try {
-        await navigator.clipboard.writeText(lead.background);
-        setCopiedBackground(true);
-        setTimeout(() => setCopiedBackground(false), 2000);
+        // Try modern clipboard API first
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(currentBackground);
+          setCopiedBackground(true);
+          setTimeout(() => setCopiedBackground(false), 2000);
+        } else {
+          // Fallback to older method
+          const textArea = document.createElement('textarea');
+          textArea.value = currentBackground;
+          textArea.style.position = 'fixed';
+          textArea.style.left = '-999999px';
+          textArea.style.top = '-999999px';
+          document.body.appendChild(textArea);
+          textArea.focus();
+          textArea.select();
+          
+          try {
+            document.execCommand('copy');
+            setCopiedBackground(true);
+            setTimeout(() => setCopiedBackground(false), 2000);
+          } finally {
+            document.body.removeChild(textArea);
+          }
+        }
       } catch (error) {
         console.error('Error copying to clipboard:', error);
+        alert('Failed to copy to clipboard. Please try again.');
       }
     }
   };
@@ -165,7 +203,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
                     <Icon icon="refresh" size={16} className="animate-spin" />
                     Generating...
                   </span>
-                ) : lead.background ? (
+                ) : currentBackground ? (
                   <>
                     <button
                       onClick={handleCopyBackground}
@@ -201,9 +239,9 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
               </div>
             )}
             
-            {lead.background ? (
+            {currentBackground ? (
               <div className="p-3 bg-white rounded-md border border-blue-100">
-                <p className="text-gray-900 leading-relaxed">{lead.background}</p>
+                <p className="text-gray-900 leading-relaxed">{currentBackground}</p>
               </div>
             ) : !generateBackground.isPending && (
               <div className="p-3 bg-white rounded-md border border-blue-100 text-gray-500 text-sm">

@@ -50,11 +50,33 @@ export function CompleteDataModal({ jobId, jobTitle, isOpen, onClose }: Complete
   const copyAllData = async () => {
     if (!data) return;
     
+    const jsonString = JSON.stringify(data, null, 2);
+    
     try {
-      await navigator.clipboard.writeText(JSON.stringify(data, null, 2));
+      // Try modern clipboard API first
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(jsonString);
+      } else {
+        // Fallback to older method
+        const textArea = document.createElement('textarea');
+        textArea.value = jsonString;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        
+        try {
+          document.execCommand('copy');
+        } finally {
+          document.body.removeChild(textArea);
+        }
+      }
       // You could add a toast notification here
     } catch (err) {
       console.error('Failed to copy to clipboard:', err);
+      alert('Failed to copy to clipboard. Please try again.');
     }
   };
 

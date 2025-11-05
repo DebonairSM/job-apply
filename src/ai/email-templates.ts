@@ -10,6 +10,7 @@ export interface Lead {
   about?: string;
   email?: string;
   worked_together?: string;
+  background?: string; // AI-generated professional background for email use
 }
 
 export interface EmailContent {
@@ -119,13 +120,13 @@ function generateSubject(lead: Lead): string {
 function generateBody(lead: Lead, firstName: string): string {
   const intro = `Hello ${firstName},`;
   
-  const mainPitch = `I hope you are well. I'd love to share a new business model I've been developing and get your feedback.
+  const personalizedContext = generatePersonalizedContext(lead);
+  
+  const mainPitch = `I'd love to share a new business model I've been developing and get your feedback.
 
 It automates everyday workflows, especially those built around spreadsheets, using AI-assisted development. We deliver high-fidelity mockups and an MVP in one week at no cost, then evolve the system with local-first AI insights that continuously improve performance.
 
 It's a tailored, secure, open-source, local-first platform that can cut costs by up to 100x while giving organizations full control of their data. Over time, I also train an internal technical leader to build and test proof-of-concept features in a gated CI/CD pipeline.`;
-
-  const personalizedContext = generatePersonalizedContext(lead);
   
   const closing = `Would you have a few minutes this week to talk?
 
@@ -135,9 +136,9 @@ ${SIGNATURE}`;
 
   return `${intro}
 
-${mainPitch}
-
 ${personalizedContext}
+
+${mainPitch}
 
 ${closing}`;
 }
@@ -146,6 +147,12 @@ ${closing}`;
  * Generate personalized context based on lead information
  */
 function generatePersonalizedContext(lead: Lead): string {
+  // Use AI-generated background if available (preferred)
+  if (lead.background) {
+    return lead.background;
+  }
+  
+  // Fallback to old logic if background hasn't been generated yet
   const parts: string[] = [];
   
   // Build the context sentence
@@ -171,7 +178,7 @@ function generatePersonalizedContext(lead: Lead): string {
     contextSentence += `, ${relevantExperience}`;
   }
   
-  contextSentence += ", I'd really value your perspective.";
+  contextSentence += ", I thought you might be interested in this opportunity.";
   
   return contextSentence;
 }

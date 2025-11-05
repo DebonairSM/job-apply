@@ -18,6 +18,14 @@ export function hasSession(): boolean {
   return existsSync(STORAGE_STATE_PATH);
 }
 
+// Campaign configuration
+export interface CampaignConfig {
+  name: string;
+  painPoints: string[];
+  solution: string;
+  targetPersonas: string[];
+}
+
 // Technical configuration from .env (non-personal data)
 export interface TechnicalConfig {
   ollamaBaseUrl: string;
@@ -29,6 +37,7 @@ export interface TechnicalConfig {
   randomDelayMin: number;
   randomDelayMax: number;
   enableTracing: boolean;
+  campaign: CampaignConfig;
 }
 
 // User configuration from database
@@ -78,6 +87,26 @@ export function loadTechnicalConfig(): TechnicalConfig {
 
   const env = { ...process.env, ...dotenv };
 
+  // Default campaign configuration
+  const campaign: CampaignConfig = {
+    name: 'Workflow Automation',
+    painPoints: [
+      'spreadsheet-based workflows',
+      'manual processes',
+      'lack of automation',
+      'data silos',
+      'inefficient operations'
+    ],
+    solution: 'AI-assisted workflow automation with local-first architecture that cuts costs while giving full data control',
+    targetPersonas: [
+      'technical leaders',
+      'CTOs',
+      'innovation directors',
+      'digital transformation leaders',
+      'operations managers'
+    ]
+  };
+
   return {
     ollamaBaseUrl: env.OLLAMA_BASE_URL || 'http://localhost:11434',
     llmModel: env.LLM_MODEL || 'llama3.1:8b',
@@ -87,7 +116,8 @@ export function loadTechnicalConfig(): TechnicalConfig {
     slowMo: parseInt(env.SLOW_MO || '80', 10),
     randomDelayMin: parseInt(env.RANDOM_DELAY_MIN || '600', 10),
     randomDelayMax: parseInt(env.RANDOM_DELAY_MAX || '1200', 10),
-    enableTracing: env.ENABLE_TRACING !== 'false'
+    enableTracing: env.ENABLE_TRACING !== 'false',
+    campaign
   };
 }
 
@@ -175,7 +205,7 @@ export function loadConfig(): AppConfig {
     const db = require('./db.js');
     const resumes = db.getResumeFiles(true); // Active only
     if (resumes.length > 0) {
-      resumeVariants = resumes.map(r => r.file_name);
+      resumeVariants = resumes.map((r: any) => r.file_name);
     }
   } catch (error) {
     // Fallback to .env
