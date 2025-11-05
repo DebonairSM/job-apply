@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import { LeadDetail } from './LeadDetail';
 import { Icon } from './Icon';
 import { LeadScrapeModal, ScrapeConfig } from './LeadScrapeModal';
+import { ActiveScrapingStatus } from './ActiveScrapingStatus';
 
 interface Lead {
   id: string;
@@ -46,13 +47,16 @@ interface ScrapingRun {
   id: number;
   started_at: string;
   completed_at?: string;
-  status: 'in_progress' | 'completed' | 'stopped';
+  status: 'in_progress' | 'completed' | 'stopped' | 'error';
   profiles_scraped: number;
   profiles_added: number;
   last_profile_url?: string;
   filter_titles?: string;
   max_profiles?: number;
   created_at?: string;
+  error_message?: string;
+  process_id?: number;
+  last_activity_at?: string;
 }
 
 export function LeadsList() {
@@ -113,6 +117,15 @@ export function LeadsList() {
   const leads = leadsData?.leads || [];
   const stats = statsData || { total: 0, withEmail: 0, withoutEmail: 0, workedTogether: 0, withArticles: 0, topCompanies: [], topTitles: [], profileBreakdown: [], availableProfiles: [] };
   const runs = runsData || [];
+
+  const isRunStalled = (run: ScrapingRun): boolean => {
+    if (run.status !== 'in_progress' || !run.last_activity_at) return false;
+    const lastActivity = new Date(run.last_activity_at);
+    const now = new Date();
+    const diffMs = now.getTime() - lastActivity.getTime();
+    const diffMinutes = diffMs / (1000 * 60);
+    return diffMinutes > 5;
+  };
 
   const handleRowClick = (lead: Lead) => {
     setSelectedLead(lead);
@@ -250,6 +263,9 @@ export function LeadsList() {
           </div>
         </div>
       </div>
+
+      {/* Active Scraping Status */}
+      <ActiveScrapingStatus />
 
       {/* Start Scraping Button */}
       <div className="flex justify-end">
@@ -627,29 +643,54 @@ export function LeadsList() {
                   {runs.length === 0 ? (
                     <p className="text-gray-500">No scraping runs yet</p>
                   ) : (
-                    runs.map((run) => (
-                      <div key={run.id} className="flex items-center justify-between p-3 border rounded-md">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">Run #{run.id}</span>
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              run.status === 'completed' ? 'bg-green-100 text-green-800' :
-                              run.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
-                              'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {run.status}
-                            </span>
-                          </div>
-                          <div className="text-sm text-gray-600 mt-1">
-                            {run.profiles_scraped} scraped, {run.profiles_added} added
-                            {run.filter_titles && ` • Filters: ${JSON.parse(run.filter_titles).join(', ')}`}
-                          </div>
-                          <div className="text-xs text-gray-500 mt-1">
-                            Started: {formatDate(run.started_at)}
+                    runs.map((run) => {
+                      const stalled = isRunStalled(run);
+                      return (
+                        <div key={run.id} className={`flex items-center justify-between p-3 border rounded-md ${
+                          stalled ? 'border-yellow-300 bg-yellow-50' : ''
+                        }`}>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">Run #{run.id}</span>
+                              <span className={`px-2 py-1 rounded-full text-xs ${
+                                run.status === 'completed' ? 'bg-green-100 text-green-800' :
+                                run.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                                run.status === 'error' ? 'bg-red-100 text-red-800' :
+                                'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {run.status}
+                              </span>
+                              {stalled && (
+                                <span className="flex items-center gap-1 text-xs text-yellow-700 font-medium">
+                                  <Icon icon="warning" size={16} />
+                                  Stalled
+                                </span>
+                              )}
+                              {run.status === 'in_progress' && !stalled && (
+                                <Icon icon="sync" size={16} className="text-blue-600 animate-spin" />
+                              )}
+                            </div>
+                            <div className="text-sm text-gray-600 mt-1">
+                              {run.profiles_scraped} scraped, {run.profiles_added} added
+                              {run.filter_titles && ` • Filters: ${JSON.parse(run.filter_titles).join(', ')}`}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                              Started: {formatDate(run.started_at)}
+                              {run.last_activity_at && (
+                                <span className="ml-2">
+                                  • Last activity: {formatDate(run.last_activity_at)}
+                                </span>
+                              )}
+                            </div>
+                            {run.error_message && (
+                              <div className="text-xs text-red-600 mt-1 bg-red-50 p-2 rounded">
+                                Error: {run.error_message}
+                              </div>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>

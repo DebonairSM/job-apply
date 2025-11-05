@@ -862,7 +862,8 @@ export async function scrapeConnections(
           updateScrapingRun(runId, {
             profiles_scraped: progress.profilesScraped,
             profiles_added: progress.profilesAdded,
-            last_profile_url: profileUrl
+            last_profile_url: profileUrl,
+            last_activity_at: new Date().toISOString()
           });
 
           // Random delay to avoid detection

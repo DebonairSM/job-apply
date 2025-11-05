@@ -490,6 +490,25 @@ export function initDb(): void {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Migration: Add new columns for enhanced status tracking
+  try {
+    database.exec(`ALTER TABLE lead_scraping_runs ADD COLUMN error_message TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+  
+  try {
+    database.exec(`ALTER TABLE lead_scraping_runs ADD COLUMN process_id INTEGER`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+  
+  try {
+    database.exec(`ALTER TABLE lead_scraping_runs ADD COLUMN last_activity_at TEXT DEFAULT CURRENT_TIMESTAMP`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
 }
 
 // Job operations
@@ -1989,13 +2008,16 @@ export interface LeadScrapingRun {
   id?: number;
   started_at?: string;
   completed_at?: string;
-  status: 'in_progress' | 'completed' | 'stopped';
+  status: 'in_progress' | 'completed' | 'stopped' | 'error';
   profiles_scraped: number;
   profiles_added: number;
   last_profile_url?: string;
   filter_titles?: string; // JSON array
   max_profiles?: number;
   created_at?: string;
+  error_message?: string;
+  process_id?: number;
+  last_activity_at?: string;
 }
 
 export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at' | 'deleted_at'>): boolean {
@@ -2477,8 +2499,11 @@ export function getLeadsWithUpcomingBirthdays(daysAhead: number = 30): LeadWithB
 export function createScrapingRun(run: Omit<LeadScrapingRun, 'id' | 'created_at' | 'started_at'>): number {
   const database = getDb();
   const stmt = database.prepare(`
-    INSERT INTO lead_scraping_runs (status, profiles_scraped, profiles_added, last_profile_url, filter_titles, max_profiles)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO lead_scraping_runs (
+      status, profiles_scraped, profiles_added, last_profile_url, filter_titles, max_profiles,
+      error_message, process_id, last_activity_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   const result = stmt.run(
@@ -2487,7 +2512,10 @@ export function createScrapingRun(run: Omit<LeadScrapingRun, 'id' | 'created_at'
     run.profiles_added,
     run.last_profile_url || null,
     run.filter_titles || null,
-    run.max_profiles || null
+    run.max_profiles || null,
+    run.error_message || null,
+    run.process_id || null,
+    run.last_activity_at || new Date().toISOString()
   );
   
   return result.lastInsertRowid as number;
@@ -2523,6 +2551,21 @@ export function updateScrapingRun(id: number, updates: Partial<LeadScrapingRun>)
     values.push(updates.completed_at);
   }
   
+  if (updates.error_message !== undefined) {
+    fields.push('error_message = ?');
+    values.push(updates.error_message);
+  }
+  
+  if (updates.process_id !== undefined) {
+    fields.push('process_id = ?');
+    values.push(updates.process_id);
+  }
+  
+  if (updates.last_activity_at !== undefined) {
+    fields.push('last_activity_at = ?');
+    values.push(updates.last_activity_at);
+  }
+  
   if (fields.length === 0) return;
   
   values.push(id);
@@ -2541,6 +2584,12 @@ export function getScrapingRuns(limit: number = 50): LeadScrapingRun[] {
   const database = getDb();
   const stmt = database.prepare('SELECT * FROM lead_scraping_runs ORDER BY started_at DESC LIMIT ?');
   return stmt.all(limit) as LeadScrapingRun[];
+}
+
+export function getActiveScrapingRuns(): LeadScrapingRun[] {
+  const database = getDb();
+  const stmt = database.prepare("SELECT * FROM lead_scraping_runs WHERE status = 'in_progress' ORDER BY started_at DESC");
+  return stmt.all() as LeadScrapingRun[];
 }
 
 export function getLastIncompleteScrapingRun(): LeadScrapingRun | null {

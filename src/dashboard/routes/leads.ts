@@ -2,7 +2,8 @@ import express from 'express';
 import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { getLeads, getLeadsCount, getLeadById, getLeadStats, getScrapingRuns, getScrapingRun, softDeleteLead, getLeadsWithUpcomingBirthdays, deleteIncompleteLeads, updateLeadBackground, updateLeadStatus, createScrapingRun } from '../../lib/db.js';
+import { existsSync } from 'fs';
+import { getLeads, getLeadsCount, getLeadById, getLeadStats, getScrapingRuns, getScrapingRun, getActiveScrapingRuns, softDeleteLead, getLeadsWithUpcomingBirthdays, deleteIncompleteLeads, updateLeadBackground, updateLeadStatus, createScrapingRun, updateScrapingRun } from '../../lib/db.js';
 import { generateLeadBackground } from '../../ai/background-generator.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -83,6 +84,17 @@ router.get('/runs', (req, res) => {
   } catch (error) {
     console.error('Error fetching scraping runs:', error);
     res.status(500).json({ error: 'Failed to fetch scraping runs' });
+  }
+});
+
+// GET /api/leads/runs/active - Get currently active scraping runs
+router.get('/runs/active', (req, res) => {
+  try {
+    const activeRuns = getActiveScrapingRuns();
+    res.json(activeRuns);
+  } catch (error) {
+    console.error('Error fetching active scraping runs:', error);
+    res.status(500).json({ error: 'Failed to fetch active scraping runs' });
   }
 });
 
@@ -215,6 +227,17 @@ router.post('/start-scrape', (req, res) => {
       return res.status(400).json({ error: 'Cannot use both profile and titles. Choose one.' });
     }
     
+    // Verify CLI exists before spawning
+    const cliPath = join(__dirname, '..', '..', '..');
+    const cliFilePath = join(cliPath, 'dist', 'cli.js');
+    
+    if (!existsSync(cliFilePath)) {
+      return res.status(500).json({ 
+        error: 'CLI not built. Please run "npm run build" first.',
+        details: `Missing file: ${cliFilePath}`
+      });
+    }
+    
     // Create scraping run in database if not resuming
     let runId: number;
     if (resume) {
@@ -268,17 +291,62 @@ router.post('/start-scrape', (req, res) => {
       args.push('--resume', resume.toString());
     }
     
-    // Spawn the CLI process in detached mode
-    const cliPath = join(__dirname, '..', '..', '..');
+    // Spawn the CLI process with stderr capture for error detection
+    let stderrOutput = '';
     const child = spawn('node', args, {
       cwd: cliPath,
       detached: true,
-      stdio: 'ignore', // Ignore stdio to allow parent to exit
+      stdio: ['ignore', 'ignore', 'pipe'], // Capture stderr only
       shell: process.platform === 'win32' // Use shell on Windows
     });
     
-    // Allow parent process to exit independently
-    child.unref();
+    // Store process ID in database
+    updateScrapingRun(runId, {
+      process_id: child.pid,
+      last_activity_at: new Date().toISOString()
+    });
+    
+    // Capture stderr for first 10 seconds to detect immediate failures
+    const stderrTimeout = setTimeout(() => {
+      if (child.stderr) {
+        child.stderr.removeAllListeners();
+      }
+      // After 10 seconds, detach stderr and allow process to run independently
+      child.unref();
+    }, 10000);
+    
+    if (child.stderr) {
+      child.stderr.on('data', (data) => {
+        stderrOutput += data.toString();
+      });
+    }
+    
+    // Monitor for immediate exit (crash within first 5 seconds)
+    let hasExited = false;
+    const exitHandler = (code: number | null) => {
+      hasExited = true;
+      clearTimeout(stderrTimeout);
+      
+      const errorMessage = stderrOutput || `Process exited with code ${code}`;
+      console.error(`❌ Scraping process ${child.pid} exited immediately:`, errorMessage);
+      
+      // Update run status to error
+      updateScrapingRun(runId, {
+        status: 'error',
+        error_message: errorMessage,
+        completed_at: new Date().toISOString()
+      });
+    };
+    
+    child.on('exit', exitHandler);
+    
+    // Remove exit listener after 5 seconds if process is still running
+    setTimeout(() => {
+      if (!hasExited) {
+        child.removeListener('exit', exitHandler);
+        child.unref(); // Allow parent to exit
+      }
+    }, 5000);
     
     // Log the spawned process
     console.log(`🚀 Started lead scraping process (PID: ${child.pid})`);
@@ -296,7 +364,60 @@ router.post('/start-scrape', (req, res) => {
     });
   } catch (error) {
     console.error('Error starting scrape:', error);
-    res.status(500).json({ error: 'Failed to start scraping process' });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ 
+      error: 'Failed to start scraping process',
+      details: errorMessage
+    });
+  }
+});
+
+// POST /api/leads/runs/:id/stop - Stop a scraping run
+router.post('/runs/:id/stop', (req, res) => {
+  try {
+    const runId = parseInt(req.params.id, 10);
+    const run = getScrapingRun(runId);
+    
+    if (!run) {
+      return res.status(404).json({ error: 'Scraping run not found' });
+    }
+    
+    if (run.status !== 'in_progress') {
+      return res.status(400).json({ error: 'Run is not in progress' });
+    }
+    
+    // Update run status to stopped
+    updateScrapingRun(runId, {
+      status: 'stopped',
+      completed_at: new Date().toISOString()
+    });
+    
+    // If we have a process ID, try to kill it (best effort on Windows)
+    if (run.process_id) {
+      try {
+        // On Windows, use taskkill; on Unix, use kill
+        if (process.platform === 'win32') {
+          spawn('taskkill', ['/F', '/PID', run.process_id.toString()], { 
+            shell: true,
+            stdio: 'ignore' 
+          });
+        } else {
+          process.kill(run.process_id, 'SIGTERM');
+        }
+        console.log(`Attempted to stop process ${run.process_id} for run #${runId}`);
+      } catch (error) {
+        console.error(`Could not kill process ${run.process_id}:`, error);
+        // Don't fail the request - run is marked as stopped in DB
+      }
+    }
+    
+    res.json({ 
+      success: true,
+      message: `Scraping run #${runId} has been stopped`
+    });
+  } catch (error) {
+    console.error('Error stopping scrape:', error);
+    res.status(500).json({ error: 'Failed to stop scraping run' });
   }
 });
 

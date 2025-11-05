@@ -109,6 +109,9 @@ export async function leadSearchCommand(opts: LeadSearchOptions): Promise<void> 
   const context = await browser.newContext({ storageState: STORAGE_STATE_PATH });
   const page = await context.newPage();
 
+  // Setup heartbeat to update last_activity_at every 30 seconds
+  let heartbeatInterval: NodeJS.Timeout | null = null;
+
   try {
     // Create or resume scraping run
     let runId: number;
@@ -131,6 +134,17 @@ export async function leadSearchCommand(opts: LeadSearchOptions): Promise<void> 
       });
       console.log(`📝 Created scraping run #${runId}\n`);
     }
+
+    // Start heartbeat to update last_activity_at every 30 seconds
+    heartbeatInterval = setInterval(() => {
+      try {
+        updateScrapingRun(runId, {
+          last_activity_at: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('Error updating heartbeat:', error);
+      }
+    }, 30000);
 
     // Run the scraper
     const progress = await scrapeConnections(page, runId, {
@@ -173,7 +187,21 @@ export async function leadSearchCommand(opts: LeadSearchOptions): Promise<void> 
     const err = error as Error;
     console.error(`\n❌ Error during scraping: ${err.message}`);
     console.error(err.stack);
+    
+    // Update run status to error
+    if (runId) {
+      updateScrapingRun(runId, {
+        status: 'error',
+        error_message: err.message,
+        completed_at: new Date().toISOString()
+      });
+    }
   } finally {
+    // Clear heartbeat interval
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+    }
+    
     await browser.close();
     
     // Clean up signal handlers
