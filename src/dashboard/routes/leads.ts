@@ -6,7 +6,7 @@ const router = express.Router();
 // GET /api/leads - List leads with filtering and pagination
 router.get('/', (req, res) => {
   try {
-    const { search, title, company, location, hasEmail, workedTogether, limit = '50', offset = '0' } = req.query;
+    const { search, title, company, location, hasEmail, workedTogether, profile, limit = '50', offset = '0' } = req.query;
     
     const filters = {
       search: search ? String(search) : undefined,
@@ -15,6 +15,7 @@ router.get('/', (req, res) => {
       location: location ? String(location) : undefined,
       hasEmail: hasEmail === 'true' ? true : hasEmail === 'false' ? false : undefined,
       workedTogether: workedTogether === 'true' ? true : workedTogether === 'false' ? false : undefined,
+      profile: profile ? String(profile) : undefined,
       limit: parseInt(String(limit), 10),
       offset: parseInt(String(offset), 10)
     };
@@ -26,7 +27,8 @@ router.get('/', (req, res) => {
       company: filters.company,
       location: filters.location,
       hasEmail: filters.hasEmail,
-      workedTogether: filters.workedTogether
+      workedTogether: filters.workedTogether,
+      profile: filters.profile
     });
     
     res.json({

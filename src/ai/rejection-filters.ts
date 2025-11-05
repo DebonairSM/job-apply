@@ -205,6 +205,103 @@ class ProhibitedKeywordsFilter implements JobFilter {
   }
 }
 
+// Role type filter - blocks non-software development roles
+class RoleTypeFilter implements JobFilter {
+  private rolePatterns: Array<{ type: string; patterns: RegExp[] }>;
+  private detectedRole: string = '';
+  
+  constructor() {
+    // Define title patterns for each non-development role type
+    // Using word boundaries to avoid false positives
+    this.rolePatterns = [
+      {
+        type: 'DevOps/Infrastructure',
+        patterns: [
+          /\bdevops\b/i,
+          /\bdev\s*ops\b/i,
+          /\bsite\s+reliability\s+engineer\b/i,
+          /\bsre\b/i,
+          /\binfrastructure\s+engineer\b/i,
+          /\bplatform\s+engineer\b/i,
+          /\bcloud\s+engineer\b/i,
+          /\bsystems\s+engineer\b/i,
+          /\bnetwork\s+engineer\b/i
+        ]
+      },
+      {
+        type: 'QA/Test',
+        patterns: [
+          /\bqa\s+engineer\b/i,
+          /\bquality\s+assurance\b/i,
+          /\btest\s+engineer\b/i,
+          /\bsdet\b/i,
+          /\bautomation\s+engineer\b/i,
+          /\btest\s+automation\b/i,
+          /\btesting\s+engineer\b/i
+        ]
+      },
+      {
+        type: 'Project/Program Management',
+        patterns: [
+          /\bproject\s+manager\b/i,
+          /\bprogram\s+manager\b/i,
+          /\bproduct\s+manager\b/i,
+          /\bpm\b/i,
+          /\btechnical\s+program\s+manager\b/i,
+          /\btpm\b/i,
+          /\bdelivery\s+manager\b/i,
+          /\bscrum\s+master\b/i
+        ]
+      },
+      {
+        type: 'Data/Analytics',
+        patterns: [
+          /\bdata\s+engineer\b/i,
+          /\bdata\s+analyst\b/i,
+          /\bdata\s+scientist\b/i,
+          /\bbusiness\s+analyst\b/i,
+          /\banalytics\s+engineer\b/i,
+          /\bbi\s+developer\b/i,
+          /\bbusiness\s+intelligence\b/i,
+          /\bmachine\s+learning\s+engineer\b/i,
+          /\bml\s+engineer\b/i
+        ]
+      },
+      {
+        type: 'Security',
+        patterns: [
+          /\bsecurity\s+engineer\b/i,
+          /\bcybersecurity\b/i,
+          /\binfosec\b/i,
+          /\bapplication\s+security\b/i,
+          /\bappsec\b/i,
+          /\bsecurity\s+analyst\b/i
+        ]
+      }
+    ];
+  }
+  
+  shouldFilter(job: JobInput): boolean {
+    const title = job.title.toLowerCase();
+    
+    // Check each role type pattern
+    for (const { type, patterns } of this.rolePatterns) {
+      for (const pattern of patterns) {
+        if (pattern.test(title)) {
+          this.detectedRole = type;
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+  
+  get reason(): string {
+    return `Job is not a software development role (detected: ${this.detectedRole})`;
+  }
+}
+
 // Build filters from rejection patterns
 export function buildFiltersFromPatterns(profile?: string): JobFilter[] {
   const filters: JobFilter[] = [];
@@ -214,6 +311,9 @@ export function buildFiltersFromPatterns(profile?: string): JobFilter[] {
   if (prohibitedKeywords.length > 0) {
     filters.push(new ProhibitedKeywordsFilter(prohibitedKeywords));
   }
+  
+  // Add role type filter (always active, blocks non-software development roles)
+  filters.push(new RoleTypeFilter());
   
   // Add contract-only filter if using contract profile
   if (profile === 'contract') {

@@ -23,6 +23,7 @@ interface Lead {
   birthday?: string;
   connected_date?: string;
   address?: string;
+  profile?: string;
   scraped_at?: string;
   created_at?: string;
   deleted_at?: string;
@@ -36,6 +37,8 @@ interface LeadStats {
   withArticles: number;
   topCompanies: Array<{ company: string; count: number }>;
   topTitles: Array<{ title: string; count: number }>;
+  profileBreakdown: Array<{ profile: string; count: number }>;
+  availableProfiles: string[];
 }
 
 interface ScrapingRun {
@@ -58,6 +61,7 @@ export function LeadsList() {
   const [locationFilter, setLocationFilter] = useState('');
   const [emailFilter, setEmailFilter] = useState<string>('');
   const [workedTogetherFilter, setWorkedTogetherFilter] = useState<string>('');
+  const [profileFilter, setProfileFilter] = useState<string>('');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showRuns, setShowRuns] = useState(false);
   const [showCLIReference, setShowCLIReference] = useState(false);
@@ -68,7 +72,7 @@ export function LeadsList() {
 
   // Fetch leads
   const { data: leadsData, isLoading: leadsLoading, refetch: refetchLeads } = useQuery({
-    queryKey: ['leads', searchQuery, titleFilter, companyFilter, locationFilter, emailFilter, workedTogetherFilter],
+    queryKey: ['leads', searchQuery, titleFilter, companyFilter, locationFilter, emailFilter, workedTogetherFilter, profileFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (searchQuery) params.set('search', searchQuery);
@@ -77,6 +81,7 @@ export function LeadsList() {
       if (locationFilter) params.set('location', locationFilter);
       if (emailFilter) params.set('hasEmail', emailFilter);
       if (workedTogetherFilter) params.set('workedTogether', workedTogetherFilter);
+      if (profileFilter) params.set('profile', profileFilter);
       params.set('limit', '200');
 
       const response = await api.get(`/leads?${params.toString()}`);
@@ -107,7 +112,7 @@ export function LeadsList() {
   });
 
   const leads = leadsData?.leads || [];
-  const stats = statsData || { total: 0, withEmail: 0, withoutEmail: 0, workedTogether: 0, withArticles: 0, topCompanies: [], topTitles: [] };
+  const stats = statsData || { total: 0, withEmail: 0, withoutEmail: 0, workedTogether: 0, withArticles: 0, topCompanies: [], topTitles: [], profileBreakdown: [], availableProfiles: [] };
   const runs = runsData || [];
 
   const handleRowClick = (lead: Lead) => {
@@ -463,6 +468,22 @@ export function LeadsList() {
               <option value="false">No Email</option>
             </select>
           </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Profile</label>
+            <select
+              value={profileFilter}
+              onChange={(e) => setProfileFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All Profiles</option>
+              {stats.availableProfiles.map((profile) => (
+                <option key={profile} value={profile}>
+                  {profile}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -530,6 +551,7 @@ export function LeadsList() {
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Profile</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Worked Together</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Scraped</th>
@@ -563,6 +585,15 @@ export function LeadsList() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="text-sm text-gray-700">{lead.location || '-'}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {lead.profile ? (
+                        <span className="inline-flex items-center px-2 py-1 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                          {lead.profile}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-gray-400">-</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {lead.worked_together ? (

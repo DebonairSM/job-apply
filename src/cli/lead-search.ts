@@ -132,7 +132,8 @@ export async function leadSearchCommand(opts: LeadSearchOptions): Promise<void> 
       filterTitles,
       maxProfiles,
       resumeRunId: opts.resume,
-      startPage: opts.startPage
+      startPage: opts.startPage,
+      profile: opts.profile
     }, shouldStopNow);
 
     // Mark run as completed or stopped

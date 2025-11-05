@@ -187,30 +187,165 @@ npm run filters:list                           # View active filters
 
 ## Setup
 
-**Requirements:** Node.js 20+, Docker Desktop, Git
+### Requirements
+- Node.js 20+
+- Docker Desktop (for Ollama LLM)
+- Git
+- 8GB RAM minimum, 16GB recommended
+- ~10GB disk space (5GB for Ollama model)
 
-**Install**
+### Installation
+
+**1. Clone and Install Dependencies**
 ```bash
 git clone <repository-url>
 cd job-apply
 npm install
 npx playwright install
-docker compose -f docker-compose.llm.yml up -d  # Starts Ollama (5GB)
-npm run login                                    # LinkedIn auth
 ```
 
-**Configure**
-1. Add resumes to `resumes/` folder (PDF/DOCX)
-2. Edit `.env` for min score threshold (default: 70)
-3. Optional: Edit `answers-policy.yml` for form policies
-
-**Run**
+**2. Start Local AI (Ollama)**
 ```bash
-npm run search -- --profile contract            # Find contract jobs
-npm run leads:search -- --profile chiefs        # Build network leads
-npm run dashboard:dev                           # Open dashboard
-npm run apply -- --easy                         # Apply to jobs
+docker compose -f docker-compose.llm.yml up -d
 ```
+
+This downloads and starts Llama 3.1 8B (5GB). First run takes several minutes.
+
+**3. LinkedIn Authentication**
+```bash
+npm run login
+```
+
+Follow the prompts to log in to LinkedIn. Session persists in `storage/storageState.json`.
+
+**Important**: If automation starts failing with login errors, your session expired. Just run `npm run login` again.
+
+**4. Add Your Resume**
+
+Place PDF or DOCX resumes in `resumes/` folder for AI-generated cover letters and headlines.
+
+### Configuration
+
+**Environment Variables** (`.env` file):
+```bash
+# Minimum score for auto-queue (default: 70)
+MIN_FIT_SCORE=70
+
+# LLM model (default: llama3.1:8b)
+LLM_MODEL=llama3.1:8b
+
+# Show browser during automation (default: true)
+HEADLESS=false
+
+# Enable Playwright traces for debugging (default: false)
+ENABLE_TRACING=false
+```
+
+**Form Policies** (`answers-policy.yml`):
+
+Controls how the system responds to application forms:
+- Field length limits
+- Allowed values
+- Required vs optional handling
+
+Edit if you need custom responses for specific field types.
+
+## Running the Application
+
+### First Time Workflow
+
+**1. Find Jobs**
+```bash
+npm run search -- --profile core
+```
+
+This searches LinkedIn, ranks jobs with AI, and queues high-scoring ones.
+
+**2. Monitor Dashboard**
+```bash
+npm run dashboard:dev
+```
+
+Opens at https://localhost:3000 (note: HTTPS with self-signed cert - accept the warning).
+
+**3. Review Queued Jobs**
+
+Check dashboard to see queued jobs. Update any false positives to "skipped" or "reported".
+
+**4. Apply to Jobs**
+```bash
+npm run apply -- --easy --dry-run  # Test first (doesn't submit)
+npm run apply -- --easy            # Actually submit
+```
+
+**5. Update Statuses**
+
+As you hear back from companies, update job statuses in the dashboard:
+- **interview** - Moved to interview stage
+- **rejected** - Application rejected (triggers learning)
+
+### Important Tips
+
+**Session Management**
+- LinkedIn sessions expire after ~2 weeks
+- Symptoms: Automation fails to load jobs
+- Fix: `npm run login` to refresh
+
+**Rate Limiting**
+- LinkedIn may rate limit if you scrape too aggressively
+- Default profile search stops at 25 pages (~625 jobs)
+- Use `--max-pages` to limit: `npm run search -- --profile core --max-pages 10`
+- Space out searches (wait 30-60 min between large scrapes)
+
+**Database Backups**
+- Automatic backups created before any data modification
+- Manual backup: `npm run backup`
+- Restore: `cp data/backups/app.db.auto-backup-YYYY-MM-DD... data/app.db`
+- Backups location: `data/backups/`
+
+**Debugging Failed Applications**
+- Screenshots saved to `artifacts/` on failures
+- Check Playwright traces: `npx playwright show-trace artifacts/trace-<timestamp>.zip`
+- Enable headless=false in .env to watch automation
+
+**Ollama Troubleshooting**
+- If AI ranking fails: Check Ollama running with `docker ps`
+- Restart: `docker compose -f docker-compose.llm.yml restart`
+- First run downloads model (5GB, takes time)
+- Model location: Docker volume `ollama_data`
+
+**Dashboard Not Loading**
+- Check ports 3000 and 3001 not in use
+- HTTPS cert warning is normal (self-signed) - click "Advanced" and proceed
+- Backend API must be running (starts automatically with `npm run dashboard:dev`)
+
+**Job Ranking Taking Forever**
+- Normal: 5-10 seconds per job for AI analysis
+- 25 pages = ~625 jobs = ~60 minutes total
+- Runs in background, check dashboard for progress
+- Cache makes subsequent re-ranks instant
+
+**Application Forms Not Filling**
+- Some ATS platforms have custom fields
+- Check `artifacts/` for screenshot of failure point
+- Generic adapter may need customization for that platform
+- Can manually fill and submit if needed
+
+**Lead Scraping Slow**
+- LinkedIn profiles load slowly (rate limiting)
+- Typical: 100 leads = ~30 minutes
+- Use `--max` to limit: `npm run leads:search -- --max 50`
+- Resume previous run: `npm run leads:search -- --resume <run-id>`
+
+---
+
+## Documentation
+
+For deeper technical details, see:
+
+- **[Security & Data Safety](docs/SECURITY.md)** - Database backups, privacy, recovery procedures
+- **[Tech Stack](docs/TECH_STACK.md)** - Technologies used and why
+- **[Architecture](docs/ARCHITECTURE.md)** - System design and component interactions
 
 ---
 

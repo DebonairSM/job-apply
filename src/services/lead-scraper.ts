@@ -8,6 +8,7 @@ export interface LeadScraperOptions {
   maxProfiles?: number;
   resumeRunId?: number;
   startPage?: number;
+  profile?: string;
 }
 
 interface ScrapingProgress {
@@ -803,7 +804,8 @@ export async function scrapeConnections(
             articles,
             birthday,
             connected_date: connectedDate,
-            address
+            address,
+            profile: options.profile
           };
 
           const added = addLead(lead);

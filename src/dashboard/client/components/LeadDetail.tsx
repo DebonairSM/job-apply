@@ -20,6 +20,7 @@ interface Lead {
   birthday?: string;
   connected_date?: string;
   address?: string;
+  profile?: string;
   scraped_at?: string;
   created_at?: string;
   deleted_at?: string;
@@ -98,6 +99,17 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
                 <p className="mt-1 text-lg text-gray-900 flex items-center gap-2">
                   <Icon icon="place" size={20} className="text-gray-500" />
                   {lead.location}
+                </p>
+              </div>
+            )}
+
+            {lead.profile && (
+              <div>
+                <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Profile</label>
+                <p className="mt-1">
+                  <span className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-blue-100 text-blue-800">
+                    {lead.profile}
+                  </span>
                 </p>
               </div>
             )}

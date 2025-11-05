@@ -447,6 +447,20 @@ export function initDb(): void {
     // Column already exists, ignore
   }
 
+  // Add profile column if it doesn't exist (migration)
+  try {
+    database.exec(`ALTER TABLE leads ADD COLUMN profile TEXT`);
+  } catch (e) {
+    // Column already exists, ignore
+  }
+
+  // Backfill existing leads with 'chiefs' profile (all existing leads came from chiefs search)
+  try {
+    database.exec(`UPDATE leads SET profile = 'chiefs' WHERE profile IS NULL`);
+  } catch (e) {
+    // Already backfilled, ignore
+  }
+
   // Lead scraping runs table for batch processing and resume capability
   database.exec(`
     CREATE TABLE IF NOT EXISTS lead_scraping_runs (
@@ -1949,6 +1963,7 @@ export interface Lead {
   birthday?: string; // e.g., "January 1"
   connected_date?: string; // e.g., "Oct 18, 2017"
   address?: string; // Social media handles or custom addresses
+  profile?: string; // Search profile used to find this lead (core, chiefs, etc.)
   scraped_at?: string;
   created_at?: string;
   deleted_at?: string;
@@ -1976,8 +1991,8 @@ export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at' | 'deleted_
   }
   
   const stmt = database.prepare(`
-    INSERT INTO leads (id, name, title, company, about, email, phone, website, location, profile_url, linkedin_id, worked_together, articles, birthday, connected_date, address)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO leads (id, name, title, company, about, email, phone, website, location, profile_url, linkedin_id, worked_together, articles, birthday, connected_date, address, profile)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   try {
@@ -1997,7 +2012,8 @@ export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at' | 'deleted_
       lead.articles || null,
       lead.birthday || null,
       lead.connected_date || null,
-      lead.address || null
+      lead.address || null,
+      lead.profile || null
     );
     return true;
   } catch (error) {
@@ -2112,6 +2128,7 @@ export function getLeads(filters?: {
   location?: string;
   hasEmail?: boolean;
   workedTogether?: boolean;
+  profile?: string;
   limit?: number;
   offset?: number;
 }): Lead[] {
@@ -2156,6 +2173,11 @@ export function getLeads(filters?: {
     }
   }
 
+  if (filters?.profile) {
+    query += ' AND LOWER(profile) = ?';
+    params.push(filters.profile.toLowerCase());
+  }
+
   query += ' ORDER BY scraped_at DESC';
 
   if (filters?.limit) {
@@ -2179,6 +2201,7 @@ export function getLeadsCount(filters?: {
   location?: string;
   hasEmail?: boolean;
   workedTogether?: boolean;
+  profile?: string;
 }): number {
   const database = getDb();
   let query = 'SELECT COUNT(*) as count FROM leads WHERE deleted_at IS NULL';
@@ -2221,6 +2244,11 @@ export function getLeadsCount(filters?: {
     }
   }
 
+  if (filters?.profile) {
+    query += ' AND LOWER(profile) = ?';
+    params.push(filters.profile.toLowerCase());
+  }
+
   const stmt = database.prepare(query);
   const result = stmt.get(...params) as { count: number };
   return result.count;
@@ -2234,6 +2262,8 @@ export interface LeadStats {
   withArticles: number;
   topCompanies: Array<{ company: string; count: number }>;
   topTitles: Array<{ title: string; count: number }>;
+  profileBreakdown: Array<{ profile: string; count: number }>;
+  availableProfiles: string[];
 }
 
 export function getLeadStats(): LeadStats {
@@ -2271,6 +2301,16 @@ export function getLeadStats(): LeadStats {
     LIMIT 10
   `).all() as Array<{ title: string; count: number }>;
   
+  const profileBreakdown = database.prepare(`
+    SELECT profile, COUNT(*) as count
+    FROM leads
+    WHERE deleted_at IS NULL AND profile IS NOT NULL AND profile != ''
+    GROUP BY profile
+    ORDER BY count DESC
+  `).all() as Array<{ profile: string; count: number }>;
+  
+  const availableProfiles = profileBreakdown.map(p => p.profile);
+  
   return {
     total: total.count,
     withEmail: withEmail.count,
@@ -2278,7 +2318,9 @@ export function getLeadStats(): LeadStats {
     workedTogether: workedTogether.count,
     withArticles: withArticles.count,
     topCompanies,
-    topTitles
+    topTitles,
+    profileBreakdown,
+    availableProfiles
   };
 }
 

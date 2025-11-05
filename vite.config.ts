@@ -43,9 +43,6 @@ export default defineConfig({
               }));
             }
           });
-          proxy.on('proxyReq', (proxyReq, req, res) => {
-            console.log('Proxying request:', req.method, req.url);
-          });
         }
       }
     }
