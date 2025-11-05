@@ -494,21 +494,32 @@ export function initDb(): void {
   // Migration: Add new columns for enhanced status tracking
   try {
     database.exec(`ALTER TABLE lead_scraping_runs ADD COLUMN error_message TEXT`);
+    console.log('   ✓ Added error_message column to lead_scraping_runs');
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column name')) {
+      console.error('   ⚠ Migration warning (error_message):', e.message);
+    }
   }
   
   try {
     database.exec(`ALTER TABLE lead_scraping_runs ADD COLUMN process_id INTEGER`);
+    console.log('   ✓ Added process_id column to lead_scraping_runs');
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column name')) {
+      console.error('   ⚠ Migration warning (process_id):', e.message);
+    }
   }
   
   try {
     database.exec(`ALTER TABLE lead_scraping_runs ADD COLUMN last_activity_at TEXT DEFAULT CURRENT_TIMESTAMP`);
+    console.log('   ✓ Added last_activity_at column to lead_scraping_runs');
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column name')) {
+      console.error('   ⚠ Migration warning (last_activity_at):', e.message);
+    }
   }
+  
+  console.log('📊 Database schema ready');
 }
 
 // Job operations

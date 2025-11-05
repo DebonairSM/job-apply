@@ -6,6 +6,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { networkInterfaces } from 'os';
+import { initDb } from '../lib/db.js';
 import statsRouter from './routes/stats.js';
 import jobsRouter from './routes/jobs.js';
 import leadsRouter from './routes/leads.js';
@@ -23,6 +24,11 @@ import backupRouter from './routes/backup.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
+// Initialize database and run migrations
+console.log('🔧 Initializing database...');
+initDb();
+console.log('✅ Database initialized');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -84,8 +90,30 @@ app.use('/api/automation', automationRouter);
 app.use('/api/backup', backupRouter);
 
 // Health check
-app.get('/api/health', (req, res) => {
+app.get('/api/health', (_req: express.Request, res: express.Response): void => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// Error handling middleware - must be before static files
+app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction): void => {
+  console.error('❌ Unhandled error in request:');
+  console.error(`   Method: ${req.method}`);
+  console.error(`   Path: ${req.path}`);
+  console.error(`   Error: ${err.message}`);
+  console.error(`   Stack: ${err.stack || 'No stack trace available'}`);
+  
+  const response: { error: string; message: string; path: string; stack?: string } = {
+    error: 'Internal server error',
+    message: err.message,
+    path: req.path
+  };
+  
+  // Only include stack trace in development
+  if (process.env.NODE_ENV === 'development' && err.stack) {
+    response.stack = err.stack;
+  }
+  
+  res.status(500).json(response);
 });
 
 // Serve static files in production
@@ -94,7 +122,7 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(clientBuildPath));
   
   // Catch-all route for SPA - must be after API routes
-  app.use((req, res) => {
+  app.use((_req: express.Request, res: express.Response): void => {
     res.sendFile(join(clientBuildPath, 'index.html'));
   });
 }

@@ -1,5 +1,5 @@
-import express from 'express';
-import { spawn } from 'child_process';
+import express, { Request, Response } from 'express';
+import { spawn, ChildProcess } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { existsSync } from 'fs';
@@ -11,21 +11,86 @@ const __dirname = dirname(__filename);
 
 const router = express.Router();
 
+// Constants for validation
+const VALID_EMAIL_STATUSES = ['not_contacted', 'email_sent', 'replied', 'meeting_scheduled'] as const;
+const VALID_CONNECTION_DEGREES = ['1st', '2nd', '3rd'] as const;
+const DEFAULT_LIMIT = 50;
+const DEFAULT_OFFSET = 0;
+const DEFAULT_MAX_PROFILES = 50;
+const DEFAULT_BIRTHDAY_DAYS = 30;
+const STDERR_CAPTURE_DURATION_MS = 10000;
+const IMMEDIATE_EXIT_DETECTION_MS = 5000;
+
+type EmailStatus = typeof VALID_EMAIL_STATUSES[number];
+type ConnectionDegree = typeof VALID_CONNECTION_DEGREES[number];
+
+// Type guards
+function isValidEmailStatus(status: unknown): status is EmailStatus {
+  return typeof status === 'string' && VALID_EMAIL_STATUSES.includes(status as EmailStatus);
+}
+
+function isValidConnectionDegree(degree: unknown): degree is ConnectionDegree {
+  return typeof degree === 'string' && VALID_CONNECTION_DEGREES.includes(degree as ConnectionDegree);
+}
+
+// Utility functions for validation
+function parseIntegerParameter(value: unknown, defaultValue: number): number {
+  if (value === undefined || value === null) {
+    return defaultValue;
+  }
+  const parsed = parseInt(String(value), 10);
+  return isNaN(parsed) ? defaultValue : parsed;
+}
+
+function parseBooleanParameter(value: unknown): boolean | undefined {
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  return undefined;
+}
+
+function sanitizeStringParameter(value: unknown): string | undefined {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+  return String(value).trim();
+}
+
+// Error response helper
+interface ErrorResponse {
+  error: string;
+  details?: string;
+  stack?: string;
+}
+
+function sendErrorResponse(res: Response, statusCode: number, error: string, details?: string): void {
+  const response: ErrorResponse = { error };
+  if (details) {
+    response.details = details;
+  }
+  if (process.env.NODE_ENV === 'development') {
+    const stack = new Error().stack;
+    if (stack) {
+      response.stack = stack;
+    }
+  }
+  res.status(statusCode).json(response);
+}
+
 // GET /api/leads - List leads with filtering and pagination
-router.get('/', (req, res) => {
+router.get('/', (req: Request, res: Response): void => {
   try {
-    const { search, title, company, location, hasEmail, workedTogether, profile, limit = '50', offset = '0' } = req.query;
+    const { search, title, company, location, hasEmail, workedTogether, profile, limit, offset } = req.query;
     
     const filters = {
-      search: search ? String(search) : undefined,
-      title: title ? String(title) : undefined,
-      company: company ? String(company) : undefined,
-      location: location ? String(location) : undefined,
-      hasEmail: hasEmail === 'true' ? true : hasEmail === 'false' ? false : undefined,
-      workedTogether: workedTogether === 'true' ? true : workedTogether === 'false' ? false : undefined,
-      profile: profile ? String(profile) : undefined,
-      limit: parseInt(String(limit), 10),
-      offset: parseInt(String(offset), 10)
+      search: sanitizeStringParameter(search),
+      title: sanitizeStringParameter(title),
+      company: sanitizeStringParameter(company),
+      location: sanitizeStringParameter(location),
+      hasEmail: parseBooleanParameter(hasEmail),
+      workedTogether: parseBooleanParameter(workedTogether),
+      profile: sanitizeStringParameter(profile),
+      limit: parseIntegerParameter(limit, DEFAULT_LIMIT),
+      offset: parseIntegerParameter(offset, DEFAULT_OFFSET)
     };
     
     const leads = getLeads(filters);
@@ -47,108 +112,125 @@ router.get('/', (req, res) => {
     });
   } catch (error) {
     console.error('Error fetching leads:', error);
-    res.status(500).json({ error: 'Failed to fetch leads' });
+    sendErrorResponse(res, 500, 'Failed to fetch leads', error instanceof Error ? error.message : undefined);
   }
 });
 
 // GET /api/leads/stats - Get lead statistics
-router.get('/stats', (req, res) => {
+router.get('/stats', (req: Request, res: Response): void => {
   try {
     const stats = getLeadStats();
     res.json(stats);
   } catch (error) {
     console.error('Error fetching lead stats:', error);
-    res.status(500).json({ error: 'Failed to fetch lead stats' });
+    sendErrorResponse(res, 500, 'Failed to fetch lead stats', error instanceof Error ? error.message : undefined);
   }
 });
 
 // GET /api/leads/birthdays - Get leads with upcoming birthdays
-router.get('/birthdays', (req, res) => {
+router.get('/birthdays', (req: Request, res: Response): void => {
   try {
-    const { days = '30' } = req.query;
-    const daysAhead = parseInt(String(days), 10);
+    const { days } = req.query;
+    const daysAhead = parseIntegerParameter(days, DEFAULT_BIRTHDAY_DAYS);
     const leads = getLeadsWithUpcomingBirthdays(daysAhead);
     res.json(leads);
   } catch (error) {
     console.error('Error fetching upcoming birthdays:', error);
-    res.status(500).json({ error: 'Failed to fetch upcoming birthdays' });
+    sendErrorResponse(res, 500, 'Failed to fetch upcoming birthdays', error instanceof Error ? error.message : undefined);
   }
 });
 
 // GET /api/leads/runs - List scraping runs
-router.get('/runs', (req, res) => {
+router.get('/runs', (req: Request, res: Response): void => {
   try {
-    const { limit = '50' } = req.query;
-    const runs = getScrapingRuns(parseInt(String(limit), 10));
+    const { limit } = req.query;
+    const runs = getScrapingRuns(parseIntegerParameter(limit, DEFAULT_LIMIT));
     res.json(runs);
   } catch (error) {
     console.error('Error fetching scraping runs:', error);
-    res.status(500).json({ error: 'Failed to fetch scraping runs' });
+    sendErrorResponse(res, 500, 'Failed to fetch scraping runs', error instanceof Error ? error.message : undefined);
   }
 });
 
 // GET /api/leads/runs/active - Get currently active scraping runs
-router.get('/runs/active', (req, res) => {
+router.get('/runs/active', (req: Request, res: Response): void => {
   try {
     const activeRuns = getActiveScrapingRuns();
     res.json(activeRuns);
   } catch (error) {
     console.error('Error fetching active scraping runs:', error);
-    res.status(500).json({ error: 'Failed to fetch active scraping runs' });
+    sendErrorResponse(res, 500, 'Failed to fetch active scraping runs', error instanceof Error ? error.message : undefined);
   }
 });
 
 // GET /api/leads/runs/:id - Get scraping run details
-router.get('/runs/:id', (req, res) => {
+router.get('/runs/:id', (req: Request, res: Response): void => {
   try {
-    const runId = parseInt(req.params.id, 10);
-    const run = getScrapingRun(runId);
+    const runId = parseIntegerParameter(req.params.id, 0);
+    if (runId === 0) {
+      sendErrorResponse(res, 400, 'Invalid run ID');
+      return;
+    }
     
+    const run = getScrapingRun(runId);
     if (!run) {
-      return res.status(404).json({ error: 'Scraping run not found' });
+      sendErrorResponse(res, 404, 'Scraping run not found');
+      return;
     }
     
     res.json(run);
   } catch (error) {
     console.error('Error fetching scraping run:', error);
-    res.status(500).json({ error: 'Failed to fetch scraping run' });
+    sendErrorResponse(res, 500, 'Failed to fetch scraping run', error instanceof Error ? error.message : undefined);
   }
 });
 
 // GET /api/leads/:id - Get single lead
-router.get('/:id', (req, res) => {
+router.get('/:id', (req: Request, res: Response): void => {
   try {
-    const lead = getLeadById(req.params.id);
+    const leadId = sanitizeStringParameter(req.params.id);
+    if (!leadId) {
+      sendErrorResponse(res, 400, 'Invalid lead ID');
+      return;
+    }
     
+    const lead = getLeadById(leadId);
     if (!lead) {
-      return res.status(404).json({ error: 'Lead not found' });
+      sendErrorResponse(res, 404, 'Lead not found');
+      return;
     }
     
     res.json(lead);
   } catch (error) {
     console.error('Error fetching lead:', error);
-    res.status(500).json({ error: 'Failed to fetch lead' });
+    sendErrorResponse(res, 500, 'Failed to fetch lead', error instanceof Error ? error.message : undefined);
   }
 });
 
 // DELETE /api/leads/:id - Soft delete a lead
-router.delete('/:id', (req, res) => {
+router.delete('/:id', (req: Request, res: Response): void => {
   try {
-    const success = softDeleteLead(req.params.id);
+    const leadId = sanitizeStringParameter(req.params.id);
+    if (!leadId) {
+      sendErrorResponse(res, 400, 'Invalid lead ID');
+      return;
+    }
     
+    const success = softDeleteLead(leadId);
     if (!success) {
-      return res.status(404).json({ error: 'Lead not found or already deleted' });
+      sendErrorResponse(res, 404, 'Lead not found or already deleted');
+      return;
     }
     
     res.json({ message: 'Lead deleted successfully' });
   } catch (error) {
     console.error('Error deleting lead:', error);
-    res.status(500).json({ error: 'Failed to delete lead' });
+    sendErrorResponse(res, 500, 'Failed to delete lead', error instanceof Error ? error.message : undefined);
   }
 });
 
 // POST /api/leads/cleanup-incomplete - Remove incomplete leads (missing all data fields)
-router.post('/cleanup-incomplete', (req, res) => {
+router.post('/cleanup-incomplete', (req: Request, res: Response): void => {
   try {
     const result = deleteIncompleteLeads();
     
@@ -159,17 +241,23 @@ router.post('/cleanup-incomplete', (req, res) => {
     });
   } catch (error) {
     console.error('Error cleaning up incomplete leads:', error);
-    res.status(500).json({ error: 'Failed to cleanup incomplete leads' });
+    sendErrorResponse(res, 500, 'Failed to cleanup incomplete leads', error instanceof Error ? error.message : undefined);
   }
 });
 
 // POST /api/leads/:id/generate-background - Generate AI background for a lead
-router.post('/:id/generate-background', async (req, res) => {
+router.post('/:id/generate-background', async (req: Request, res: Response): Promise<void> => {
   try {
-    const lead = getLeadById(req.params.id);
+    const leadId = sanitizeStringParameter(req.params.id);
+    if (!leadId) {
+      sendErrorResponse(res, 400, 'Invalid lead ID');
+      return;
+    }
     
+    const lead = getLeadById(leadId);
     if (!lead) {
-      return res.status(404).json({ error: 'Lead not found' });
+      sendErrorResponse(res, 404, 'Lead not found');
+      return;
     }
     
     // Generate background using AI
@@ -177,213 +265,317 @@ router.post('/:id/generate-background', async (req, res) => {
     
     // Save to database
     const success = updateLeadBackground(lead.id, background);
-    
     if (!success) {
-      return res.status(500).json({ error: 'Failed to update lead background' });
+      sendErrorResponse(res, 500, 'Failed to update lead background');
+      return;
     }
     
     res.json({ background });
   } catch (error) {
     console.error('Error generating lead background:', error);
-    res.status(500).json({ error: 'Failed to generate background' });
+    sendErrorResponse(res, 500, 'Failed to generate background', error instanceof Error ? error.message : undefined);
   }
 });
 
 // PATCH /api/leads/:id/status - Update lead email status
-router.patch('/:id/status', (req, res) => {
+router.patch('/:id/status', (req: Request, res: Response): void => {
   try {
-    const { id } = req.params;
-    const { status } = req.body;
-    
-    const validStatuses = ['not_contacted', 'email_sent', 'replied', 'meeting_scheduled'];
-    if (!validStatuses.includes(status)) {
-      return res.status(400).json({ error: 'Invalid status' });
+    const leadId = sanitizeStringParameter(req.params.id);
+    if (!leadId) {
+      sendErrorResponse(res, 400, 'Invalid lead ID');
+      return;
     }
     
-    const updated = updateLeadStatus(id, status);
+    const { status } = req.body;
+    if (!isValidEmailStatus(status)) {
+      sendErrorResponse(res, 400, 'Invalid status', `Status must be one of: ${VALID_EMAIL_STATUSES.join(', ')}`);
+      return;
+    }
+    
+    const updated = updateLeadStatus(leadId, status);
     if (!updated) {
-      return res.status(404).json({ error: 'Lead not found' });
+      sendErrorResponse(res, 404, 'Lead not found');
+      return;
     }
     
     res.json({ success: true });
   } catch (error) {
     console.error('Error updating lead status:', error);
-    res.status(500).json({ error: 'Failed to update status' });
+    sendErrorResponse(res, 500, 'Failed to update status', error instanceof Error ? error.message : undefined);
   }
 });
 
+// Helper function to validate scrape request parameters
+interface ScrapeRequestParams {
+  degree: ConnectionDegree;
+  profile?: string;
+  titles?: string;
+  max: number;
+  startPage?: number;
+  resume?: number;
+}
+
+function validateScrapeRequest(body: Record<string, unknown>): { valid: true; params: ScrapeRequestParams } | { valid: false; error: string; details?: string } {
+  const degree = body.degree || '1st';
+  const profile = sanitizeStringParameter(body.profile);
+  const titles = sanitizeStringParameter(body.titles);
+  const max = parseIntegerParameter(body.max, DEFAULT_MAX_PROFILES);
+  const startPage = body.startPage ? parseIntegerParameter(body.startPage, 1) : undefined;
+  const resume = body.resume ? parseIntegerParameter(body.resume, 0) : undefined;
+  
+  if (!isValidConnectionDegree(degree)) {
+    return {
+      valid: false,
+      error: 'Invalid connection degree',
+      details: `Degree must be one of: ${VALID_CONNECTION_DEGREES.join(', ')}`
+    };
+  }
+  
+  if (profile && titles) {
+    return {
+      valid: false,
+      error: 'Cannot use both profile and titles',
+      details: 'Choose one filter method'
+    };
+  }
+  
+  return {
+    valid: true,
+    params: { degree, profile, titles, max, startPage, resume }
+  };
+}
+
+// Helper function to create or resume a scraping run
+function createOrResumeRun(params: ScrapeRequestParams): { success: true; runId: number } | { success: false; error: string; statusCode: number } {
+  if (params.resume) {
+    console.log(`📋 Resuming existing run ID: ${params.resume}`);
+    const existingRun = getScrapingRun(params.resume);
+    if (!existingRun) {
+      console.error('❌ Scraping run not found:', params.resume);
+      return {
+        success: false,
+        error: `Scraping run ${params.resume} not found`,
+        statusCode: 404
+      };
+    }
+    return { success: true, runId: params.resume };
+  }
+  
+  console.log('📋 Creating new scraping run...');
+  let filterTitlesArray: string[] | undefined;
+  
+  if (params.profile) {
+    // Profile will be resolved by CLI, store profile name in special format
+    filterTitlesArray = [`profile:${params.profile}`];
+  } else if (params.titles) {
+    filterTitlesArray = params.titles.split(',').map((t) => t.trim()).filter(Boolean);
+  }
+  
+  const runId = createScrapingRun({
+    status: 'in_progress',
+    profiles_scraped: 0,
+    profiles_added: 0,
+    filter_titles: filterTitlesArray ? JSON.stringify(filterTitlesArray) : undefined,
+    max_profiles: params.max
+  });
+  
+  console.log(`✅ Created scraping run ID: ${runId}`);
+  return { success: true, runId };
+}
+
+// Helper function to build CLI arguments
+function buildCliArguments(params: ScrapeRequestParams): string[] {
+  const args = ['src/cli.ts', 'leads:search'];
+  
+  args.push('--degree', params.degree);
+  
+  if (params.profile) {
+    args.push('--profile', params.profile);
+  } else if (params.titles) {
+    args.push('--titles', params.titles);
+  }
+  
+  args.push('--max', params.max.toString());
+  
+  if (params.startPage) {
+    args.push('--start-page', params.startPage.toString());
+  }
+  
+  if (params.resume) {
+    args.push('--resume', params.resume.toString());
+  }
+  
+  return args;
+}
+
+// Helper function to spawn CLI process with monitoring
+function spawnScrapingProcess(args: string[], cliPath: string, runId: number): { success: true; child: ChildProcess } | { success: false; error: string } {
+  console.log('🚀 Spawning CLI process...');
+  console.log('   Command: npx tsx', args.join(' '));
+  console.log('   CWD:', cliPath);
+  
+  let stderrOutput = '';
+  const child = spawn('npx', ['tsx', ...args], {
+    cwd: cliPath,
+    detached: true,
+    stdio: ['ignore', 'ignore', 'pipe'],
+    shell: process.platform === 'win32'
+  });
+  
+  if (!child.pid) {
+    return {
+      success: false,
+      error: 'Failed to spawn process - no PID assigned'
+    };
+  }
+  
+  console.log('✅ Process spawned with PID:', child.pid);
+  
+  // Update database with process ID
+  updateScrapingRun(runId, {
+    process_id: child.pid,
+    last_activity_at: new Date().toISOString()
+  });
+  
+  // Capture stderr for first 10 seconds to detect immediate failures
+  const stderrTimeout = setTimeout(() => {
+    if (child.stderr) {
+      child.stderr.removeAllListeners();
+    }
+    child.unref();
+  }, STDERR_CAPTURE_DURATION_MS);
+  
+  if (child.stderr) {
+    child.stderr.on('data', (data: Buffer) => {
+      stderrOutput += data.toString();
+    });
+  }
+  
+  // Monitor for immediate exit (crash within first 5 seconds)
+  let hasExited = false;
+  const exitHandler = (code: number | null): void => {
+    hasExited = true;
+    clearTimeout(stderrTimeout);
+    
+    const errorMessage = stderrOutput || `Process exited with code ${code}`;
+    console.error(`❌ Scraping process ${child.pid} exited immediately:`, errorMessage);
+    
+    updateScrapingRun(runId, {
+      status: 'error',
+      error_message: errorMessage,
+      completed_at: new Date().toISOString()
+    });
+  };
+  
+  child.on('exit', exitHandler);
+  
+  // Remove exit listener after 5 seconds if process is still running
+  setTimeout(() => {
+    if (!hasExited) {
+      child.removeListener('exit', exitHandler);
+      child.unref();
+    }
+  }, IMMEDIATE_EXIT_DETECTION_MS);
+  
+  return { success: true, child };
+}
+
 // POST /api/leads/start-scrape - Start a new lead scraping run
-router.post('/start-scrape', (req, res) => {
+router.post('/start-scrape', (req: Request, res: Response): void => {
+  console.log('🔍 Received start-scrape request');
+  console.log('   Body:', JSON.stringify(req.body, null, 2));
+  
   try {
-    const { degree = '1st', profile, titles, max = 50, startPage, resume } = req.body;
-    
-    // Validate degree
-    if (!['1st', '2nd', '3rd'].includes(degree)) {
-      return res.status(400).json({ error: 'Invalid connection degree. Must be 1st, 2nd, or 3rd.' });
+    // Validate request parameters
+    const validation = validateScrapeRequest(req.body);
+    if (!validation.valid) {
+      console.error('❌ Validation failed:', validation.error);
+      sendErrorResponse(res, 400, validation.error, validation.details);
+      return;
     }
     
-    // Validate that either profile or titles is provided (or neither for all)
-    if (profile && titles) {
-      return res.status(400).json({ error: 'Cannot use both profile and titles. Choose one.' });
-    }
+    const params = validation.params;
+    console.log('📝 Validated parameters:', params);
     
-    // Verify CLI exists before spawning
+    // Verify CLI source file exists
     const cliPath = join(__dirname, '..', '..', '..');
-    const cliFilePath = join(cliPath, 'dist', 'cli.js');
+    const cliFilePath = join(cliPath, 'src', 'cli.ts');
     
     if (!existsSync(cliFilePath)) {
-      return res.status(500).json({ 
-        error: 'CLI not built. Please run "npm run build" first.',
-        details: `Missing file: ${cliFilePath}`
-      });
+      console.error('❌ CLI source not found:', cliFilePath);
+      sendErrorResponse(res, 500, 'CLI source not found', `Missing file: ${cliFilePath}`);
+      return;
     }
     
-    // Create scraping run in database if not resuming
-    let runId: number;
-    if (resume) {
-      runId = parseInt(resume.toString(), 10);
-      const existingRun = getScrapingRun(runId);
-      if (!existingRun) {
-        return res.status(404).json({ error: `Scraping run ${runId} not found` });
-      }
-    } else {
-      // Determine filter titles for database record
-      let filterTitlesArray: string[] | undefined;
-      if (profile) {
-        // Profile will be resolved by CLI, we don't have access to LEAD_PROFILES here
-        // Store the profile name in a special format
-        filterTitlesArray = [`profile:${profile}`];
-      } else if (titles) {
-        filterTitlesArray = titles.split(',').map((t: string) => t.trim());
-      }
-      
-      runId = createScrapingRun({
-        status: 'in_progress',
-        profiles_scraped: 0,
-        profiles_added: 0,
-        filter_titles: filterTitlesArray ? JSON.stringify(filterTitlesArray) : undefined,
-        max_profiles: max
-      });
+    // Create or resume scraping run
+    const runResult = createOrResumeRun(params);
+    if (!runResult.success) {
+      sendErrorResponse(res, runResult.statusCode, runResult.error);
+      return;
     }
+    
+    const runId = runResult.runId;
     
     // Build CLI command arguments
-    const args = ['dist/cli.js', 'leads:search'];
+    const args = buildCliArguments(params);
     
-    // Add degree
-    args.push('--degree', degree);
-    
-    // Add profile or titles
-    if (profile) {
-      args.push('--profile', profile);
-    } else if (titles) {
-      args.push('--titles', titles);
+    // Spawn the CLI process
+    const spawnResult = spawnScrapingProcess(args, cliPath, runId);
+    if (!spawnResult.success) {
+      console.error('❌ Failed to spawn process:', spawnResult.error);
+      sendErrorResponse(res, 500, 'Failed to spawn scraping process', spawnResult.error);
+      return;
     }
     
-    // Add max
-    args.push('--max', max.toString());
+    const child = spawnResult.child;
     
-    // Add optional parameters
-    if (startPage) {
-      args.push('--start-page', startPage.toString());
-    }
-    
-    if (resume) {
-      args.push('--resume', resume.toString());
-    }
-    
-    // Spawn the CLI process with stderr capture for error detection
-    let stderrOutput = '';
-    const child = spawn('node', args, {
-      cwd: cliPath,
-      detached: true,
-      stdio: ['ignore', 'ignore', 'pipe'], // Capture stderr only
-      shell: process.platform === 'win32' // Use shell on Windows
-    });
-    
-    // Store process ID in database
-    updateScrapingRun(runId, {
-      process_id: child.pid,
-      last_activity_at: new Date().toISOString()
-    });
-    
-    // Capture stderr for first 10 seconds to detect immediate failures
-    const stderrTimeout = setTimeout(() => {
-      if (child.stderr) {
-        child.stderr.removeAllListeners();
-      }
-      // After 10 seconds, detach stderr and allow process to run independently
-      child.unref();
-    }, 10000);
-    
-    if (child.stderr) {
-      child.stderr.on('data', (data) => {
-        stderrOutput += data.toString();
-      });
-    }
-    
-    // Monitor for immediate exit (crash within first 5 seconds)
-    let hasExited = false;
-    const exitHandler = (code: number | null) => {
-      hasExited = true;
-      clearTimeout(stderrTimeout);
-      
-      const errorMessage = stderrOutput || `Process exited with code ${code}`;
-      console.error(`❌ Scraping process ${child.pid} exited immediately:`, errorMessage);
-      
-      // Update run status to error
-      updateScrapingRun(runId, {
-        status: 'error',
-        error_message: errorMessage,
-        completed_at: new Date().toISOString()
-      });
-    };
-    
-    child.on('exit', exitHandler);
-    
-    // Remove exit listener after 5 seconds if process is still running
-    setTimeout(() => {
-      if (!hasExited) {
-        child.removeListener('exit', exitHandler);
-        child.unref(); // Allow parent to exit
-      }
-    }, 5000);
-    
-    // Log the spawned process
+    // Log success
     console.log(`🚀 Started lead scraping process (PID: ${child.pid})`);
-    console.log(`   Connection Degree: ${degree}`);
+    console.log(`   Connection Degree: ${params.degree}`);
     console.log(`   Run ID: ${runId}`);
-    if (profile) console.log(`   Profile: ${profile}`);
-    if (titles) console.log(`   Titles: ${titles}`);
-    console.log(`   Max: ${max}`);
+    if (params.profile) console.log(`   Profile: ${params.profile}`);
+    if (params.titles) console.log(`   Titles: ${params.titles}`);
+    console.log(`   Max: ${params.max}`);
     
     res.json({
       success: true,
       runId,
-      message: `Lead scraping started in the background with connection degree: ${degree}`,
+      message: `Lead scraping started in the background with connection degree: ${params.degree}`,
       pid: child.pid
     });
   } catch (error) {
-    console.error('Error starting scrape:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    res.status(500).json({ 
-      error: 'Failed to start scraping process',
-      details: errorMessage
-    });
+    console.error('❌ Error starting scrape:');
+    console.error('   Error type:', error?.constructor?.name);
+    console.error('   Error message:', error instanceof Error ? error.message : String(error));
+    console.error('   Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
+    
+    sendErrorResponse(
+      res,
+      500,
+      'Failed to start scraping process',
+      error instanceof Error ? error.message : 'Unknown error'
+    );
   }
 });
 
 // POST /api/leads/runs/:id/stop - Stop a scraping run
-router.post('/runs/:id/stop', (req, res) => {
+router.post('/runs/:id/stop', (req: Request, res: Response): void => {
   try {
-    const runId = parseInt(req.params.id, 10);
-    const run = getScrapingRun(runId);
+    const runId = parseIntegerParameter(req.params.id, 0);
+    if (runId === 0) {
+      sendErrorResponse(res, 400, 'Invalid run ID');
+      return;
+    }
     
+    const run = getScrapingRun(runId);
     if (!run) {
-      return res.status(404).json({ error: 'Scraping run not found' });
+      sendErrorResponse(res, 404, 'Scraping run not found');
+      return;
     }
     
     if (run.status !== 'in_progress') {
-      return res.status(400).json({ error: 'Run is not in progress' });
+      sendErrorResponse(res, 400, 'Run is not in progress');
+      return;
     }
     
     // Update run status to stopped
@@ -417,7 +609,7 @@ router.post('/runs/:id/stop', (req, res) => {
     });
   } catch (error) {
     console.error('Error stopping scrape:', error);
-    res.status(500).json({ error: 'Failed to stop scraping run' });
+    sendErrorResponse(res, 500, 'Failed to stop scraping run', error instanceof Error ? error.message : undefined);
   }
 });
 
