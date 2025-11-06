@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { LeadDetail } from './LeadDetail';
@@ -72,10 +72,25 @@ export function LeadsList() {
   const [profileFilter, setProfileFilter] = useState<string>('');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showRuns, setShowRuns] = useState(false);
-  const [showCLIReference, setShowCLIReference] = useState(false);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
   const [showScrapeModal, setShowScrapeModal] = useState(false);
   const [isStartingScrape, setIsStartingScrape] = useState(false);
+  
+  // Use ref for synchronous lock (protects against React StrictMode double-invoke)
+  const isStartingScrapeRef = useRef(false);
+
+  // Fetch active scraping runs to disable "Get Leads" button
+  const { data: activeRuns = [] } = useQuery({
+    queryKey: ['active-scraping-runs'],
+    queryFn: async () => {
+      const response = await api.get('/leads/runs/active');
+      return response.data;
+    },
+    refetchInterval: 2000,
+    staleTime: 0
+  });
+
+  const hasActiveScraping = activeRuns.length > 0;
 
   // Fetch leads
   const { data: leadsData, isLoading: leadsLoading, refetch: refetchLeads } = useQuery({
@@ -227,11 +242,14 @@ export function LeadsList() {
   };
 
   const handleStartScraping = async (config: ScrapeConfig) => {
-    // Prevent duplicate API calls
-    if (isStartingScrape) {
-      console.log('Already starting a scraping run, ignoring duplicate request');
+    // Prevent duplicate API calls with synchronous ref check
+    if (isStartingScrapeRef.current || isStartingScrape) {
+      console.log('Already starting a scraping run, ignoring duplicate request (ref or state check)');
       return;
     }
+    
+    // Set synchronous lock IMMEDIATELY
+    isStartingScrapeRef.current = true;
     
     try {
       setIsStartingScrape(true);
@@ -256,6 +274,7 @@ export function LeadsList() {
       throw new Error(fullMessage);
     } finally {
       setIsStartingScrape(false);
+      isStartingScrapeRef.current = false; // Reset lock so user can retry
     }
   };
 
@@ -321,128 +340,18 @@ export function LeadsList() {
       <div className="flex justify-end">
         <button
           onClick={() => setShowScrapeModal(true)}
-          className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
+          disabled={hasActiveScraping}
+          className={`flex items-center gap-2 px-6 py-3 rounded-lg transition-colors shadow-md font-semibold ${
+            hasActiveScraping
+              ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+          }`}
+          title={hasActiveScraping ? 'A scraping run is already in progress' : 'Start a new lead scraping run'}
         >
           <Icon icon="people" size={24} />
-          <span className="font-semibold">Get Leads</span>
+          <span>Get Leads</span>
         </button>
       </div>
-
-      {/* CLI Reference */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg shadow">
-        <button
-          onClick={() => setShowCLIReference(!showCLIReference)}
-          className="w-full px-4 py-3 flex items-center justify-between hover:bg-blue-100 transition-colors"
-        >
-          <div className="flex items-center gap-2">
-            <Icon icon="terminal" size={20} className="text-blue-600" />
-            <span className="font-semibold text-blue-900">CLI Reference - Lead Scraping Commands</span>
-          </div>
-          <Icon 
-            icon={showCLIReference ? "expand_less" : "expand_more"} 
-            size={24} 
-            className="text-blue-600" 
-          />
-        </button>
-        
-        {showCLIReference && (
-          <div className="px-4 pb-4 space-y-4">
-            {/* Profiles Section */}
-            <div>
-              <h4 className="text-sm font-semibold text-gray-900 mb-2">Lead Profiles (Recommended)</h4>
-              <div className="space-y-2 text-sm">
-                <div className="bg-white rounded p-3 border border-blue-100">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <span className="font-mono text-blue-600">--profile chiefs</span>
-                      <p className="text-gray-600 text-xs mt-1">C-Suite & Leadership (CTO, CEO, VP, General Manager)</p>
-                    </div>
-                    <code className="text-xs bg-gray-100 px-2 py-1 rounded whitespace-nowrap">npm run leads:search -- --profile chiefs</code>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded p-3 border border-blue-100">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <span className="font-mono text-blue-600">--profile founders</span>
-                      <p className="text-gray-600 text-xs mt-1">Founders & Entrepreneurs</p>
-                    </div>
-                    <code className="text-xs bg-gray-100 px-2 py-1 rounded whitespace-nowrap">npm run leads:search -- --profile founders</code>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded p-3 border border-blue-100">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <span className="font-mono text-blue-600">--profile directors</span>
-                      <p className="text-gray-600 text-xs mt-1">Directors & Senior Management</p>
-                    </div>
-                    <code className="text-xs bg-gray-100 px-2 py-1 rounded whitespace-nowrap">npm run leads:search -- --profile directors</code>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded p-3 border border-blue-100">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <span className="font-mono text-blue-600">--profile techLeads</span>
-                      <p className="text-gray-600 text-xs mt-1">Tech Leads & Architects</p>
-                    </div>
-                    <code className="text-xs bg-gray-100 px-2 py-1 rounded whitespace-nowrap">npm run leads:search -- --profile techLeads</code>
-                  </div>
-                </div>
-
-                <details className="text-xs text-gray-600">
-                  <summary className="cursor-pointer hover:text-gray-900">More profiles...</summary>
-                  <div className="mt-2 space-y-2 pl-2">
-                    <div><span className="font-mono text-blue-600">--profile productLeads</span> - Product Management</div>
-                    <div><span className="font-mono text-blue-600">--profile recruiters</span> - Recruiters & Talent Acquisition</div>
-                    <div><span className="font-mono text-blue-600">--profile sales</span> - Sales & Business Development</div>
-                    <div><span className="font-mono text-blue-600">--profile consultants</span> - Consultants & Advisors</div>
-                  </div>
-                </details>
-              </div>
-            </div>
-
-            {/* Common Options */}
-            <div>
-              <h4 className="text-sm font-semibold text-gray-900 mb-2">Common Options</h4>
-              <div className="space-y-2 text-sm">
-                <div className="bg-white rounded p-2 border border-gray-200">
-                  <code className="text-xs">npm run leads:search -- --profile chiefs --max 100</code>
-                  <p className="text-gray-600 text-xs mt-1">Limit to 100 profiles (default: 1000)</p>
-                </div>
-
-                <div className="bg-white rounded p-2 border border-gray-200">
-                  <code className="text-xs">npm run leads:search -- --titles "CTO,VP Engineering"</code>
-                  <p className="text-gray-600 text-xs mt-1">Custom titles (cannot use with --profile)</p>
-                </div>
-
-                <div className="bg-white rounded p-2 border border-gray-200">
-                  <code className="text-xs">npm run leads:search -- --start-page 5</code>
-                  <p className="text-gray-600 text-xs mt-1">Skip earlier pages, start from page 5</p>
-                </div>
-
-                <div className="bg-white rounded p-2 border border-gray-200">
-                  <code className="text-xs">npm run leads:search -- --resume 123</code>
-                  <p className="text-gray-600 text-xs mt-1">Resume interrupted run by ID</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Tips */}
-            <div className="bg-blue-100 rounded p-3 text-xs">
-              <p className="font-semibold text-blue-900 mb-1">Tips:</p>
-              <ul className="text-blue-800 space-y-1 list-disc list-inside">
-                <li>Default limit is 50 profiles. Use <code className="bg-white px-1 rounded">--max</code> to change</li>
-                <li>Cannot use both <code className="bg-white px-1 rounded">--profile</code> and <code className="bg-white px-1 rounded">--titles</code> together</li>
-                <li>Run <code className="bg-white px-1 rounded">npm run leads:search -- --help</code> for all options</li>
-                <li>Check "Utilities" section at the bottom to view scraping runs and manage data quality</li>
-              </ul>
-            </div>
-          </div>
-        )}
-      </div>
-
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Icon } from './Icon';
 import { LEAD_PROFILES } from '../../../ai/lead-profiles';
 
@@ -23,33 +23,42 @@ export function LeadScrapeModal({ onClose, onStart }: LeadScrapeModalProps) {
   const [resume, setResume] = useState<string>('');
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<string>('');
+  
+  // Use ref for synchronous lock (protects against React StrictMode double-invoke)
+  const isSubmittingRef = useRef(false);
 
   const profileKeys = Object.keys(LEAD_PROFILES);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Prevent double submission
-    if (isStarting) {
-      console.log('Already starting, ignoring duplicate submission');
+    // Prevent double submission with synchronous ref check
+    if (isSubmittingRef.current || isStarting) {
+      console.log('Already starting, ignoring duplicate submission (ref or state check)');
       return;
     }
+    
+    // Set synchronous lock IMMEDIATELY
+    isSubmittingRef.current = true;
     
     setError('');
     
     // Validation
     if (max <= 0) {
       setError('Max profiles must be greater than 0');
+      isSubmittingRef.current = false; // Reset lock on validation error
       return;
     }
     
     if (startPage && parseInt(startPage) <= 0) {
       setError('Start page must be greater than 0');
+      isSubmittingRef.current = false; // Reset lock on validation error
       return;
     }
     
     if (resume && parseInt(resume) <= 0) {
       setError('Resume run ID must be greater than 0');
+      isSubmittingRef.current = false; // Reset lock on validation error
       return;
     }
 
@@ -64,10 +73,12 @@ export function LeadScrapeModal({ onClose, onStart }: LeadScrapeModalProps) {
     try {
       setIsStarting(true);
       await onStart(config);
+      // Success - modal will close, no need to reset ref
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to start scraping');
       setIsStarting(false);
+      isSubmittingRef.current = false; // Reset lock on error so user can retry
     }
   };
 

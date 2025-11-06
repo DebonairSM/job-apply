@@ -77,7 +77,7 @@ www.vsol.software`;
 
 const REFERRAL_SALT = 'VSOL';
 const REFERRAL_BASE_URL = 'https://vsol.software/referral';
-const SPREADSHEET_AUTOMATION_URL = 'https://vsol.software/agentic#featured-product';
+const WORK_AUTOMATION_URL = 'https://vsol.software/agentic#featured-product';
 const BOOKING_URL = 'https://calendly.com/vsol-software/discovery';
 
 // =============================================================================
@@ -102,21 +102,26 @@ export function buildOutreachEmail(
 }
 
 /**
- * Build chiefs template (C-level executives, spreadsheet automation focus)
+ * Build chiefs template (C-level executives, work automation focus)
  */
 function buildChiefsEmail(ctx: EmailContext): EmailOutput {
   const { lead } = ctx;
   
   // Subject line
-  const subject = `Quick question about ${lead.companyName}'s spreadsheet workflows`;
+  const subject = `Quick question about ${lead.companyName}'s workflow automation`;
   
   // Opening - problem framing
   const opening = buildProblemFraming(lead, 'chiefs');
   
-  // Product pitch with natural bridge
-  const pitch = `That's why we built our Spreadsheet Automation Platform.
+  // Personal credibility statement
+  const credibility = `It's incredibly satisfying to see your entire business run on automation. I just finished automating mine in a week — and even added a few "nice-to-haves" along the way.
 
-We transform manual spreadsheet workflows into automated systems. During discovery calls, we analyze your current processes and design streamlined solutions. You see AI-generated interactive mockups in real time. Same-day working demonstrations show exactly how the system will work.
+Allow me to show you how we can do the same for yours.`;
+  
+  // Product pitch with natural bridge
+  const pitch = `That's precisely where our Work Automation Platform brings value.
+
+We specialize in transforming manual workflows — like those currently handled through spreadsheets, todo lists, manual calendars, and planners — into fully automated systems. During a brief discovery session, we analyze your current processes and present AI-generated interactive mockups in real time, followed by a same-day working demonstration of how the system would operate in your environment.
 
 Every engagement includes workflow documentation, ROI analysis, and deployment-ready prototypes.
 
@@ -124,7 +129,7 @@ Our approach uses AI-assisted development to create tailored solutions. They're 
 
 Over time, we train an internal technical leader to build and test new features in a gated CI/CD pipeline.
 
-Learn more about the Spreadsheet Automation Platform:
+Learn more about the Work Automation Platform:
 ${ctx.productUrl}`;
   
   // Call to action (softened, dual options)
@@ -137,6 +142,8 @@ ${ctx.calendlyUrl}`;
   const bodyText = `Hello ${lead.firstName},
 
 ${opening}
+
+${credibility}
 
 ${pitch}
 
@@ -191,7 +198,7 @@ ${SIGNATURE}`;
 
 /**
  * Build problem framing paragraph based on available lead data
- * Uses pain point if available, falls back to role-appropriate generic statement
+ * Uses pain point if available, falls back to role-appropriate generic statement with professional opener
  */
 function buildProblemFraming(lead: LeadProfile, template: 'chiefs' | 'generic'): string {
   // If we have a specific pain point, use it directly
@@ -199,27 +206,51 @@ function buildProblemFraming(lead: LeadProfile, template: 'chiefs' | 'generic'):
     return lead.primaryPainPoint;
   }
   
-  // Otherwise, generate role-appropriate pain point
+  // Otherwise, generate role-appropriate pain point with professional opener
   const roleType = categorizeRole(lead.roleTitle);
+  const opener = generateProfessionalOpener(lead.roleTitle, lead.companyName);
   
   if (template === 'chiefs') {
-    // Spreadsheet automation focus for C-level
+    // Workflow automation focus for C-level (not just spreadsheets)
     if (roleType === 'executive') {
-      return `Teams leading digital transformation often struggle to keep manual spreadsheet workflows aligned with fast-moving business data. Critical decisions get delayed while staff reconcile inconsistent files.`;
+      return `${opener}, you understand how manual workflows — spreadsheets, todo lists, calendars, and planners — can slow critical decision-making. When teams spend time on manual coordination instead of strategic work, initiatives lose momentum.`;
     } else if (roleType === 'operations') {
-      return `Operations teams rely heavily on spreadsheets to track workflows, but manual updates create bottlenecks. Data gets out of sync, errors multiply, and stakeholders lose confidence in reports.`;
+      return `${opener}, you've likely seen how manual workflows create bottlenecks. Spreadsheet updates, task tracking, and calendar coordination consume valuable time, while errors multiply and stakeholders lose confidence in the data.`;
     } else {
-      return `Many organizations still run core workflows through spreadsheets. Manual updates slow everything down, create errors, and make it hard to get reliable insights when you need them.`;
+      return `${opener}, you know how manual workflows — from spreadsheets to task lists — can impact operational efficiency. Updates take time, errors accumulate, and getting reliable insights becomes increasingly difficult.`;
     }
   } else {
     // Generic workflow automation
     if (roleType === 'executive') {
-      return `Organizations often struggle to automate workflows that have evolved organically over time. Teams spend hours on manual tasks that could be automated, but custom development feels too expensive or slow.`;
+      return `${opener}, you're likely aware of workflows that evolved organically but now resist automation. Custom development feels expensive or slow, yet teams continue spending hours on manual tasks.`;
     } else if (roleType === 'technical') {
-      return `Technical teams see inefficiencies in manual workflows but lack bandwidth to build custom automation. Traditional development is too slow, and low-code platforms lack the flexibility needed for complex processes.`;
+      return `${opener}, you've probably identified inefficiencies in manual workflows but lack bandwidth to build automation. Traditional development is too slow, and low-code platforms lack the flexibility for complex processes.`;
     } else {
-      return `Many workflows still depend on manual steps that waste time and create errors. Automating them seems expensive or complicated, so teams keep doing things the old way.`;
+      return `${opener}, you understand how manual workflows create friction. Automation seems expensive or complicated, so teams continue with time-consuming manual steps.`;
     }
+  }
+}
+
+/**
+ * Generate professional opener with natural variation
+ * Varies the construction to avoid repetition across emails while maintaining professionalism
+ */
+function generateProfessionalOpener(roleTitle: string, companyName: string): string {
+  // Use hash of company name to consistently vary opener style per company (not random each time)
+  const hash = companyName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const variation = hash % 4;
+  
+  switch (variation) {
+    case 0:
+      return `Given your role as ${roleTitle} at ${companyName}`;
+    case 1:
+      return `In your capacity as ${roleTitle} at ${companyName}`;
+    case 2:
+      return `As ${roleTitle} at ${companyName}`;
+    case 3:
+      return `From your experience as ${roleTitle} at ${companyName}`;
+    default:
+      return `Given your role as ${roleTitle} at ${companyName}`;
   }
 }
 
@@ -286,8 +317,8 @@ export function generateOutreachEmail(lead: Lead, includeReferral?: boolean, pro
     
     const ctx: EmailContext = {
       lead: leadProfile,
-      productName: profile === 'chiefs' ? 'Spreadsheet Automation Platform' : 'Workflow Automation Platform',
-      productUrl: SPREADSHEET_AUTOMATION_URL,
+      productName: 'Work Automation Platform',
+      productUrl: WORK_AUTOMATION_URL,
       calendlyUrl: BOOKING_URL
     };
     
@@ -379,7 +410,7 @@ function addReferralSection(body: string, referralLink: string): string {
   const referralSection = `P.S. If you're not the right person for this conversation, I'd appreciate a referral! Use this link to refer someone who might benefit:
 ${referralLink}
 
-Anyone you refer who becomes a client will receive my thanks and recognition.`;
+Referrals mean a lot to me — I offer a commission for every introduction that turns into a project.`;
   
   // Insert referral section before signature
   const signatureIndex = body.indexOf(SIGNATURE);
@@ -439,9 +470,9 @@ ${closing}`;
  */
 function generateChiefsSubject(lead: Lead): string {
   if (lead.company) {
-    return `Quick question about ${lead.company}'s spreadsheet workflows`;
+    return `Quick question about ${lead.company}'s workflow automation`;
   }
-  return `Quick question about spreadsheet workflow automation`;
+  return `Quick question about workflow automation`;
 }
 
 /**
@@ -452,14 +483,18 @@ function generateChiefsBody(lead: Lead, firstName: string): string {
   
   const personalizedContext = generatePersonalizedContext(lead);
   
-  const mainPitch = `I'd like to share our **Spreadsheet Automation Platform** with you.
+  const credibility = `It's incredibly satisfying to see your entire business run on automation. I just finished automating mine in a week — and even added a few "nice-to-haves" along the way.
 
-We transform manual spreadsheet workflows into automated systems with **AI-generated interactive mockups** delivered during discovery calls. We analyze your current processes, design streamlined solutions, and provide **working demonstrations same-day**. Complete with **workflow documentation, ROI analysis, and deployment-ready prototypes**.
+Allow me to show you how we can do the same for yours.`;
+  
+  const mainPitch = `I'd like to share our **Work Automation Platform** with you.
+
+We transform manual workflows — like those currently handled through spreadsheets, todo lists, manual calendars, and planners — into fully automated systems with **AI-generated interactive mockups** delivered during discovery calls. We analyze your current processes, design streamlined solutions, and provide **working demonstrations same-day**. Complete with **workflow documentation, ROI analysis, and deployment-ready prototypes**.
 
 Our approach uses AI-assisted development to create tailored, secure, open-source, **local-first** solutions that can **cut costs by up to 100x** while giving organizations full control of their data. Over time, we also train an internal technical leader to build and test proof-of-concept features in a gated CI/CD pipeline.
 
-Learn more about the Spreadsheet Automation Platform:
-${SPREADSHEET_AUTOMATION_URL}`;
+Learn more about the Work Automation Platform:
+${WORK_AUTOMATION_URL}`;
   
   const closing = `Would you have time this week to discuss how this could benefit ${lead.company || 'your organization'}?
 
@@ -473,6 +508,8 @@ ${SIGNATURE}`;
   return `${intro}
 
 ${personalizedContext}
+
+${credibility}
 
 ${mainPitch}
 
@@ -488,37 +525,36 @@ function generatePersonalizedContext(lead: Lead): string {
     return lead.background;
   }
   
-  // Fallback to old logic if background hasn't been generated yet
-  // Build the context sentence
-  let contextSentence = 'Given your background';
-  
-  // Add role and company
+  // Fallback: use professional opener with role/company
   if (lead.title && lead.company) {
-    contextSentence += ` as ${lead.title} at ${lead.company}`;
-  } else if (lead.title) {
-    contextSentence += ` as ${lead.title}`;
-  } else if (lead.company) {
-    contextSentence += ` at ${lead.company}`;
+    const leadProfile: LeadProfile = {
+      firstName: extractFirstName(lead.name),
+      roleTitle: lead.title,
+      companyName: lead.company
+    };
+    const opener = generateProfessionalOpener(lead.title, lead.company);
+    
+    // Add relevant experience context if available
+    const relevantExperience = extractRelevantExperience(lead.about);
+    if (relevantExperience) {
+      return `${opener}, ${relevantExperience}, I thought you might be interested in this opportunity.`;
+    }
+    
+    // Add worked together context if available
+    if (lead.worked_together) {
+      return `${opener}, and having worked together at ${lead.worked_together}, I thought you might be interested in this opportunity.`;
+    }
+    
+    return `${opener}, I thought you might be interested in this opportunity.`;
   }
   
-  // Add worked together context if available
-  if (lead.worked_together) {
-    contextSentence += `, and our time working together at ${lead.worked_together}`;
-  }
-  
-  // Add relevant experience from about section if available
-  const relevantExperience = extractRelevantExperience(lead.about);
-  if (relevantExperience) {
-    contextSentence += `, ${relevantExperience}`;
-  }
-  
-  contextSentence += ", I thought you might be interested in this opportunity.";
-  
-  return contextSentence;
+  // Final fallback for incomplete data
+  return "I came across your profile and thought you might be interested in this opportunity.";
 }
 
 /**
  * Extract relevant experience keywords from about section
+ * Returns phrase fragment that works with professional opener
  */
 function extractRelevantExperience(about?: string): string | null {
   if (!about) return null;
@@ -543,13 +579,15 @@ function extractRelevantExperience(about?: string): string | null {
   const found = relevantKeywords.filter(keyword => aboutLower.includes(keyword));
   
   if (found.length >= 2) {
-    return 'and your passion for innovation and scalability';
+    return 'given your focus on innovation and scalability';
   } else if (found.includes('entrepreneur') || found.includes('founder')) {
-    return 'and your entrepreneurial experience';
+    return 'given your entrepreneurial background';
   } else if (found.includes('leadership')) {
-    return 'and your leadership experience';
+    return 'given your leadership experience';
   } else if (found.includes('technical')) {
-    return 'and your technical expertise';
+    return 'given your technical expertise';
+  } else if (found.includes('automation') || found.includes('workflow')) {
+    return 'given your experience with process optimization';
   }
   
   return null;

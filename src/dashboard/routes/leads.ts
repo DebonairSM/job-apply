@@ -535,6 +535,55 @@ router.post('/start-scrape', (req: Request, res: Response): void => {
     
     const runId = runResult.runId;
     
+    // Double-check for race condition: if we just created a run (not resuming),
+    // verify there are no OTHER active runs that started between our first check
+    // and creating this run
+    if (!params.resume) {
+      const activeRuns = getActiveScrapingRuns();
+      const otherActiveRuns = activeRuns.filter(run => run.id !== runId);
+      
+      if (otherActiveRuns.length > 0) {
+        console.error('❌ Race condition detected: another scraping run started simultaneously');
+        console.error(`   This run ID: ${runId}`);
+        console.error(`   Other active run ID(s): ${otherActiveRuns.map(r => r.id).join(', ')}`);
+        
+        // Let the FIRST created run (lowest ID) win, cancel the others
+        // This ensures one run always succeeds in a race condition
+        const lowestActiveRunId = Math.min(runId, ...otherActiveRuns.map(r => r.id));
+        
+        if (runId !== lowestActiveRunId) {
+          console.error(`   ❌ This run (ID: ${runId}) was not first, cancelling it`);
+          
+          // Mark this run as cancelled since we detected a race condition
+          updateScrapingRun(runId, {
+            status: 'stopped',
+            completed_at: new Date().toISOString(),
+            error_message: 'Cancelled due to concurrent scraping run'
+          });
+          
+          sendErrorResponse(
+            res, 
+            409, 
+            'A scraping run is already in progress', 
+            `Run #${lowestActiveRunId} started simultaneously and will continue. Please wait for it to complete.`
+          );
+          return;
+        } else {
+          // This run has the lowest ID, so it wins. Cancel the others.
+          console.log(`   ✅ This run (ID: ${runId}) was first, proceeding. Cancelling other runs.`);
+          
+          for (const otherRun of otherActiveRuns) {
+            console.log(`   ❌ Cancelling run ID: ${otherRun.id}`);
+            updateScrapingRun(otherRun.id, {
+              status: 'stopped',
+              completed_at: new Date().toISOString(),
+              error_message: 'Cancelled due to concurrent scraping run with lower ID'
+            });
+          }
+        }
+      }
+    }
+    
     // Build CLI command arguments
     const args = buildCliArguments(params);
     

@@ -524,9 +524,16 @@ export async function scrapeConnections(
           // Apply title filter if specified
           if (options.filterTitles && options.filterTitles.length > 0 && title) {
             const titleLower = title.toLowerCase();
-            const matchesFilter = options.filterTitles.some(filter =>
-              titleLower.includes(filter.toLowerCase())
-            );
+            const matchesFilter = options.filterTitles.some(filter => {
+              const filterLower = filter.toLowerCase();
+              
+              // Use word boundary matching to ensure complete word/phrase matches
+              // This prevents false positives like "Senior Recruitment Consultant" matching "Senior Vice President"
+              // Escape special regex characters in the filter string
+              const escapedFilter = filterLower.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+              const regex = new RegExp(`\\b${escapedFilter}\\b`, 'i');
+              return regex.test(title);
+            });
 
             if (!matchesFilter) {
               console.log(`   ⏭️  Skipping ${name}: title "${title}" doesn't match filter`);
