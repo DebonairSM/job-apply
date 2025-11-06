@@ -511,7 +511,7 @@ export function initDb(): void {
   }
   
   try {
-    database.exec(`ALTER TABLE lead_scraping_runs ADD COLUMN last_activity_at TEXT DEFAULT CURRENT_TIMESTAMP`);
+    database.exec(`ALTER TABLE lead_scraping_runs ADD COLUMN last_activity_at TEXT`);
     console.log('   ✓ Added last_activity_at column to lead_scraping_runs');
   } catch (e) {
     if (e instanceof Error && !e.message.includes('duplicate column name')) {
