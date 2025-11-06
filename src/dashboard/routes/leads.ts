@@ -499,6 +499,23 @@ router.post('/start-scrape', (req: Request, res: Response): void => {
     const params = validation.params;
     console.log('📝 Validated parameters:', params);
     
+    // Check if there's already an active scraping run (prevent duplicates)
+    // Skip this check if resuming an existing run
+    if (!params.resume) {
+      const activeRuns = getActiveScrapingRuns();
+      if (activeRuns.length > 0) {
+        console.error('❌ Cannot start scrape: there is already an active scraping run in progress');
+        console.error(`   Active run ID(s): ${activeRuns.map(r => r.id).join(', ')}`);
+        sendErrorResponse(
+          res, 
+          409, 
+          'A scraping run is already in progress', 
+          `Please wait for run #${activeRuns[0].id} to complete or stop it before starting a new one`
+        );
+        return;
+      }
+    }
+    
     // Verify CLI source file exists
     const cliPath = join(__dirname, '..', '..', '..');
     const cliFilePath = join(cliPath, 'src', 'cli.ts');

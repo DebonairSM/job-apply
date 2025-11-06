@@ -243,9 +243,17 @@ export function LeadsList() {
       alert(`Scraping started successfully!\n\nRun ID: ${result.runId}\n${result.message}\n\nCheck the active scraping status above for progress.`);
       
       // Modal will be closed by the modal component
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error starting scrape:', error);
-      throw new Error('Failed to start scraping. Check the console for details.');
+      
+      // Extract error message from API response
+      const errorMessage = error?.response?.data?.error || error?.message || 'Failed to start scraping';
+      const errorDetails = error?.response?.data?.details;
+      
+      // Include details in the error message if available
+      const fullMessage = errorDetails ? `${errorMessage}. ${errorDetails}` : errorMessage;
+      
+      throw new Error(fullMessage);
     } finally {
       setIsStartingScrape(false);
     }

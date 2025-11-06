@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Icon } from './Icon';
-import { EmailContent, createMailtoLink, generateOutreachEmail } from '../../../ai/email-templates';
+import { EmailContent, createMailtoLink, generateOutreachEmail, generateHtmlEmail } from '../../../ai/email-templates';
 
 interface Lead {
   id: string;

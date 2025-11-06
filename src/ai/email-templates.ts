@@ -583,8 +583,10 @@ export function generateHtmlEmail(lead: Lead, includeReferral?: boolean): string
       return `___PROTECTED_LINK_${protectedLinks.length - 1}___`;
     });
     
-    // Now convert plain URLs to links
+    // Now convert plain URLs to links (including www. URLs)
     htmlPara = htmlPara.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color: #0066cc; text-decoration: underline;">$1</a>');
+    // Also convert www. URLs (add https:// to the href but keep display text as-is)
+    htmlPara = htmlPara.replace(/\b(www\.[^\s<]+)/g, '<a href="https://$1" style="color: #0066cc; text-decoration: underline;">$1</a>');
     
     // Convert email addresses to mailto links
     htmlPara = htmlPara.replace(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g, '<a href="mailto:$1" style="color: #0066cc; text-decoration: underline;">$1</a>');

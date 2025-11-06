@@ -1,8 +1,10 @@
 import { loadTechnicalConfig } from '../lib/session.js';
+import { generateWithOllama, isOllamaHealthy } from './ollama-client.js';
 
 /**
  * Generate a professional email-friendly background description from a lead's title and about section
  * Uses a smarter model (qwen2.5:14b) for better writing quality
+ * Includes timeout and retry logic for reliability
  */
 export async function generateLeadBackground(title: string, about?: string): Promise<string> {
   const config = loadTechnicalConfig();
@@ -70,35 +72,26 @@ Your response must be ONLY the sentence, with NO preamble or labels:`;
     return "Given your background and expertise, I thought you might be interested in this opportunity.";
   }
 
+  // Check if Ollama is healthy before attempting generation
+  const isHealthy = await isOllamaHealthy();
+  if (!isHealthy) {
+    console.warn('Ollama is not available, using fallback template immediately');
+    if (title) {
+      const titleWords = title.split(/[|,]/).map(s => s.trim());
+      const mainRole = titleWords[0] || title;
+      return `Given your background as ${mainRole}, I thought you might be interested in this.`;
+    }
+    return "Given your background and expertise, I thought you might be interested in this opportunity.";
+  }
+
   try {
-    // Call Ollama API with the background generation model
-    const response = await fetch(`${config.ollamaBaseUrl}/api/generate`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: config.backgroundGenModel,
-        prompt: prompt,
-        stream: false,
-        options: {
-          temperature: 0.7, // Higher temperature for more natural writing
-          top_p: 0.9,
-          top_k: 50,
-        },
-      }),
+    // Generate using Ollama with automatic retry and timeout handling
+    const generated = await generateWithOllama(prompt, {
+      model: config.backgroundGenModel,
+      temperature: 0.7,
+      top_p: 0.9,
+      top_k: 50,
     });
-
-    if (!response.ok) {
-      throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const generated = data.response?.trim() || '';
-
-    if (!generated) {
-      throw new Error('Empty response from LLM');
-    }
 
     // Clean up the response - remove any markdown formatting or extra quotes
     let cleaned = generated
@@ -119,17 +112,17 @@ Your response must be ONLY the sentence, with NO preamble or labels:`;
 
     return cleaned;
   } catch (error) {
-    console.error('Error generating background:', error);
-    
-    // Fallback to a simple template based on title
+    // Ollama failed after all retries, use fallback template
+    console.error('Failed to generate background with Ollama, using fallback template');
+    console.error('Error:', error);
+
     if (title) {
       // Extract key words from title (simple heuristic)
       const titleWords = title.split(/[|,]/).map(s => s.trim());
       const mainRole = titleWords[0] || title;
       return `Given your background as ${mainRole}, I thought you might be interested in this.`;
     }
-    
+
     return "Given your background and expertise, I thought you might be interested in this opportunity.";
   }
 }
-
