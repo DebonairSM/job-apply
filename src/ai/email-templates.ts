@@ -562,28 +562,56 @@ function extractRelevantExperience(about?: string): string | null {
 /**
  * Generate HTML-formatted email for rich clipboard copy
  * Converts markdown-style formatting to HTML: **bold**, URLs to links
+ * Optimized for email clients like Outlook, Gmail, etc.
  */
 export function generateHtmlEmail(lead: Lead, includeReferral?: boolean): string {
   const email = generateOutreachEmail(lead, includeReferral);
   
-  // Convert email body to HTML
-  let htmlBody = email.body
-    // Convert **bold** to <strong>bold</strong>
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    // Convert URLs to clickable links
-    .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1">$1</a>')
-    // Convert email addresses to mailto links
-    .replace(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g, '<a href="mailto:$1">$1</a>')
-    // Convert line breaks to <br> tags
-    .replace(/\n/g, '<br>');
+  // Split body into paragraphs (double newlines)
+  const paragraphs = email.body.split(/\n\n+/);
   
-  // Wrap in basic HTML structure with styling
-  return `<div style="font-family: Arial, sans-serif; font-size: 14px; line-height: 1.6; color: #333;">
-<p><strong>To:</strong> ${email.to}</p>
-<p><strong>Subject:</strong> ${email.subject}</p>
-<hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
-<div>${htmlBody}</div>
-</div>`;
+  // Convert each paragraph to HTML
+  const htmlParagraphs = paragraphs.map(para => {
+    // Convert **bold** to <strong>bold</strong>
+    let htmlPara = para.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    
+    // Convert URLs to clickable links (but avoid double-linking)
+    // First, protect already-linked URLs
+    const protectedLinks: string[] = [];
+    htmlPara = htmlPara.replace(/<a [^>]+>[^<]+<\/a>/g, (match) => {
+      protectedLinks.push(match);
+      return `___PROTECTED_LINK_${protectedLinks.length - 1}___`;
+    });
+    
+    // Now convert plain URLs to links
+    htmlPara = htmlPara.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color: #0066cc; text-decoration: underline;">$1</a>');
+    
+    // Convert email addresses to mailto links
+    htmlPara = htmlPara.replace(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g, '<a href="mailto:$1" style="color: #0066cc; text-decoration: underline;">$1</a>');
+    
+    // Restore protected links
+    protectedLinks.forEach((link, index) => {
+      htmlPara = htmlPara.replace(`___PROTECTED_LINK_${index}___`, link);
+    });
+    
+    // Convert single newlines within paragraphs to <br>
+    htmlPara = htmlPara.replace(/\n/g, '<br>');
+    
+    // Wrap in paragraph tag with proper spacing
+    return `<p style="margin: 0 0 1em 0;">${htmlPara}</p>`;
+  }).join('');
+  
+  // Create full HTML email body (without To/Subject - those go in email client fields)
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif; font-size: 12pt; line-height: 1.6; color: #000000; margin: 0; padding: 0;">
+${htmlParagraphs}
+</body>
+</html>`;
 }
 
 /**

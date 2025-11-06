@@ -406,16 +406,38 @@ export async function scrapeConnections(
             if (titleCount > 0) {
               const text = await titleElem.innerText({ timeout: 2000 }).catch(() => null);
               if (text && text.trim()) {
-                // LinkedIn typically shows "Title at Company"
-                const occupation = text.trim();
-                if (occupation.includes(' at ')) {
+                // LinkedIn shows title/company in various formats:
+                // "Title at Company"
+                // "Title @ Company | Additional info"
+                // "Title · Company"
+                let occupation = text.trim();
+                
+                // Strip off additional info after pipe character
+                if (occupation.includes(' | ')) {
+                  occupation = occupation.split(' | ')[0].trim();
+                }
+                
+                // Try different separator patterns
+                if (occupation.includes(' @ ')) {
+                  // "Product Owner @ Novir" format
+                  const parts = occupation.split(' @ ');
+                  title = parts[0].trim();
+                  company = parts.slice(1).join(' @ ').trim();
+                } else if (occupation.includes(' at ')) {
+                  // "Product Owner at Novir" format
                   const parts = occupation.split(' at ');
                   title = parts[0].trim();
                   company = parts.slice(1).join(' at ').trim();
                 } else if (occupation.includes(' · ')) {
-                  // Some profiles use · separator
-                  title = occupation.split(' · ')[0].trim();
+                  // "Product Owner · Novir" format
+                  const parts = occupation.split(' · ');
+                  title = parts[0].trim();
+                  // Second part might be company or could be additional title info
+                  if (parts.length > 1) {
+                    company = parts[1].trim();
+                  }
                 } else {
+                  // No separator found, entire string is title
                   title = occupation;
                 }
                 break;

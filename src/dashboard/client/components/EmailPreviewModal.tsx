@@ -40,19 +40,35 @@ export function EmailPreviewModal({ emails: initialEmails, leads, onClose }: Ema
     });
   };
 
-  const handleCopyToClipboard = async (email: EmailContent, index: number) => {
-    const fullEmail = `To: ${email.to}\nSubject: ${email.subject}\n\n${email.body}`;
-    
+  const handleCopyToClipboard = async (email: EmailContent, index: number, lead: Lead) => {
     try {
-      // Try modern clipboard API first
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(fullEmail);
+      // Get the lead for this email to generate HTML version
+      const includeReferral = referralEnabled.get(index) ?? false;
+      const htmlEmail = generateHtmlEmail(lead, includeReferral);
+      const plainTextEmail = `To: ${email.to}\nSubject: ${email.subject}\n\n${email.body}`;
+      
+      // Try modern clipboard API with HTML support
+      if (navigator.clipboard && navigator.clipboard.write) {
+        const htmlBlob = new Blob([htmlEmail], { type: 'text/html' });
+        const textBlob = new Blob([plainTextEmail], { type: 'text/plain' });
+        
+        const clipboardItem = new ClipboardItem({
+          'text/html': htmlBlob,
+          'text/plain': textBlob
+        });
+        
+        await navigator.clipboard.write([clipboardItem]);
+        setCopiedIndex(index);
+        setTimeout(() => setCopiedIndex(null), 2000);
+      } else if (navigator.clipboard && navigator.clipboard.writeText) {
+        // Fallback to plain text if HTML copy not supported
+        await navigator.clipboard.writeText(plainTextEmail);
         setCopiedIndex(index);
         setTimeout(() => setCopiedIndex(null), 2000);
       } else {
-        // Fallback to older method
+        // Legacy fallback
         const textArea = document.createElement('textarea');
-        textArea.value = fullEmail;
+        textArea.value = plainTextEmail;
         textArea.style.position = 'fixed';
         textArea.style.left = '-999999px';
         textArea.style.top = '-999999px';
@@ -159,7 +175,7 @@ export function EmailPreviewModal({ emails: initialEmails, leads, onClose }: Ema
                   <span>Open in Email Client</span>
                 </button>
                 <button
-                  onClick={() => handleCopyToClipboard(email, index)}
+                  onClick={() => handleCopyToClipboard(email, index, leads[index])}
                   className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
                     copiedIndex === index
                       ? 'bg-green-600 text-white'
