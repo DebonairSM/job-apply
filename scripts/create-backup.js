@@ -1,17 +1,10 @@
 import { getDb } from '../src/lib/db.js';
-import { copyFileSync } from 'fs';
-import { join } from 'path';
-
-const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-const backupPath = `data/backups/app.db.backup-${timestamp}`;
+import { createBackup, formatBytes } from '../src/services/backup-service.js';
 
 console.log('\n💾 Creating database backup...\n');
 
-// Force checkpoint first to ensure WAL is merged
-const db = getDb();
-db.pragma('wal_checkpoint(TRUNCATE)');
-
 // Get stats before backup
+const db = getDb();
 const stats = db.prepare(`
   SELECT 
     COUNT(*) as total,
@@ -23,15 +16,30 @@ const stats = db.prepare(`
 `).get();
 
 console.log('📊 Current Database:');
-console.log(`   Total:      ${stats.total}`);
-console.log(`   Queued:     ${stats.queued || 0}`);
-console.log(`   Applied:    ${stats.applied || 0}`);
-console.log(`   Rejected:   ${stats.rejected || 0}`);
-console.log(`   Skipped:    ${stats.skipped || 0}\n`);
+console.log(`   Total Jobs:  ${stats.total}`);
+console.log(`   Queued:      ${stats.queued || 0}`);
+console.log(`   Applied:     ${stats.applied || 0}`);
+console.log(`   Rejected:    ${stats.rejected || 0}`);
+console.log(`   Skipped:     ${stats.skipped || 0}\n`);
 
-// Create backup (connection stays open for singleton pattern)
-copyFileSync('data/app.db', backupPath);
+// Create backup using new backup service
+const result = await createBackup();
 
-console.log(`✅ Backup created: ${backupPath}\n`);
-console.log('💡 Tip: Run this before using reset commands to preserve your data!\n');
-
+if (result.success) {
+  console.log('✅ Backup created successfully!\n');
+  console.log(`   Location: ${result.backupPath}`);
+  console.log(`   Folder: ${result.backupFolder}`);
+  console.log(`   Timestamp: ${result.timestamp}\n`);
+  
+  console.log('📦 Components backed up:');
+  console.log(`   Database:  ${result.components.database ? '✓' : '✗'} ${result.components.database ? `(${formatBytes(result.sizes.database)})` : ''}`);
+  console.log(`   Session:   ${result.components.session ? '✓' : '✗'} ${result.components.session ? `(${formatBytes(result.sizes.session)})` : ''}`);
+  console.log(`   Artifacts: ${result.components.artifacts ? '✓' : '✗'} ${result.components.artifacts ? `(${formatBytes(result.sizes.artifacts)})` : ''}`);
+  console.log(`\n   Total Size: ${formatBytes(result.sizes.total)}\n`);
+  
+  console.log('💡 Tip: Backups older than 7 days are automatically deleted.\n');
+  console.log('💡 This backup is stored in My Documents and will be synced by OneDrive.\n');
+} else {
+  console.error(`\n❌ Backup failed: ${result.error}\n`);
+  process.exit(1);
+}

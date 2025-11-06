@@ -262,7 +262,6 @@ export function LeadScrapeModal({ onClose, onStart }: LeadScrapeModalProps) {
           </button>
           <button
             type="submit"
-            onClick={handleSubmit}
             disabled={isStarting}
             className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >

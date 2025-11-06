@@ -23,6 +23,7 @@ interface BackupInfo {
   lastBackupSize: number;
   lastBackupName?: string;
   backupCount: number;
+  backupLocation?: string;
 }
 
 export function Settings() {
@@ -74,6 +75,33 @@ export function Settings() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
       setSuccessMessage('Profile updated successfully!');
+      setErrorMessage(null);
+      setTimeout(() => setSuccessMessage(null), 3000);
+    },
+    onError: (error: Error) => {
+      setErrorMessage(error.message);
+      setSuccessMessage(null);
+    },
+  });
+
+  // Mutation for creating backup
+  const createBackupMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/backup/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create backup');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['backup-info'] });
+      setSuccessMessage('Backup created successfully!');
       setErrorMessage(null);
       setTimeout(() => setSuccessMessage(null), 3000);
     },
@@ -160,7 +188,19 @@ export function Settings() {
         {/* Database Backup Info */}
         <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
           <h3 className="text-xl font-semibold text-gray-800 mb-4">Database Backup</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          
+          {backupInfo?.backupLocation && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>Backup Location:</strong> {backupInfo.backupLocation}
+              </p>
+              <p className="text-xs text-blue-600 mt-1">
+                Backups are automatically created before job/lead searches and synced via OneDrive
+              </p>
+            </div>
+          )}
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div className="bg-gray-50 rounded-lg p-4">
               <p className="text-sm text-gray-600 mb-1">Last Backup</p>
               <p className="text-lg font-medium text-gray-900">
@@ -173,7 +213,7 @@ export function Settings() {
               <p className="text-sm text-gray-600 mb-1">Backup Size</p>
               <p className="text-lg font-medium text-gray-900">
                 {backupInfo?.lastBackupSize 
-                  ? `${(backupInfo.lastBackupSize / 1024).toFixed(2)} KB`
+                  ? `${(backupInfo.lastBackupSize / 1024 / 1024).toFixed(2)} MB`
                   : 'N/A'}
               </p>
             </div>
@@ -184,11 +224,26 @@ export function Settings() {
               </p>
             </div>
           </div>
-          {backupInfo?.lastBackupName && (
-            <p className="mt-3 text-sm text-gray-500">
-              Latest: {backupInfo.lastBackupName}
-            </p>
-          )}
+          
+          <div className="flex items-center justify-between">
+            <div>
+              {backupInfo?.lastBackupName && (
+                <p className="text-sm text-gray-500">
+                  Latest: {backupInfo.lastBackupName}
+                </p>
+              )}
+              <p className="text-xs text-gray-400 mt-1">
+                Retention: 7 days (automatic cleanup)
+              </p>
+            </div>
+            <button
+              onClick={() => createBackupMutation.mutate()}
+              disabled={createBackupMutation.isPending}
+              className="px-4 py-2 bg-green-500 text-white rounded-lg font-medium hover:bg-green-600 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {createBackupMutation.isPending ? 'Creating...' : 'Create Backup Now'}
+            </button>
+          </div>
         </div>
 
         {/* Profile Form */}

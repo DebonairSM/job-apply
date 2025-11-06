@@ -183,6 +183,48 @@ npm run filters:remove                         # Remove tech filter
 npm run filters:list                           # View active filters
 ```
 
+**Database Backup**
+```bash
+npm run backup                                 # Create manual backup
+npm run backup -- --list                       # List all backups
+npm run backup -- --stats                      # Show backup statistics
+```
+
+---
+
+## Database Backup System
+
+The system automatically backs up your database, session, and artifacts to My Documents to protect your data.
+
+**Backup Location**  
+The system automatically detects your Documents folder location:
+- Windows with OneDrive: `%USERPROFILE%\OneDrive\Documents\OppScraperBackups\`
+- Windows without OneDrive: `%USERPROFILE%\Documents\OppScraperBackups\`
+- Mac/Linux: `~/Documents/OppScraperBackups/`
+
+**What's Backed Up**
+- Database files (`app.db` with all jobs, leads, learning data)
+- LinkedIn session (`storageState.json`)
+- Artifacts folder (screenshots, debug traces)
+
+**When Backups Run**
+- Automatically before each job search (`npm run search`)
+- Automatically before each lead scraping run (`npm run leads:search`)
+- Manually via CLI (`npm run backup`)
+- Manually via dashboard Settings page (Create Backup Now button)
+
+**Retention Policy**  
+Backups older than 7 days are automatically deleted. This keeps 7 days of recovery points while managing disk space.
+
+**OneDrive Integration**  
+The system automatically detects if your Documents folder is in OneDrive (common Windows setup). When detected, backups are stored directly in the OneDrive-synced location, providing automatic cloud backup.
+
+**Backup Stats**  
+View backup information in the dashboard Settings page or via CLI:
+```bash
+npm run backup -- --stats    # Shows location, count, total size, newest/oldest
+```
+
 ---
 
 ## Setup

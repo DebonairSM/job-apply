@@ -57,6 +57,9 @@ interface ScrapingRun {
   error_message?: string;
   process_id?: number;
   last_activity_at?: string;
+  connection_degree?: string;
+  start_page?: number;
+  current_page?: number;
 }
 
 export function LeadsList() {
@@ -135,6 +138,34 @@ export function LeadsList() {
     if (!dateStr) return 'N/A';
     const date = new Date(dateStr);
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+  };
+  
+  const formatDuration = (startStr?: string, endStr?: string) => {
+    if (!startStr) return 'N/A';
+    const start = new Date(startStr);
+    const end = endStr ? new Date(endStr) : new Date();
+    const diffMs = end.getTime() - start.getTime();
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const hours = Math.floor(diffMinutes / 60);
+    const minutes = diffMinutes % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+  };
+  
+  const getProfileName = (filterTitles?: string): string | null => {
+    if (!filterTitles) return null;
+    try {
+      const titles = JSON.parse(filterTitles);
+      if (Array.isArray(titles) && titles.length > 0 && titles[0].startsWith('profile:')) {
+        return titles[0].replace('profile:', '');
+      }
+    } catch {
+      return null;
+    }
+    return null;
   };
 
   const getStatusColor = (status?: string) => {
@@ -639,55 +670,182 @@ export function LeadsList() {
             {showRuns && (
               <div className="mt-4">
                 <h3 className="text-lg font-semibold mb-4">Recent Scraping Runs</h3>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {runs.length === 0 ? (
                     <p className="text-gray-500">No scraping runs yet</p>
                   ) : (
                     runs.map((run) => {
                       const stalled = isRunStalled(run);
+                      const profileName = getProfileName(run.filter_titles);
+                      const progress = run.max_profiles ? Math.round((run.profiles_scraped / run.max_profiles) * 100) : 0;
+                      const duration = formatDuration(run.started_at, run.completed_at);
+                      
                       return (
-                        <div key={run.id} className={`flex items-center justify-between p-3 border rounded-md ${
-                          stalled ? 'border-yellow-300 bg-yellow-50' : ''
+                        <div key={run.id} className={`border rounded-lg p-4 ${
+                          stalled ? 'border-yellow-300 bg-yellow-50' : 'border-gray-300 bg-white'
                         }`}>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">Run #{run.id}</span>
-                              <span className={`px-2 py-1 rounded-full text-xs ${
+                          {/* Header Row */}
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <span className="text-lg font-bold text-gray-900">Run #{run.id}</span>
+                              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                                 run.status === 'completed' ? 'bg-green-100 text-green-800' :
                                 run.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
                                 run.status === 'error' ? 'bg-red-100 text-red-800' :
                                 'bg-yellow-100 text-yellow-800'
                               }`}>
-                                {run.status}
+                                {run.status.toUpperCase()}
                               </span>
                               {stalled && (
-                                <span className="flex items-center gap-1 text-xs text-yellow-700 font-medium">
-                                  <Icon icon="warning" size={16} />
+                                <span className="flex items-center gap-1 text-xs text-yellow-700 font-medium bg-yellow-200 px-2 py-1 rounded">
+                                  <Icon icon="warning" size={14} />
                                   Stalled
                                 </span>
                               )}
                               {run.status === 'in_progress' && !stalled && (
-                                <Icon icon="sync" size={16} className="text-blue-600 animate-spin" />
+                                <Icon icon="sync" size={18} className="text-blue-600 animate-spin" />
                               )}
                             </div>
-                            <div className="text-sm text-gray-600 mt-1">
-                              {run.profiles_scraped} scraped, {run.profiles_added} added
-                              {run.filter_titles && ` • Filters: ${JSON.parse(run.filter_titles).join(', ')}`}
+                            {run.connection_degree && (
+                              <span className="px-3 py-1 rounded-md text-sm font-semibold bg-purple-100 text-purple-800">
+                                {run.connection_degree} Degree
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Configuration Row */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                            {profileName && (
+                              <div>
+                                <div className="text-xs font-medium text-gray-500 uppercase">Profile</div>
+                                <div className="text-sm font-semibold text-gray-900 mt-0.5">{profileName}</div>
+                              </div>
+                            )}
+                            {run.filter_titles && !profileName && (
+                              <div>
+                                <div className="text-xs font-medium text-gray-500 uppercase">Filters</div>
+                                <div className="text-sm font-medium text-gray-900 mt-0.5">
+                                  {JSON.parse(run.filter_titles).join(', ')}
+                                </div>
+                              </div>
+                            )}
+                            {run.max_profiles && (
+                              <div>
+                                <div className="text-xs font-medium text-gray-500 uppercase">Target</div>
+                                <div className="text-sm font-semibold text-gray-900 mt-0.5">{run.max_profiles} profiles</div>
+                              </div>
+                            )}
+                            {run.current_page && (
+                              <div>
+                                <div className="text-xs font-medium text-gray-500 uppercase">
+                                  {run.status === 'in_progress' ? 'Current Page' : 'Last Page'}
+                                </div>
+                                <div className="text-sm font-semibold text-gray-900 mt-0.5">
+                                  Page {run.current_page}
+                                  {run.start_page && run.start_page > 1 && (
+                                    <span className="text-xs text-gray-500 ml-1">(started: {run.start_page})</span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                            <div>
+                              <div className="text-xs font-medium text-gray-500 uppercase">Duration</div>
+                              <div className="text-sm font-semibold text-gray-900 mt-0.5">{duration}</div>
                             </div>
-                            <div className="text-xs text-gray-500 mt-1">
-                              Started: {formatDate(run.started_at)}
-                              {run.last_activity_at && (
-                                <span className="ml-2">
-                                  • Last activity: {formatDate(run.last_activity_at)}
-                                </span>
-                              )}
+                          </div>
+                          
+                          {/* Progress Row */}
+                          <div className="mb-3">
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="text-sm font-medium text-gray-700">
+                                <span className="text-blue-600 font-bold">{run.profiles_scraped}</span> scraped
+                                {' • '}
+                                <span className="text-green-600 font-bold">{run.profiles_added}</span> added
+                                {run.max_profiles && (
+                                  <>
+                                    {' • '}
+                                    <span className="text-purple-600 font-bold">{progress}%</span> complete
+                                  </>
+                                )}
+                              </div>
                             </div>
-                            {run.error_message && (
-                              <div className="text-xs text-red-600 mt-1 bg-red-50 p-2 rounded">
-                                Error: {run.error_message}
+                            {run.max_profiles && (
+                              <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                <div 
+                                  className={`h-2.5 rounded-full transition-all ${
+                                    run.status === 'completed' ? 'bg-green-500' :
+                                    run.status === 'in_progress' ? 'bg-blue-500' :
+                                    run.status === 'error' ? 'bg-red-500' :
+                                    'bg-yellow-500'
+                                  }`}
+                                  style={{ width: `${Math.min(progress, 100)}%` }}
+                                ></div>
                               </div>
                             )}
                           </div>
+                          
+                          {/* Timing Row */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-gray-600 border-t border-gray-200 pt-3">
+                            <div>
+                              <span className="font-medium">Started:</span> {formatDate(run.started_at)}
+                            </div>
+                            {run.completed_at && (
+                              <div>
+                                <span className="font-medium">Completed:</span> {formatDate(run.completed_at)}
+                              </div>
+                            )}
+                            {run.last_activity_at && !run.completed_at && (
+                              <div>
+                                <span className="font-medium">Last Activity:</span> {formatDate(run.last_activity_at)}
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Resume Information */}
+                          {(run.status === 'stopped' || stalled) && (
+                            <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg p-3">
+                              <div className="flex items-start gap-2">
+                                <Icon icon="info" size={18} className="text-blue-600 flex-shrink-0 mt-0.5" />
+                                <div className="flex-1">
+                                  <div className="text-sm font-semibold text-blue-900 mb-1">Resume This Run</div>
+                                  <div className="text-xs text-blue-800 space-y-1">
+                                    <div>Run ID: <span className="font-mono font-bold">{run.id}</span></div>
+                                    {run.connection_degree && (
+                                      <div>Connection Degree: <span className="font-mono font-bold">{run.connection_degree}</span></div>
+                                    )}
+                                    {profileName && (
+                                      <div>Profile: <span className="font-mono font-bold">{profileName}</span></div>
+                                    )}
+                                    {run.current_page && (
+                                      <div>Stopped on Page: <span className="font-mono font-bold">{run.current_page}</span></div>
+                                    )}
+                                    {run.max_profiles && (
+                                      <div>Progress: <span className="font-mono font-bold">{run.profiles_scraped} / {run.max_profiles}</span> ({progress}%)</div>
+                                    )}
+                                  </div>
+                                  <div className="mt-2 text-xs text-blue-700 bg-blue-100 p-2 rounded font-mono">
+                                    Use "Resume Run ID" field with: <span className="font-bold">{run.id}</span>
+                                    {run.current_page && (
+                                      <div className="mt-1 text-blue-600">Will resume from page {run.current_page}</div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Error Message */}
+                          {run.error_message && (
+                            <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3">
+                              <div className="flex items-start gap-2">
+                                <Icon icon="error" size={18} className="text-red-600 flex-shrink-0 mt-0.5" />
+                                <div className="flex-1">
+                                  <div className="text-sm font-semibold text-red-900 mb-1">Error Details</div>
+                                  <div className="text-xs text-red-800">{run.error_message}</div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })

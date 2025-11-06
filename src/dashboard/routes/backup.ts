@@ -1,60 +1,64 @@
 import express from 'express';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { getBackupStats, createBackup } from '../../services/backup-service.js';
 
 const router = express.Router();
 
-// GET /api/backup/info - Get last backup information
+// GET /api/backup/info - Get backup information
 router.get('/info', (req, res) => {
   try {
-    const backupDir = path.join(__dirname, '../../../data/backups');
+    const stats = getBackupStats();
     
-    if (!fs.existsSync(backupDir)) {
+    // Convert to the format expected by the frontend
+    if (stats.totalBackups === 0) {
       return res.json({
         lastBackupDate: null,
         lastBackupSize: 0,
-        backupCount: 0
+        backupCount: 0,
+        backupLocation: stats.backupLocation
       });
     }
-
-    const files = fs.readdirSync(backupDir)
-      .filter(f => f.endsWith('.db'))
-      .map(f => {
-        const filePath = path.join(backupDir, f);
-        const stats = fs.statSync(filePath);
-        return {
-          name: f,
-          path: filePath,
-          size: stats.size,
-          date: stats.mtime
-        };
-      })
-      .sort((a, b) => b.date.getTime() - a.date.getTime());
-
-    if (files.length === 0) {
-      return res.json({
-        lastBackupDate: null,
-        lastBackupSize: 0,
-        backupCount: 0
-      });
-    }
-
-    const lastBackup = files[0];
+    
+    const newestBackup = stats.backups[0];
     
     res.json({
-      lastBackupDate: lastBackup.date.toISOString(),
-      lastBackupSize: lastBackup.size,
-      lastBackupName: lastBackup.name,
-      backupCount: files.length
+      lastBackupDate: newestBackup.date.toISOString(),
+      lastBackupSize: newestBackup.size,
+      lastBackupName: newestBackup.folder,
+      backupCount: stats.totalBackups,
+      backupLocation: stats.backupLocation
     });
   } catch (error) {
     console.error('Error fetching backup info:', error);
     res.status(500).json({ error: 'Failed to fetch backup info' });
+  }
+});
+
+// POST /api/backup/create - Create a new backup manually
+router.post('/create', async (req, res) => {
+  try {
+    const result = await createBackup();
+    
+    if (result.success) {
+      res.json({
+        success: true,
+        backupPath: result.backupPath,
+        backupFolder: result.backupFolder,
+        timestamp: result.timestamp,
+        components: result.components,
+        sizes: result.sizes
+      });
+    } else {
+      res.status(500).json({
+        success: false,
+        error: result.error
+      });
+    }
+  } catch (error) {
+    console.error('Error creating backup:', error);
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to create backup'
+    });
   }
 });
 

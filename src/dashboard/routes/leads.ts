@@ -376,7 +376,9 @@ function createOrResumeRun(params: ScrapeRequestParams): { success: true; runId:
     profiles_scraped: 0,
     profiles_added: 0,
     filter_titles: filterTitlesArray ? JSON.stringify(filterTitlesArray) : undefined,
-    max_profiles: params.max
+    max_profiles: params.max,
+    connection_degree: params.degree,
+    start_page: params.startPage
   });
   
   console.log(`✅ Created scraping run ID: ${runId}`);

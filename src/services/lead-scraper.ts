@@ -863,6 +863,7 @@ export async function scrapeConnections(
             profiles_scraped: progress.profilesScraped,
             profiles_added: progress.profilesAdded,
             last_profile_url: profileUrl,
+            current_page: currentPage,
             last_activity_at: new Date().toISOString()
           });
 

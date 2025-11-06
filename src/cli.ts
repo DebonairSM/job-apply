@@ -10,6 +10,7 @@ import { getJobsByStatus, getJobStats, clearAnswersCache, clearLabelMappings, cl
 import { rankJob } from './ai/ranker.js';
 import { loadConfig } from './lib/session.js';
 import { getProfileChoices } from './ai/profile-registry.js';
+import { createBackup, getBackupStats, formatBytes } from './services/backup-service.js';
 
 yargs(hideBin(process.argv))
   .scriptName('li')
@@ -20,6 +21,81 @@ yargs(hideBin(process.argv))
     {},
     async () => {
       await loginCommand();
+    }
+  )
+  .command(
+    'backup',
+    'Create manual backup to My Documents',
+    (yargs) => {
+      return yargs
+        .option('list', {
+          alias: 'l',
+          describe: 'List existing backups',
+          type: 'boolean',
+          default: false
+        })
+        .option('stats', {
+          alias: 's',
+          describe: 'Show backup statistics',
+          type: 'boolean',
+          default: false
+        });
+    },
+    async (argv) => {
+      // Show list of backups
+      if (argv.list || argv.stats) {
+        const stats = getBackupStats();
+        
+        console.log('\n📊 Backup Statistics\n');
+        console.log(`   Location: ${stats.backupLocation}`);
+        console.log(`   Total Backups: ${stats.totalBackups}`);
+        console.log(`   Total Size: ${formatBytes(stats.totalSize)}`);
+        
+        if (stats.newestBackup) {
+          console.log(`   Newest: ${stats.newestBackup}`);
+        }
+        
+        if (stats.oldestBackup) {
+          console.log(`   Oldest: ${stats.oldestBackup}`);
+        }
+        
+        if (argv.list && stats.backups.length > 0) {
+          console.log('\n📁 All Backups:\n');
+          
+          for (const backup of stats.backups) {
+            console.log(`   ${backup.folder}`);
+            console.log(`      Date: ${backup.date.toLocaleString()}`);
+            console.log(`      Size: ${formatBytes(backup.size)}`);
+            console.log('');
+          }
+        }
+        
+        console.log('');
+        return;
+      }
+      
+      // Create new backup
+      console.log('\n💾 Creating database backup...\n');
+      
+      const result = await createBackup();
+      
+      if (result.success) {
+        console.log('✅ Backup created successfully!\n');
+        console.log(`   Location: ${result.backupPath}`);
+        console.log(`   Folder: ${result.backupFolder}`);
+        console.log(`   Timestamp: ${result.timestamp}\n`);
+        
+        console.log('📦 Components backed up:');
+        console.log(`   Database: ${result.components.database ? '✓' : '✗'} ${result.components.database ? `(${formatBytes(result.sizes.database)})` : ''}`);
+        console.log(`   Session: ${result.components.session ? '✓' : '✗'} ${result.components.session ? `(${formatBytes(result.sizes.session)})` : ''}`);
+        console.log(`   Artifacts: ${result.components.artifacts ? '✓' : '✗'} ${result.components.artifacts ? `(${formatBytes(result.sizes.artifacts)})` : ''}`);
+        console.log(`\n   Total Size: ${formatBytes(result.sizes.total)}\n`);
+        
+        console.log('💡 Tip: Backups older than 7 days are automatically deleted.\n');
+      } else {
+        console.error(`\n❌ Backup failed: ${result.error}\n`);
+        process.exit(1);
+      }
     }
   )
   .command(

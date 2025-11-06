@@ -4,6 +4,7 @@ import { createScrapingRun, updateScrapingRun, getScrapingRun } from '../lib/db.
 import { scrapeConnections } from '../services/lead-scraper.js';
 import { shouldStop as checkStopSignal, clearStopSignal } from '../lib/stop-signal.js';
 import { getLeadProfile, getLeadProfileKeys } from '../ai/lead-profiles.js';
+import { createBackup } from '../services/backup-service.js';
 
 export interface LeadSearchOptions {
   titles?: string;
@@ -95,6 +96,19 @@ export async function leadSearchCommand(opts: LeadSearchOptions): Promise<void> 
 
   process.on('SIGTERM', shutdownHandler);
   process.on('SIGINT', shutdownHandler);
+
+  // Create backup before starting scraping run
+  try {
+    console.log('💾 Creating pre-scrape backup...');
+    const backupResult = await createBackup();
+    if (backupResult.success) {
+      console.log('✅ Backup created successfully\n');
+    } else {
+      console.warn(`⚠️  Backup warning: ${backupResult.error}\n`);
+    }
+  } catch (error) {
+    console.warn('⚠️  Could not create backup, continuing anyway\n');
+  }
 
   const browser = await chromium.launch({
     headless: config.headless,

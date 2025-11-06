@@ -519,6 +519,33 @@ export function initDb(): void {
     }
   }
   
+  try {
+    database.exec(`ALTER TABLE lead_scraping_runs ADD COLUMN connection_degree TEXT`);
+    console.log('   ✓ Added connection_degree column to lead_scraping_runs');
+  } catch (e) {
+    if (e instanceof Error && !e.message.includes('duplicate column name')) {
+      console.error('   ⚠ Migration warning (connection_degree):', e.message);
+    }
+  }
+  
+  try {
+    database.exec(`ALTER TABLE lead_scraping_runs ADD COLUMN start_page INTEGER`);
+    console.log('   ✓ Added start_page column to lead_scraping_runs');
+  } catch (e) {
+    if (e instanceof Error && !e.message.includes('duplicate column name')) {
+      console.error('   ⚠ Migration warning (start_page):', e.message);
+    }
+  }
+  
+  try {
+    database.exec(`ALTER TABLE lead_scraping_runs ADD COLUMN current_page INTEGER`);
+    console.log('   ✓ Added current_page column to lead_scraping_runs');
+  } catch (e) {
+    if (e instanceof Error && !e.message.includes('duplicate column name')) {
+      console.error('   ⚠ Migration warning (current_page):', e.message);
+    }
+  }
+  
   console.log('📊 Database schema ready');
 }
 
@@ -1046,9 +1073,10 @@ export interface RunLog {
 
 export function logRun(run: Omit<RunLog, 'id' | 'started_at'>): number {
   const database = getDb();
+  const now = new Date().toISOString();
   const stmt = database.prepare(`
-    INSERT INTO runs (job_id, step, ok, log, screenshot_path, ended_at)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO runs (job_id, step, ok, log, screenshot_path, started_at, ended_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `);
   const result = stmt.run(
     run.job_id,
@@ -1056,7 +1084,8 @@ export function logRun(run: Omit<RunLog, 'id' | 'started_at'>): number {
     run.ok ? 1 : 0,
     run.log ?? null,
     run.screenshot_path ?? null,
-    run.ended_at ?? new Date().toISOString()
+    now, // Explicitly set started_at with proper timezone info
+    run.ended_at ?? now
   );
   return result.lastInsertRowid as number;
 }
@@ -2029,6 +2058,9 @@ export interface LeadScrapingRun {
   error_message?: string;
   process_id?: number;
   last_activity_at?: string;
+  connection_degree?: string; // '1st', '2nd', '3rd'
+  start_page?: number;
+  current_page?: number; // Last page being processed (useful for resuming)
 }
 
 export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at' | 'deleted_at'>): boolean {
@@ -2040,8 +2072,8 @@ export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at' | 'deleted_
   }
   
   const stmt = database.prepare(`
-    INSERT INTO leads (id, name, title, company, about, email, phone, website, location, profile_url, linkedin_id, worked_together, articles, birthday, connected_date, address, profile, background)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO leads (id, name, title, company, about, email, phone, website, location, profile_url, linkedin_id, worked_together, articles, birthday, connected_date, address, profile, background, scraped_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   try {
@@ -2063,7 +2095,8 @@ export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at' | 'deleted_
       lead.connected_date || null,
       lead.address || null,
       lead.profile || null,
-      lead.background || null
+      lead.background || null,
+      new Date().toISOString() // Explicitly set scraped_at with proper timezone info
     );
     return true;
   } catch (error) {
@@ -2509,15 +2542,17 @@ export function getLeadsWithUpcomingBirthdays(daysAhead: number = 30): LeadWithB
 // Lead scraping runs operations
 export function createScrapingRun(run: Omit<LeadScrapingRun, 'id' | 'created_at' | 'started_at'>): number {
   const database = getDb();
+  const now = new Date().toISOString();
   const stmt = database.prepare(`
     INSERT INTO lead_scraping_runs (
-      status, profiles_scraped, profiles_added, last_profile_url, filter_titles, max_profiles,
+      started_at, status, profiles_scraped, profiles_added, last_profile_url, filter_titles, max_profiles,
       error_message, process_id, last_activity_at
     )
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   const result = stmt.run(
+    now, // Explicitly set started_at with proper timezone info
     run.status,
     run.profiles_scraped,
     run.profiles_added,
@@ -2526,7 +2561,7 @@ export function createScrapingRun(run: Omit<LeadScrapingRun, 'id' | 'created_at'
     run.max_profiles || null,
     run.error_message || null,
     run.process_id || null,
-    run.last_activity_at || new Date().toISOString()
+    run.last_activity_at || now
   );
   
   return result.lastInsertRowid as number;

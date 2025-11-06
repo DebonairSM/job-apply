@@ -8,6 +8,7 @@ import { shouldStop as checkStopSignal, clearStopSignal } from '../lib/stop-sign
 import { searchJobs } from '../services/search.js';
 import { SearchDependencies } from '../services/types.js';
 import crypto from 'crypto';
+import { createBackup } from '../services/backup-service.js';
 
 export interface SearchOptions {
   keywords?: string;
@@ -780,6 +781,19 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
     shutdownHandler();
     // Don't exit immediately - let the graceful shutdown complete
   });
+
+  // Create backup before starting scraping run
+  try {
+    console.log('💾 Creating pre-search backup...');
+    const backupResult = await createBackup();
+    if (backupResult.success) {
+      console.log('✅ Backup created successfully\n');
+    } else {
+      console.warn(`⚠️  Backup warning: ${backupResult.error}\n`);
+    }
+  } catch (error) {
+    console.warn('⚠️  Could not create backup, continuing anyway\n');
+  }
 
   const browser = await chromium.launch({
     headless: config.headless,
