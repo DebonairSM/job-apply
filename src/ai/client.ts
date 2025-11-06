@@ -6,6 +6,254 @@ export interface OllamaOptions {
   retries?: number;
 }
 
+/**
+ * Fix unquoted or improperly formatted array elements
+ * Handles cases like:
+ * - ["Valid", Unquoted] -> ["Valid", "Unquoted"]
+ * - ["Missing" "comma"] -> ["Missing", "comma"]
+ * - [Value1, Value2] -> ["Value1", "Value2"]
+ */
+function fixArrayElements(jsonText: string): string {
+  let result = '';
+  let i = 0;
+  
+  while (i < jsonText.length) {
+    const char = jsonText[i];
+    
+    // If we find an array start, process the entire array
+    if (char === '[') {
+      const arrayStart = i;
+      const arrayResult = processArray(jsonText, i);
+      
+      if (arrayResult) {
+        result += arrayResult.fixed;
+        i = arrayResult.endIndex + 1;
+        continue;
+      }
+    }
+    
+    result += char;
+    i++;
+  }
+  
+  return result;
+}
+
+/**
+ * Process a single array and fix its elements
+ * Returns null if array parsing fails
+ */
+function processArray(text: string, startIndex: number): { fixed: string; endIndex: number } | null {
+  let result = '[';
+  let i = startIndex + 1;
+  let inString = false;
+  let escapeNext = false;
+  let currentToken = '';
+  let expectingValue = true;
+  
+  while (i < text.length) {
+    const char = text[i];
+    
+    // Handle escape sequences inside strings
+    if (inString && escapeNext) {
+      currentToken += char;
+      escapeNext = false;
+      i++;
+      continue;
+    }
+    
+    if (inString && char === '\\') {
+      currentToken += char;
+      escapeNext = true;
+      i++;
+      continue;
+    }
+    
+    // Toggle string state on quotes
+    if (char === '"') {
+      // If we're starting a new string and we already have a complete value, insert comma
+      if (!inString && !expectingValue) {
+        result += ',';
+        expectingValue = true;
+      }
+      
+      inString = !inString;
+      currentToken += char;
+      
+      // If we just closed a string, we have a complete quoted value
+      if (!inString && currentToken.startsWith('"')) {
+        result += currentToken;
+        currentToken = '';
+        expectingValue = false;
+      }
+      
+      i++;
+      continue;
+    }
+    
+    // If we're inside a string, keep accumulating
+    if (inString) {
+      currentToken += char;
+      i++;
+      continue;
+    }
+    
+    // Handle nested arrays
+    if (char === '[') {
+      const nestedResult = processArray(text, i);
+      if (nestedResult) {
+        if (expectingValue) {
+          result += nestedResult.fixed;
+          expectingValue = false;
+        }
+        currentToken = '';
+        i = nestedResult.endIndex + 1;
+        continue;
+      }
+    }
+    
+    // Handle nested objects
+    if (char === '{') {
+      const objEnd = findMatchingBrace(text, i);
+      if (objEnd !== -1) {
+        if (expectingValue) {
+          result += text.substring(i, objEnd + 1);
+          expectingValue = false;
+        }
+        currentToken = '';
+        i = objEnd + 1;
+        continue;
+      }
+    }
+    
+    // End of array
+    if (char === ']') {
+      // Flush any pending unquoted token
+      if (currentToken.trim() && expectingValue) {
+        const quoted = quoteIfNeeded(currentToken.trim());
+        result += quoted;
+      }
+      result += ']';
+      return { fixed: result, endIndex: i };
+    }
+    
+    // Comma separator
+    if (char === ',') {
+      // Flush any pending unquoted token before the comma
+      if (currentToken.trim() && expectingValue) {
+        const quoted = quoteIfNeeded(currentToken.trim());
+        result += quoted;
+      }
+      
+      result += ',';
+      currentToken = '';
+      expectingValue = true;
+      i++;
+      continue;
+    }
+    
+    // Whitespace outside strings
+    if (/\s/.test(char)) {
+      // If we have accumulated a token and hit whitespace, it might be end of unquoted value
+      if (currentToken.trim() && !inString) {
+        // Look ahead to see if next non-whitespace is comma or close bracket
+        let j = i;
+        while (j < text.length && /\s/.test(text[j])) j++;
+        
+        if (j < text.length && (text[j] === ',' || text[j] === ']')) {
+          // This is end of an unquoted value
+          if (expectingValue) {
+            const quoted = quoteIfNeeded(currentToken.trim());
+            result += quoted;
+            expectingValue = false;
+          }
+          currentToken = '';
+        } else {
+          // Whitespace is part of the value (e.g., "SQL Server" without quotes)
+          currentToken += char;
+        }
+      }
+      i++;
+      continue;
+    }
+    
+    // Regular character - accumulate
+    currentToken += char;
+    i++;
+  }
+  
+  // Array wasn't properly closed
+  return null;
+}
+
+/**
+ * Find matching closing brace for an opening brace
+ */
+function findMatchingBrace(text: string, startIndex: number): number {
+  let depth = 0;
+  let inString = false;
+  let escapeNext = false;
+  
+  for (let i = startIndex; i < text.length; i++) {
+    const char = text[i];
+    
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+    
+    if (char === '\\') {
+      escapeNext = true;
+      continue;
+    }
+    
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+    
+    if (!inString) {
+      if (char === '{') depth++;
+      if (char === '}') {
+        depth--;
+        if (depth === 0) return i;
+      }
+    }
+  }
+  
+  return -1;
+}
+
+/**
+ * Quote a value if it needs quoting (not a primitive)
+ */
+function quoteIfNeeded(value: string): string {
+  // Already quoted
+  if (value.startsWith('"') && value.endsWith('"')) {
+    return value;
+  }
+  
+  // JSON primitives don't need quotes
+  if (value === 'true' || value === 'false' || value === 'null') {
+    return value;
+  }
+  
+  // Numbers don't need quotes (including scientific notation)
+  if (/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(value)) {
+    return value;
+  }
+  
+  // Empty values
+  if (!value) {
+    return '""';
+  }
+  
+  // Everything else needs quotes
+  // Escape any unescaped quotes inside the value
+  const escaped = value.replace(/"/g, '\\"');
+  return `"${escaped}"`;
+}
+
 // Generic function to query Ollama with structured output
 export async function askOllama<T>(
   prompt: string,
@@ -155,42 +403,8 @@ export async function askOllama<T>(
       
       // Fix unquoted array elements (e.g., [".NET", SQL Server] -> [".NET", "SQL Server"])
       // This handles cases where LLM forgets quotes around technical terms like "SQL Server", "C#", etc.
-      // Strategy: Match anything between array delimiters that isn't already quoted or a primitive
-      // Run multiple times since replacements change string length and affect subsequent match positions
-      let prevText = '';
-      let maxIterations = 10; // Prevent infinite loops
-      while (cleanedText !== prevText && maxIterations-- > 0) {
-        prevText = cleanedText;
-        cleanedText = cleanedText.replace(
-          /([\[,]\s*)([^",\[\]]+)(\s*[\],])/g,
-          (match, prefix, content, suffix) => {
-            // If the match contains a quote, it's likely part of a properly quoted string - skip it
-            if (match.includes('"')) {
-              return match;
-            }
-            
-            const trimmedContent = content.trim();
-            
-            // Don't quote JSON primitives
-            if (trimmedContent === 'true' || trimmedContent === 'false' || trimmedContent === 'null') {
-              return match;
-            }
-            
-            // Don't quote pure numbers (including scientific notation)
-            if (/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(trimmedContent)) {
-              return match;
-            }
-            
-            // Don't quote if it's empty or only whitespace
-            if (!trimmedContent) {
-              return match;
-            }
-            
-            // Quote the content
-            return `${prefix}"${trimmedContent}"${suffix}`;
-          }
-        );
-      }
+      // Strategy: Process arrays character by character to properly handle all edge cases
+      cleanedText = fixArrayElements(cleanedText);
       
       // Fix unquoted or single-quoted property names
       // We need to handle three cases separately for reliability
