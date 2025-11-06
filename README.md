@@ -67,8 +67,6 @@ npm run filters:list                # View active filters
 **Search Profiles**  
 Choose from 14 pre-configured profiles with tailored Boolean searches and smart scoring.
 
-Want to create your own profile? See [`docs/PROFILE_CREATION_GUIDE.md`](docs/PROFILE_CREATION_GUIDE.md) for the complete process.
-
 | Profile | Focus | Best For |
 |---------|-------|----------|
 | `core` | Azure API Engineer | Cloud-native full-time roles |
@@ -380,14 +378,6 @@ As you hear back from companies, update job statuses in the dashboard:
 - Resume previous run: `npm run leads:search -- --resume <run-id>`
 
 ---
-
-## Documentation
-
-For deeper technical details, see:
-
-- **[Security & Data Safety](docs/SECURITY.md)** - Database backups, privacy, recovery procedures
-- **[Tech Stack](docs/TECH_STACK.md)** - Technologies used and why
-- **[Architecture](docs/ARCHITECTURE.md)** - System design and component interactions
 
 ---
 
