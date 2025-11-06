@@ -75,6 +75,7 @@ export function LeadsList() {
   const [showCLIReference, setShowCLIReference] = useState(false);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
   const [showScrapeModal, setShowScrapeModal] = useState(false);
+  const [isStartingScrape, setIsStartingScrape] = useState(false);
 
   // Fetch leads
   const { data: leadsData, isLoading: leadsLoading, refetch: refetchLeads } = useQuery({
@@ -226,17 +227,27 @@ export function LeadsList() {
   };
 
   const handleStartScraping = async (config: ScrapeConfig) => {
+    // Prevent duplicate API calls
+    if (isStartingScrape) {
+      console.log('Already starting a scraping run, ignoring duplicate request');
+      return;
+    }
+    
     try {
+      setIsStartingScrape(true);
+      console.log('Starting scraping with config:', config);
       const response = await api.post('/leads/start-scrape', config);
       const result = response.data;
       
-      alert(`Scraping started successfully!\n\nRun ID: ${result.runId}\n${result.message}\n\nCheck the "Scraping Runs" section below for progress.`);
+      console.log('Scraping started, run ID:', result.runId);
+      alert(`Scraping started successfully!\n\nRun ID: ${result.runId}\n${result.message}\n\nCheck the active scraping status above for progress.`);
       
-      // Close modal and refetch runs
-      setShowScrapeModal(false);
+      // Modal will be closed by the modal component
     } catch (error) {
       console.error('Error starting scrape:', error);
       throw new Error('Failed to start scraping. Check the console for details.');
+    } finally {
+      setIsStartingScrape(false);
     }
   };
 
@@ -298,14 +309,14 @@ export function LeadsList() {
       {/* Active Scraping Status */}
       <ActiveScrapingStatus />
 
-      {/* Start Scraping Button */}
+      {/* Get Leads Button */}
       <div className="flex justify-end">
         <button
           onClick={() => setShowScrapeModal(true)}
           className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
         >
-          <Icon icon="play_arrow" size={24} />
-          <span className="font-semibold">Start Scraping</span>
+          <Icon icon="people" size={24} />
+          <span className="font-semibold">Get Leads</span>
         </button>
       </div>
 

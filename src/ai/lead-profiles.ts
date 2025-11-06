@@ -33,7 +33,6 @@ export const LEAD_PROFILES: Record<string, LeadProfile> = {
       'Chief Information Security Officer',
       'General Manager',
       'Managing Partner',
-      'Partner',
       'Founder',
       'Co-Founder',
       'Cofounder',
@@ -41,7 +40,6 @@ export const LEAD_PROFILES: Record<string, LeadProfile> = {
       'Chairman',
       'Chairwoman',
       'Chair',
-      'Owner',
       'VP',
       'Vice President',
       'SVP',
@@ -58,11 +56,9 @@ export const LEAD_PROFILES: Record<string, LeadProfile> = {
       'Founder',
       'Co-Founder',
       'Cofounder',
-      'Owner',
       'Entrepreneur',
       'President',
-      'Managing Partner',
-      'Partner'
+      'Managing Partner'
     ]
   },
 

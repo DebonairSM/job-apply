@@ -28,6 +28,13 @@ export function LeadScrapeModal({ onClose, onStart }: LeadScrapeModalProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent double submission
+    if (isStarting) {
+      console.log('Already starting, ignoring duplicate submission');
+      return;
+    }
+    
     setError('');
     
     // Validation
@@ -87,8 +94,9 @@ export function LeadScrapeModal({ onClose, onStart }: LeadScrapeModalProps) {
         </div>
 
         {/* Content */}
-        <form onSubmit={handleSubmit} className="px-6 py-4 overflow-y-auto flex-1">
-          <div className="space-y-6">
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
+          <div className="px-6 py-4 overflow-y-auto flex-1">
+            <div className="space-y-6">
             {/* Connection Degree */}
             <div>
               <label className="block text-sm font-semibold text-gray-900 mb-3">
@@ -247,37 +255,38 @@ export function LeadScrapeModal({ onClose, onStart }: LeadScrapeModalProps) {
                 <p className="text-sm text-red-800">{error}</p>
               </div>
             )}
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+              disabled={isStarting}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isStarting}
+              className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isStarting ? (
+                <>
+                  <Icon icon="sync" size={20} className="animate-spin" />
+                  <span>Starting...</span>
+                </>
+              ) : (
+                <>
+                  <Icon icon="play_arrow" size={20} />
+                  <span>Start Scraping</span>
+                </>
+              )}
+            </button>
           </div>
         </form>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
-            disabled={isStarting}
-          >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={isStarting}
-            className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isStarting ? (
-              <>
-                <Icon icon="sync" size={20} className="animate-spin" />
-                <span>Starting...</span>
-              </>
-            ) : (
-              <>
-                <Icon icon="play_arrow" size={20} />
-                <span>Start Scraping</span>
-              </>
-            )}
-          </button>
-        </div>
       </div>
     </div>
   );
