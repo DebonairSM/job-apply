@@ -123,8 +123,8 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
     }
   };
 
-  const formatDateLocal = (dateString: string | undefined): string => {
-    return formatRelativeTime(dateString);
+  const formatDateLocal = (dateString: string | undefined, scrapedAt?: string): string => {
+    return formatDate(dateString, scrapedAt);
   };
 
   const dataQualityFields = assessDataQuality();
@@ -210,7 +210,7 @@ export function JobDetailsPanel({ job }: JobDetailsPanelProps) {
               <div>
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Posted Date</label>
                 <div className="mt-1 text-sm text-gray-900">
-                  {formatDateLocal(job.posted_date)}
+                  {formatDateLocal(job.posted_date, job.created_at)}
                 </div>
               </div>
               
