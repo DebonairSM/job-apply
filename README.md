@@ -1,4 +1,4 @@
-# Opp Scraper
+# Opportunities
 
 **Intelligent LinkedIn scraper for jobs and professional networking.**
 
@@ -196,9 +196,9 @@ The system automatically backs up your database, session, and artifacts to My Do
 
 **Backup Location**  
 The system automatically detects your Documents folder location:
-- Windows with OneDrive: `%USERPROFILE%\OneDrive\Documents\OppScraperBackups\`
-- Windows without OneDrive: `%USERPROFILE%\Documents\OppScraperBackups\`
-- Mac/Linux: `~/Documents/OppScraperBackups/`
+- Windows with OneDrive: `%USERPROFILE%\OneDrive\Documents\OpportunitiesBackups\`
+- Windows without OneDrive: `%USERPROFILE%\Documents\OpportunitiesBackups\`
+- Mac/Linux: `~/Documents/OpportunitiesBackups/`
 
 **What's Backed Up**
 - Database files (`app.db` with all jobs, leads, learning data)

@@ -60,13 +60,13 @@ export function getMyDocumentsPath(): string {
   }
   
   // Check for OneDrive Documents folder first (common on Windows)
-  const oneDriveDocs = join(userProfile, 'OneDrive', 'Documents', 'OppScraperBackups');
-  const regularDocs = join(userProfile, 'Documents', 'OppScraperBackups');
+  const oneDriveDocs = join(userProfile, 'OneDrive', 'Documents', 'OpportunitiesBackups');
+  const regularDocs = join(userProfile, 'Documents', 'OpportunitiesBackups');
   
   // Try OneDrive Documents location first
   let myDocs = regularDocs;
   
-  // Check if OneDrive Documents exists (without OppScraperBackups subfolder)
+  // Check if OneDrive Documents exists (without OpportunitiesBackups subfolder)
   const oneDriveDocsParent = join(userProfile, 'OneDrive', 'Documents');
   if (existsSync(oneDriveDocsParent)) {
     myDocs = oneDriveDocs;

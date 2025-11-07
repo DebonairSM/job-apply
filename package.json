@@ -1,7 +1,7 @@
 {
-  "name": "opp-scraper",
+  "name": "opportunities",
   "version": "1.0.0",
-  "description": "Opp Scraper - LinkedIn opportunity scraper for jobs and leads with local AI",
+  "description": "Opportunities - LinkedIn opportunity scraper for jobs and leads with local AI",
   "type": "module",
   "private": true,
   "scripts": {
