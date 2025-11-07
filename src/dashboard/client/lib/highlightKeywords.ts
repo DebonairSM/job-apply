@@ -1,128 +1,298 @@
 /**
- * Utility function to highlight keywords in job descriptions
- * - Green: Microsoft ecosystem (C#, .NET, Azure, etc.)
- * - Yellow: Acceptable/Neutral technologies (AWS, Docker, React, PostgreSQL, etc.)
- * - Red: Prohibitive requirements (Python/Java/Go as primary language, GCP, etc.)
+ * Utility function to highlight keywords in job descriptions based on resume
+ * - Blue: ASP.NET Core keywords (very core to ASP.NET developer expertise)
+ * - Green: Resume keywords (all technical keywords from resume)
  * 
- * Uses a hybrid approach:
- * 1. Static keyword lists (80+ keywords across all categories)
- * 2. AI-identified must_haves and blockers (context-aware additions)
- * 3. Pattern detection for prohibitive requirements (e.g., "5+ years Python")
+ * Resume-based highlighting approach:
+ * 1. Extract keywords from the actual resume
+ * 2. Categorize ASP.NET core keywords separately (blue)
+ * 3. All other resume keywords get green highlighting
+ * 4. This replaces static keyword lists with dynamic resume-based matching
  */
 
 export interface HighlightOptions {
-  mustHaves?: string[]; // AI-identified must-haves
-  blockers?: string[]; // AI-identified blockers
+  mustHaves?: string[]; // AI-identified must-haves (optional, for backward compatibility)
+  blockers?: string[]; // AI-identified blockers (optional, for backward compatibility)
+  useResumeKeywords?: boolean; // Use resume-based keywords instead of static lists (default: true)
 }
 
 export interface HighlightResult {
   html: string;
   counts: {
-    green: number;
-    yellow: number;
-    red: number;
+    blue: number;   // ASP.NET Core keywords
+    green: number;  // Resume keywords
   };
 }
 
-// Microsoft ecosystem keywords (GREEN) + Terraform
-const MICROSOFT_KEYWORDS = [
+// ASP.NET Core keywords - fundamental to ASP.NET development (BLUE highlighting)
+const ASP_NET_CORE_KEYWORDS = [
   // Core .NET
-  'C#', 'VB.NET', '.NET', '.NET Core', '.NET 6', '.NET 8', '.NET Framework',
-  'ASP.NET', 'ASP.NET Core', 'MVC', 'Web Forms', 'WebForms',
-  'Entity Framework', 'EF Core', 'LINQ',
-  'Blazor', 'Razor Pages', 'SignalR', 'WebSockets',
-  'Minimal APIs', 'gRPC', 'Web API', 'REST API',
+  'C#',
+  '.NET',
+  '.NET Core',
+  '.NET 6',
+  '.NET 8',
+  '.NET Framework',
+  'ASP.NET',
+  'ASP.NET Core',
+  'ASP.NET Core Web API',
+  'Web API',
+  'MVC',
+  'Minimal APIs',
   
-  // Legacy .NET Framework versions
-  '.NET 4.5', '.NET 4.7', '.NET 4.8', '.NET Framework 4.5', '.NET Framework 4.7', '.NET Framework 4.8',
-  'ASP.NET MVC 4', 'ASP.NET MVC 5', 'MVC 5', 'Classic ASP',
+  // Entity Framework
+  'Entity Framework',
+  'EF Core',
+  'LINQ',
   
-  // Legacy UI frameworks
-  'jQuery', 'Kendo UI', 'Telerik',
+  // Core patterns
+  'REST',
+  'RESTful',
+  'OpenAPI',
+  'API',
+  'APIs',
   
-  // Azure (Microsoft-specific)
-  'Azure', 'Microsoft Azure',
-  'API Management', 'APIM', 'Azure Functions', 'App Services',
-  'Service Bus', 'Event Grid', 'Azure Storage',
-  'Azure Key Vault', 'Azure Monitor', 'Application Insights', 'App Insights',
-  'Azure Logic Apps', 'Azure Service Fabric',
-  'Azure Container Instances', 'Azure Kubernetes Service', 'AKS',
-  'Azure Load Testing', 'Azure DevOps',
+  // Architecture
+  'DDD',
+  'CQRS',
+  'Clean Architecture',
+  'Dependency Injection',
+  'DI',
   
-  // Microsoft Security & Identity
-  'OAuth 2.0', 'OAuth', 'JWT', 'Entra ID', 'Azure AD', 'Azure Active Directory',
-  'APIM Policies', 'API Governance', 'API Security',
-  
-  // Microsoft Data Stack
-  'SQL Server', 'Serilog',
-  
-  // Microsoft DevOps
-  'GitHub Actions', 'Azure Pipelines',
-  
-  // Infrastructure as Code (exception per user request)
-  'Terraform'
+  // Testing & Development
+  'MSTest',
+  'Unit Tests',
+  'Integration Tests',
+  'Functional Tests'
 ];
 
-// Acceptable/Neutral technologies (YELLOW) - commonly used with Microsoft stack
-const ACCEPTABLE_KEYWORDS = [
-  // AWS Cloud
-  'AWS', 'Amazon Web Services', 'EC2', 'S3', 'Lambda', 'CloudFormation',
-  'ECS', 'EKS', 'RDS', 'DynamoDB', 'CloudWatch', 'SNS', 'SQS',
+// All resume keywords (GREEN highlighting)
+const RESUME_KEYWORDS = [
+  // Languages & Frameworks
+  'TypeScript',
+  'JavaScript',
+  'Python',
+  'C#',
+  'VB.NET',
   
-  // Containers & Orchestration
-  'Docker', 'Kubernetes', 'K8s', 'Helm', 'Container',
+  // .NET Stack (comprehensive)
+  '.NET',
+  '.NET Core',
+  '.NET 6',
+  '.NET 8',
+  '.NET Framework',
+  'ASP.NET',
+  'ASP.NET Core',
+  'ASP.NET Core Web API',
+  'Web API',
+  'MVC',
+  'Web Forms',
+  'WebForms',
+  'Entity Framework',
+  'EF Core',
+  'EF Core 8',
+  'LINQ',
+  'Minimal APIs',
   
-  // Databases (commonly used with .NET)
-  'PostgreSQL', 'Postgres', 'MySQL', 'Redis', 'MongoDB',
+  // Azure Services (comprehensive)
+  'Azure',
+  'Microsoft Azure',
+  'APIM',
+  'Azure API Management',
+  'API Management',
+  'Azure Functions',
+  'App Services',
+  'Azure App Services',
+  'Service Bus',
+  'Azure Service Bus',
+  'Logic Apps',
+  'Azure Logic Apps',
+  'Key Vault',
+  'Azure Key Vault',
+  'Application Insights',
+  'App Insights',
+  'Azure Storage',
+  'Storage',
+  'Cosmos DB',
+  'Azure Load Testing',
+  'Azure DevOps',
+  'Azure Active Directory',
+  'Azure AD',
+  'Entra ID',
+  'Azure CLI',
   
-  // Message Queues & Streaming
-  'Kafka', 'Apache Kafka', 'RabbitMQ', 'MQTT',
+  // API & Integration
+  'REST',
+  'RESTful',
+  'OpenAPI',
+  'API',
+  'APIs',
+  'GraphQL',
+  'Swagger',
+  'API Gateway',
+  'API Governance',
+  'Schema Validation',
+  'Transformations',
+  'Throttling',
+  'Rate Limiting',
+  'Caching',
+  'Versioning',
+  'API Security',
   
-  // CI/CD Tools
-  'Jenkins', 'GitLab CI', 'GitLab', 'CircleCI', 'Travis CI',
+  // Authentication & Security
+  'OAuth',
+  'OAuth 2.0',
+  'JWT',
+  'Entra ID',
+  'Azure AD',
+  'MSAL',
+  'MSAL.js',
+  'Authentication',
+  'Authorization',
+  'Security',
   
-  // Frontend Technologies
-  'React', 'Angular', 'Vue', 'Vue.js', 'TypeScript', 'JavaScript', 'Node.js', 'npm',
+  // Architecture & Patterns
+  'Microservices',
+  'DDD',
+  'CQRS',
+  'Clean Architecture',
+  'Dependency Injection',
+  'DI',
+  'Event-Driven',
+  'Message Queue',
+  'Pub/Sub',
+  'Fan-Out',
+  'Orchestration',
+  'Choreography',
+  'Idempotent',
+  'Idempotency',
+  'Retry',
+  'Circuit Breaker',
+  'Dead Letter Queue',
+  'DLQ',
   
-  // API Technologies
-  'REST', 'RESTful', 'GraphQL', 'OpenAPI', 'Swagger',
+  // Data & Databases
+  'SQL Server',
+  'SQL Server 2019',
+  'T-SQL',
+  'Redis',
+  'Cosmos DB',
+  'Elasticsearch',
+  'EF Core',
+  'Entity Framework',
+  'Query Optimization',
+  'Stored Procedures',
+  'Database',
+  'Relational Database',
+  
+  // DevOps & CI/CD
+  'Azure DevOps',
+  'GitHub Actions',
+  'CI/CD',
+  'Continuous Integration',
+  'Continuous Deployment',
+  'Pipeline',
+  'Multi-Environment',
+  'Bicep',
+  'ARM',
+  'ARM Templates',
+  'Infrastructure as Code',
+  'IaC',
+  'Docker',
+  'Containers',
+  'Azure CLI',
+  
+  // Frontend (complementary)
+  'Angular',
+  'Angular 18',
+  'TypeScript',
+  'JavaScript',
+  'RxJS',
+  'Angular Material',
+  'NgRx',
+  'State Management',
+  'Reactive Forms',
+  'Lazy Loading',
+  'SPA',
+  'Single Page Application',
+  'Kendo UI',
   
   // Monitoring & Observability
-  'Prometheus', 'Grafana', 'ELK', 'Elasticsearch', 'Kibana', 'Logstash',
-  'Datadog', 'New Relic', 'Splunk',
+  'Application Insights',
+  'App Insights',
+  'KQL',
+  'Kusto',
+  'Serilog',
+  'Structured Logging',
+  'Splunk',
+  'Dashboards',
+  'Telemetry',
+  'Observability',
+  'Tracing',
+  'Metrics',
   
-  // Infrastructure & Config Management
-  'Ansible', 'Chef', 'Puppet',
+  // Performance & Testing
+  'Performance Optimization',
+  'Query Optimization',
+  'Caching',
+  'Redis Caching',
+  'Azure Load Testing',
+  'Locust',
+  'Load Testing',
+  'Performance Testing',
+  'Unit Testing',
+  'Integration Testing',
+  'MSTest',
+  'Postman',
+  'Contract Testing',
   
-  // Version Control
-  'Git', 'GitHub', 'Bitbucket'
-];
-
-// Prohibitive technologies (RED) - strong indicators of non-Microsoft focus
-const PROHIBITIVE_KEYWORDS = [
-  // Non-Microsoft languages (when primary requirement)
-  'Python', 'Java', 'Ruby', 'Go', 'Golang', 'PHP', 'Scala', 'Kotlin',
-  'Rust', 'Swift', 'Objective-C', 'Perl', 'Elixir', 'Clojure',
+  // Messaging & Events
+  'Service Bus',
+  'Azure Service Bus',
+  'Message Queue',
+  'Queue',
+  'Topic',
+  'Subscription',
+  'Event Grid',
+  'Event-Driven Architecture',
+  'Pub/Sub',
+  'Publisher/Subscriber',
   
-  // Non-Microsoft cloud platforms (when primary)
-  'GCP', 'Google Cloud', 'Google Cloud Platform', 'Google Cloud Functions',
+  // Integration Platforms
+  'Mulesoft',
+  'Boomi',
+  'Integration Runtime',
+  'Data Factory',
+  'Azure Data Factory',
+  'Logic Apps',
   
-  // Non-Microsoft frameworks (when primary)
-  'Django', 'Flask', 'FastAPI', 'Spring', 'Spring Boot',
-  'Rails', 'Ruby on Rails', 'Laravel',
-  'React Native', 'Flutter', 'Electron',
+  // Third-party Services
+  'SendGrid',
+  'Twilio',
+  'Salesforce',
+  'Bynder',
+  'QuickForms',
+  'Tridion CMS',
+  'Microsoft Dynamics CRM',
   
-  // Specialized databases indicating non-Microsoft stack
-  'Cassandra', 'Neo4j', 'CouchDB', 'ClickHouse'
-];
-
-// Patterns that indicate prohibitive requirements (RED)
-const PROHIBITIVE_PATTERNS = [
-  /\b(\d+)\+?\s*years?\s+(?:of\s+)?(?:experience\s+(?:in|with)\s+)?(AWS|Python|Java|Ruby|Go|PHP|Node\.?js)/gi,
-  /\b(?:required|must have|mandatory):\s*(AWS|Python|Java|Ruby|Go|PHP|Node\.?js)/gi,
-  /\b(?:expert|proficient|strong)\s+(?:in|with)\s+(AWS|Python|Java|Ruby|Go|PHP|Node\.?js)/gi,
-  /\b(?:primarily|mainly|extensively)\s+(AWS|Python|Java|Ruby|Go|PHP|Node\.?js)/gi,
-  /\bheavy\s+(AWS|Python|Java|Ruby|Go|PHP|Node\.?js)/gi,
+  // Methodologies
+  'Agile',
+  'Scrum',
+  'Kanban',
+  'Lean',
+  'PSM',
+  'Professional Scrum Master',
+  
+  // General Tech
+  'Git',
+  'GitHub',
+  'Code Review',
+  'Pair Programming',
+  'Mentoring',
+  'Technical Leadership',
+  'API-First',
+  'Contract-Driven',
+  'Documentation'
 ];
 
 /**
@@ -133,92 +303,70 @@ function escapeRegex(str: string): string {
 }
 
 /**
- * Detects if text contains prohibitive patterns
+ * Normalize keyword for matching (lowercase, trim)
  */
-function detectProhibitivePatterns(text: string): string[] {
-  const matches: string[] = [];
-  
-  for (const pattern of PROHIBITIVE_PATTERNS) {
-    const found = text.match(pattern);
-    if (found) {
-      matches.push(...found);
-    }
-  }
-  
-  return matches;
+function normalizeKeyword(keyword: string): string {
+  return keyword.toLowerCase().trim();
+}
+
+/**
+ * Check if a keyword is ASP.NET core
+ */
+function isAspNetCoreKeyword(keyword: string): boolean {
+  const normalized = normalizeKeyword(keyword);
+  return ASP_NET_CORE_KEYWORDS.some(k => normalizeKeyword(k) === normalized);
 }
 
 /**
  * Highlights keywords in text by wrapping matches in mark tags
  * Returns HTML string with highlighted keywords and match counts
+ * 
+ * Resume-based highlighting:
+ * - BLUE: ASP.NET Core keywords (fundamental to ASP.NET development)
+ * - GREEN: Resume keywords (all other technical keywords from resume)
  */
-export function highlightKeywords(text: string, options: HighlightOptions): HighlightResult {
-  if (!text) return { html: '', counts: { green: 0, yellow: 0, red: 0 } };
+export function highlightKeywords(text: string, options: HighlightOptions = {}): HighlightResult {
+  if (!text) return { html: '', counts: { blue: 0, green: 0 } };
   
-  const { mustHaves = [], blockers = [] } = options;
+  const { useResumeKeywords = true } = options;
+  
+  if (!useResumeKeywords) {
+    // Fallback to no highlighting if requested
+    return { html: escapeHtml(text), counts: { blue: 0, green: 0 } };
+  }
   
   // Create a map to track which keywords have been found and their type
-  const keywordMap = new Map<string, 'green' | 'yellow' | 'red'>();
+  const keywordMap = new Map<string, 'blue' | 'green'>();
   
-  // 1. Add static Microsoft ecosystem keywords (GREEN) - highest priority
-  MICROSOFT_KEYWORDS.forEach(keyword => {
+  // 1. Add ASP.NET Core keywords (BLUE) - highest priority
+  ASP_NET_CORE_KEYWORDS.forEach(keyword => {
     if (keyword && keyword.trim()) {
-      keywordMap.set(keyword.toLowerCase().trim(), 'green');
+      keywordMap.set(normalizeKeyword(keyword), 'blue');
     }
   });
   
-  // 2. Add acceptable/neutral keywords (YELLOW) - but don't override green
-  ACCEPTABLE_KEYWORDS.forEach(keyword => {
+  // 2. Add all resume keywords (GREEN) - but don't override blue
+  // Remove ASP.NET Core keywords from resume list to avoid duplicates
+  const aspNetCoreNormalized = new Set(ASP_NET_CORE_KEYWORDS.map(normalizeKeyword));
+  const resumeKeywordsFiltered = RESUME_KEYWORDS.filter(keyword => {
+    return !aspNetCoreNormalized.has(normalizeKeyword(keyword));
+  });
+  
+  resumeKeywordsFiltered.forEach(keyword => {
     if (keyword && keyword.trim()) {
-      const key = keyword.toLowerCase().trim();
+      const key = normalizeKeyword(keyword);
       if (!keywordMap.has(key)) {
-        keywordMap.set(key, 'yellow');
+        keywordMap.set(key, 'green');
       }
-    }
-  });
-  
-  // 3. Add static prohibitive keywords (RED) - but don't override green or yellow
-  PROHIBITIVE_KEYWORDS.forEach(keyword => {
-    if (keyword && keyword.trim()) {
-      const key = keyword.toLowerCase().trim();
-      if (!keywordMap.has(key)) {
-        keywordMap.set(key, 'red');
-      }
-    }
-  });
-  
-  // 4. Add AI-identified must-haves (GREEN) - reinforce Microsoft ecosystem
-  mustHaves.forEach(keyword => {
-    if (keyword && keyword.trim()) {
-      keywordMap.set(keyword.toLowerCase().trim(), 'green');
-    }
-  });
-  
-  // 5. Add AI-identified blockers (RED) - but don't override green or yellow
-  blockers.forEach(keyword => {
-    if (keyword && keyword.trim()) {
-      const key = keyword.toLowerCase().trim();
-      if (!keywordMap.has(key)) {
-        keywordMap.set(key, 'red');
-      }
-    }
-  });
-  
-  // 6. Detect prohibitive patterns and add them
-  const prohibitiveMatches = detectProhibitivePatterns(text);
-  prohibitiveMatches.forEach(match => {
-    const key = match.toLowerCase().trim();
-    if (!keywordMap.has(key)) {
-      keywordMap.set(key, 'red');
     }
   });
   
   if (keywordMap.size === 0) {
-    return { html: escapeHtml(text), counts: { green: 0, yellow: 0, red: 0 } };
+    return { html: escapeHtml(text), counts: { blue: 0, green: 0 } };
   }
   
   // Track match counts
-  const counts = { green: 0, yellow: 0, red: 0 };
+  const counts = { blue: 0, green: 0 };
   
   // Sort keywords by length (longest first) to handle overlapping matches
   const sortedKeywords = Array.from(keywordMap.entries())
@@ -247,7 +395,7 @@ export function highlightKeywords(text: string, options: HighlightOptions): High
   const regex = new RegExp(`(${patterns.join('|')})`, 'gi');
   
   // Split text into parts and track what's been highlighted
-  const parts: Array<{ text: string; type: 'plain' | 'green' | 'yellow' | 'red' }> = [];
+  const parts: Array<{ text: string; type: 'plain' | 'blue' | 'green' }> = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
   
@@ -262,14 +410,21 @@ export function highlightKeywords(text: string, options: HighlightOptions): High
     
     // Determine color for this match
     const matchedText = match[0];
-    const matchedKey = matchedText.toLowerCase().trim();
+    const matchedKey = normalizeKeyword(matchedText);
     
-    // Find the best matching keyword
-    let color: 'green' | 'yellow' | 'red' = 'green';
-    for (const [keyword, keywordColor] of keywordMap.entries()) {
-      if (matchedKey === keyword || matchedKey.includes(keyword) || keyword.includes(matchedKey)) {
-        color = keywordColor;
-        break;
+    // Find the best matching keyword (prioritize exact matches, then containment)
+    let color: 'blue' | 'green' = 'green';
+    
+    // First try exact match
+    if (keywordMap.has(matchedKey)) {
+      color = keywordMap.get(matchedKey)!;
+    } else {
+      // Try to find a match with contains logic
+      for (const [keyword, keywordColor] of keywordMap.entries()) {
+        if (matchedKey === keyword || matchedKey.includes(keyword) || keyword.includes(matchedKey)) {
+          color = keywordColor;
+          break;
+        }
       }
     }
     
@@ -296,12 +451,10 @@ export function highlightKeywords(text: string, options: HighlightOptions): High
   const html = parts.map(part => {
     if (part.type === 'plain') {
       return escapeHtml(part.text);
-    } else if (part.type === 'green') {
-      return `<mark class="bg-green-200 text-green-900 px-1 rounded">${escapeHtml(part.text)}</mark>`;
-    } else if (part.type === 'yellow') {
-      return `<mark class="bg-yellow-200 text-yellow-900 px-1 rounded">${escapeHtml(part.text)}</mark>`;
+    } else if (part.type === 'blue') {
+      return `<mark class="bg-blue-200 text-blue-900 px-1 rounded font-medium">${escapeHtml(part.text)}</mark>`;
     } else {
-      return `<mark class="bg-red-200 text-red-900 px-1 rounded">${escapeHtml(part.text)}</mark>`;
+      return `<mark class="bg-green-200 text-green-900 px-1 rounded">${escapeHtml(part.text)}</mark>`;
     }
   }).join('');
   

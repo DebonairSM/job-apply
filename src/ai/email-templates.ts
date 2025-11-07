@@ -69,11 +69,14 @@ export interface EmailContent {
 // =============================================================================
 
 const SIGNATURE = `Rommel Bandeira
+
 Service Manager | Agent Master
+
 VSol Software
-(352) 397-8650
-info@vsol.software
-www.vsol.software`;
+
+📞 (352) 397-8650 | ✉️ info@vsol.software
+
+🌐 vsol.software`;
 
 const REFERRAL_SALT = 'VSOL';
 const REFERRAL_BASE_URL = 'https://vsol.software/referral';
@@ -114,29 +117,19 @@ function buildChiefsEmail(ctx: EmailContext): EmailOutput {
   const opening = buildProblemFraming(lead, 'chiefs');
   
   // Personal credibility statement
-  const credibility = `It's incredibly satisfying to see your entire business run on automation. I just finished automating mine in a week — and even added a few "nice-to-haves" along the way.
-
-Allow me to show you how we can do the same for yours.`;
+  const credibility = `I recently automated my own business end-to-end in under a week. The result? No more spreadsheets, to-do lists, or calendar juggling — just seamless, self-running workflows.`;
   
   // Product pitch with natural bridge
-  const pitch = `That's precisely where our Work Automation Platform brings value.
+  const pitch = `That's what our **Work Automation Platform** delivers.
 
-We specialize in transforming manual workflows — like those currently handled through spreadsheets, todo lists, manual calendars, and planners — into fully automated systems. 
+In a short discovery call, we map your current processes, then show AI-generated interactive mockups in real time. Within hours, you'll see a working prototype of your future system — complete with documentation, ROI analysis, and deployment-ready deliverables.
 
-During a brief discovery session, we analyze your current processes and present AI-generated interactive mockups in real time. Within just a few hours, we deliver a working prototype that demonstrates how the automated system would function in your environment. Each engagement includes requirements documentation, ROI analysis, and deployment-ready deliverables.
-
-Our approach uses AI-assisted development to create tailored solutions. They're secure, open-source, and local-first, giving your organization full control of its data. The platform can reduce infrastructure costs significantly while improving reliability.
-
-Over time, we train an internal technical leader to build and test new features in a gated CI/CD pipeline.
-
-Learn more about the Work Automation Platform:
-${ctx.productUrl}`;
+The platform is secure, open-source, and local-first, giving you full control of your data while cutting infrastructure costs and improving reliability. We even help your internal team learn to extend it safely through CI/CD pipelines.`;
   
-  // Call to action (softened, dual options)
-  const cta = `Is a brief conversation this week worth exploring?
+  // Call to action (softened, direct)
+  const cta = `Would you be open to a quick conversation this week to explore what automation could look like in your organization?
 
-You can reply to this email or book a meeting directly:
-${ctx.calendlyUrl}`;
+You can book directly here: ${ctx.calendlyUrl}`;
   
   // Assemble body
   const bodyText = `Hello ${lead.firstName},
@@ -168,22 +161,27 @@ function buildGenericEmail(ctx: EmailContext): EmailOutput {
   // Opening - problem framing
   const opening = buildProblemFraming(lead, 'generic');
   
+  // Personal credibility statement
+  const credibility = `I recently automated my own business end-to-end in under a week. The result? No more spreadsheets, to-do lists, or calendar juggling — just seamless, self-running workflows.`;
+  
   // Product pitch with natural bridge
-  const pitch = `I've been developing a new business model that addresses this challenge.
+  const pitch = `That's what our **Work Automation Platform** delivers.
 
-It automates everyday workflows, especially those built around spreadsheets, using AI-assisted development. We deliver high-fidelity mockups and an MVP in one week at no cost. Then we evolve the system with local-first AI insights that continuously improve performance.
+In a short discovery call, we map your current processes, then show AI-generated interactive mockups in real time. Within hours, you'll see a working prototype of your future system — complete with documentation, ROI analysis, and deployment-ready deliverables.
 
-The platform is tailored, secure, open-source, and local-first. It can reduce infrastructure costs significantly while giving organizations full control of their data.
-
-Over time, we also train an internal technical leader to build and test proof-of-concept features in a gated CI/CD pipeline.`;
+The platform is secure, open-source, and local-first, giving you full control of your data while cutting infrastructure costs and improving reliability. We even help your internal team learn to extend it safely through CI/CD pipelines.`;
   
   // Call to action (softened)
-  const cta = `Is a brief conversation this week worth exploring?`;
+  const cta = `Would you be open to a quick conversation this week to explore what automation could look like in your organization?
+
+You can book directly here: ${ctx.calendlyUrl}`;
   
   // Assemble body
   const bodyText = `Hello ${lead.firstName},
 
 ${opening}
+
+${credibility}
 
 ${pitch}
 
@@ -211,22 +209,22 @@ function buildProblemFraming(lead: LeadProfile, template: 'chiefs' | 'generic'):
   const opener = generateProfessionalOpener(lead.roleTitle, lead.companyName);
   
   if (template === 'chiefs') {
-    // Workflow automation focus for C-level (not just spreadsheets)
+    // Workflow automation focus for C-level (concise, conversational)
     if (roleType === 'executive') {
-      return `${opener}, you understand how manual workflows — spreadsheets, todo lists, calendars, and planners — can slow critical decision-making. When teams spend time on manual coordination instead of strategic work, initiatives lose momentum.`;
+      return `${opener}, you're familiar with the challenge of manual workflows slowing down decision-making. Many executive teams are turning to automation to remove those bottlenecks and improve operational reliability.`;
     } else if (roleType === 'operations') {
-      return `${opener}, you've likely seen how manual workflows create bottlenecks. Spreadsheet updates, task tracking, and calendar coordination consume valuable time, while errors multiply and stakeholders lose confidence in the data.`;
+      return `${opener}, you've likely encountered how manual processes create friction in operations. Many teams in similar settings are turning to automation to remove manual steps and improve reliability.`;
     } else {
-      return `${opener}, you know how manual workflows — from spreadsheets to task lists — can impact operational efficiency. Updates take time, errors accumulate, and getting reliable insights becomes increasingly difficult.`;
+      return `${opener}, you understand how manual workflows can impact efficiency. Many organizations are turning to automation to streamline these processes and reduce operational overhead.`;
     }
   } else {
-    // Generic workflow automation
+    // Generic workflow automation (concise, conversational)
     if (roleType === 'executive') {
-      return `${opener}, you're likely aware of workflows that evolved organically but now resist automation. Custom development feels expensive or slow, yet teams continue spending hours on manual tasks.`;
+      return `${opener}, you're likely aware of workflows that resist automation while consuming valuable time. Many leadership teams are exploring new approaches to automate these processes efficiently.`;
     } else if (roleType === 'technical') {
-      return `${opener}, you've probably identified inefficiencies in manual workflows but lack bandwidth to build automation. Traditional development is too slow, and low-code platforms lack the flexibility for complex processes.`;
+      return `${opener}, you've probably identified inefficiencies in manual workflows. Many technical teams are turning to automation platforms that balance speed with flexibility for complex processes.`;
     } else {
-      return `${opener}, you understand how manual workflows create friction. Automation seems expensive or complicated, so teams continue with time-consuming manual steps.`;
+      return `${opener}, you understand how manual workflows create friction. Many teams in similar settings are turning to automation to remove manual steps and improve reliability.`;
     }
   }
 }
@@ -242,15 +240,15 @@ function generateProfessionalOpener(roleTitle: string, companyName: string): str
   
   switch (variation) {
     case 0:
-      return `Given your role as ${roleTitle} at ${companyName}`;
+      return `I noticed your work as ${roleTitle} at ${companyName}`;
     case 1:
-      return `In your capacity as ${roleTitle} at ${companyName}`;
+      return `I saw your experience as ${roleTitle} at ${companyName}`;
     case 2:
-      return `As ${roleTitle} at ${companyName}`;
+      return `I came across your role as ${roleTitle} at ${companyName}`;
     case 3:
-      return `From your experience as ${roleTitle} at ${companyName}`;
+      return `I noticed your experience as ${roleTitle} at ${companyName}`;
     default:
-      return `Given your role as ${roleTitle} at ${companyName}`;
+      return `I noticed your work as ${roleTitle} at ${companyName}`;
   }
 }
 
@@ -444,13 +442,17 @@ function generateGenericBody(lead: Lead, firstName: string): string {
   
   const personalizedContext = generatePersonalizedContext(lead);
   
-  const mainPitch = `I'd love to share a new business model I've been developing and get your feedback.
-
-It automates everyday workflows, especially those built around spreadsheets, using AI-assisted development. We deliver high-fidelity mockups and an MVP in one week at no cost, then evolve the system with local-first AI insights that continuously improve performance.
-
-It's a tailored, secure, open-source, local-first platform that can cut costs by up to 100x while giving organizations full control of their data. Over time, I also train an internal technical leader to build and test proof-of-concept features in a gated CI/CD pipeline.`;
+  const credibility = `I recently automated my own business end-to-end in under a week. The result? No more spreadsheets, to-do lists, or calendar juggling — just seamless, self-running workflows.`;
   
-  const closing = `Would you have a few minutes this week to talk?
+  const mainPitch = `That's what our **Work Automation Platform** delivers.
+
+In a short discovery call, we map your current processes, then show AI-generated interactive mockups in real time. Within hours, you'll see a working prototype of your future system — complete with documentation, ROI analysis, and deployment-ready deliverables.
+
+The platform is secure, open-source, and local-first, giving you full control of your data while cutting infrastructure costs and improving reliability. We even help your internal team learn to extend it safely through CI/CD pipelines.`;
+  
+  const closing = `Would you be open to a quick conversation this week to explore what automation could look like in your organization?
+
+You can book directly here: ${BOOKING_URL}
 
 Best regards,
 
@@ -459,6 +461,8 @@ ${SIGNATURE}`;
   return `${intro}
 
 ${personalizedContext}
+
+${credibility}
 
 ${mainPitch}
 
@@ -483,23 +487,17 @@ function generateChiefsBody(lead: Lead, firstName: string): string {
   
   const personalizedContext = generatePersonalizedContext(lead);
   
-  const credibility = `It's incredibly satisfying to see your entire business run on automation. I just finished automating mine in a week — and even added a few "nice-to-haves" along the way.
-
-Allow me to show you how we can do the same for yours.`;
+  const credibility = `I recently automated my own business end-to-end in under a week. The result? No more spreadsheets, to-do lists, or calendar juggling — just seamless, self-running workflows.`;
   
-  const mainPitch = `I'd like to share our **Work Automation Platform** with you.
+  const mainPitch = `That's what our **Work Automation Platform** delivers.
 
-We transform manual workflows — like those currently handled through spreadsheets, todo lists, manual calendars, and planners — into fully automated systems with **AI-generated interactive mockups** delivered during discovery calls. We analyze your current processes, design streamlined solutions, and provide **working demonstrations same-day**.
+In a short discovery call, we map your current processes, then show AI-generated interactive mockups in real time. Within hours, you'll see a working prototype of your future system — complete with documentation, ROI analysis, and deployment-ready deliverables.
 
-Our approach uses AI-assisted development to create tailored, secure, open-source, **local-first** solutions that can **cut costs by up to 100x** while giving organizations full control of their data. Over time, we also train an internal technical leader to build and test proof-of-concept features in a gated CI/CD pipeline.
-
-Learn more about the Work Automation Platform:
-${WORK_AUTOMATION_URL}`;
+The platform is secure, open-source, and local-first, giving you full control of your data while cutting infrastructure costs and improving reliability. We even help your internal team learn to extend it safely through CI/CD pipelines.`;
   
-  const closing = `Would you have time this week to discuss how this could benefit ${lead.company || 'your organization'}?
+  const closing = `Would you be open to a quick conversation this week to explore what automation could look like in ${lead.company || 'your organization'}?
 
-Or book a meeting directly:
-${BOOKING_URL}
+You can book directly here: ${BOOKING_URL}
 
 Best regards,
 
@@ -599,49 +597,77 @@ function extractRelevantExperience(about?: string): string | null {
 
 /**
  * Generate HTML-formatted email for rich clipboard copy
- * Converts markdown-style formatting to HTML: **bold**, URLs to links
+ * Converts markdown-style formatting to HTML: **bold**, URLs to links, emojis, clickable phone/email
  * Optimized for email clients like Outlook, Gmail, etc.
  */
 export function generateHtmlEmail(lead: Lead, includeReferral?: boolean): string {
   const email = generateOutreachEmail(lead, includeReferral);
   
-  // Split body into paragraphs (double newlines)
-  const paragraphs = email.body.split(/\n\n+/);
+  // Process the email body line by line to preserve signature formatting
+  const lines = email.body.split('\n');
+  let htmlContent = '';
+  let currentParagraph: string[] = [];
+  let consecutiveEmptyLines = 0;
   
-  // Convert each paragraph to HTML
-  const htmlParagraphs = paragraphs.map(para => {
-    // Convert **bold** to <strong>bold</strong>
-    let htmlPara = para.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    
-    // Convert URLs to clickable links (but avoid double-linking)
-    // First, protect already-linked URLs
-    const protectedLinks: string[] = [];
-    htmlPara = htmlPara.replace(/<a [^>]+>[^<]+<\/a>/g, (match) => {
-      protectedLinks.push(match);
-      return `___PROTECTED_LINK_${protectedLinks.length - 1}___`;
-    });
-    
-    // Now convert plain URLs to links (including www. URLs)
-    htmlPara = htmlPara.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color: #0066cc; text-decoration: underline;">$1</a>');
-    // Also convert www. URLs (add https:// to the href but keep display text as-is)
-    htmlPara = htmlPara.replace(/\b(www\.[^\s<]+)/g, '<a href="https://$1" style="color: #0066cc; text-decoration: underline;">$1</a>');
-    
-    // Convert email addresses to mailto links
-    htmlPara = htmlPara.replace(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/g, '<a href="mailto:$1" style="color: #0066cc; text-decoration: underline;">$1</a>');
-    
-    // Restore protected links
-    protectedLinks.forEach((link, index) => {
-      htmlPara = htmlPara.replace(`___PROTECTED_LINK_${index}___`, link);
-    });
-    
-    // Convert single newlines within paragraphs to <br>
-    htmlPara = htmlPara.replace(/\n/g, '<br>');
-    
-    // Wrap in paragraph tag with proper spacing
-    return `<p style="margin: 0 0 1em 0;">${htmlPara}</p>`;
-  }).join('');
+  const flushParagraph = () => {
+    if (currentParagraph.length > 0) {
+      // Join lines with \n for processing
+      let paraText = currentParagraph.join('\n');
+      
+      // Convert **bold** to <strong>bold</strong>
+      paraText = paraText.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+      
+      // Protect existing HTML tags/links
+      const protectedLinks: string[] = [];
+      paraText = paraText.replace(/<a [^>]+>[^<]+<\/a>/g, (match) => {
+        protectedLinks.push(match);
+        return `___PROTECTED_LINK_${protectedLinks.length - 1}___`;
+      });
+      
+      // Convert URLs to clickable links
+      paraText = paraText.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color: #0066cc; text-decoration: underline;">$1</a>');
+      paraText = paraText.replace(/\b(www\.[^\s<]+)/g, '<a href="https://$1" style="color: #0066cc; text-decoration: underline;">$1</a>');
+      
+      // Convert email addresses to mailto links
+      paraText = paraText.replace(/\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/g, '<a href="mailto:$1" style="color: #0066cc; text-decoration: underline;">$1</a>');
+      
+      // Convert phone number to tel: link with proper format: tel:+1XXXXXXXXXX
+      paraText = paraText.replace(/\((\d{3})\)\s*(\d{3})-(\d{4})/g, (match, p1, p2, p3) => {
+        return `<a href="tel:+1${p1}${p2}${p3}" style="color: #0066cc; text-decoration: underline;">(${p1}) ${p2}-${p3}</a>`;
+      });
+      
+      // Restore protected links
+      protectedLinks.forEach((link, index) => {
+        paraText = paraText.replace(`___PROTECTED_LINK_${index}___`, link);
+      });
+      
+      // Convert remaining newlines to <br>
+      paraText = paraText.replace(/\n/g, '<br>');
+      
+      // Wrap in paragraph tag
+      htmlContent += `<p style="margin: 0 0 1em 0;">${paraText}</p>`;
+      currentParagraph = [];
+    }
+  };
   
-  // Create full HTML email body (without To/Subject - those go in email client fields)
+  // Process each line
+  for (const line of lines) {
+    if (line.trim() === '') {
+      consecutiveEmptyLines++;
+      // Only flush on first empty line (paragraph break)
+      if (consecutiveEmptyLines === 1) {
+        flushParagraph();
+      }
+    } else {
+      consecutiveEmptyLines = 0;
+      currentParagraph.push(line);
+    }
+  }
+  
+  // Flush any remaining paragraph
+  flushParagraph();
+  
+  // Create full HTML email body
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -649,7 +675,7 @@ export function generateHtmlEmail(lead: Lead, includeReferral?: boolean): string
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif; font-size: 12pt; line-height: 1.6; color: #000000; margin: 0; padding: 0;">
-${htmlParagraphs}
+${htmlContent}
 </body>
 </html>`;
 }

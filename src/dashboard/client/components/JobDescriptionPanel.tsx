@@ -21,33 +21,13 @@ export function JobDescriptionPanel({
   description,
   job
 }: JobDescriptionPanelProps) {
-  // Parse keywords from job data
-  const { mustHaves, blockers } = useMemo(() => {
-    if (!job) return { mustHaves: [], blockers: [] };
-    
-    const parseJsonField = (value: string | undefined): string[] => {
-      if (!value) return [];
-      try {
-        const parsed = JSON.parse(value);
-        return Array.isArray(parsed) ? parsed : [];
-      } catch {
-        return [];
-      }
-    };
-    
-    return {
-      mustHaves: parseJsonField(job.must_haves),
-      blockers: parseJsonField(job.blockers)
-    };
-  }, [job]);
-  
   // Generate highlighted HTML with counts
   const highlightResult = useMemo(() => {
-    if (!description) return { html: '', counts: { green: 0, yellow: 0, red: 0 } };
+    if (!description) return { html: '', counts: { blue: 0, green: 0 } };
     
-    // Always apply highlighting (uses static keywords + AI data)
-    return highlightKeywords(description, { mustHaves, blockers });
-  }, [description, mustHaves, blockers]);
+    // Always apply resume-based highlighting
+    return highlightKeywords(description, { useResumeKeywords: true });
+  }, [description]);
   // Handle escape key
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -113,29 +93,21 @@ export function JobDescriptionPanel({
             <>
               {/* Legend for highlighting */}
               <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                <div className="text-sm font-medium text-gray-700 mb-2">Keyword Highlighting:</div>
+                <div className="text-sm font-medium text-gray-700 mb-2">Resume Keyword Matches:</div>
                 <div className="flex flex-wrap gap-3 text-xs">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-gray-600">Microsoft Ecosystem</span>
+                    <span className="text-gray-600">ASP.NET Core</span>
+                    {highlightResult.counts.blue > 0 && (
+                      <span className="px-1.5 py-0.5 bg-blue-200 text-blue-900 rounded font-medium">
+                        {highlightResult.counts.blue}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-gray-600">Resume Keywords</span>
                     {highlightResult.counts.green > 0 && (
                       <span className="px-1.5 py-0.5 bg-green-200 text-green-900 rounded font-medium">
                         {highlightResult.counts.green}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-gray-600">Acceptable Tech</span>
-                    {highlightResult.counts.yellow > 0 && (
-                      <span className="px-1.5 py-0.5 bg-yellow-200 text-yellow-900 rounded font-medium">
-                        {highlightResult.counts.yellow}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-gray-600">Prohibitive</span>
-                    {highlightResult.counts.red > 0 && (
-                      <span className="px-1.5 py-0.5 bg-red-200 text-red-900 rounded font-medium">
-                        {highlightResult.counts.red}
                       </span>
                     )}
                   </div>
