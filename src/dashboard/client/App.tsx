@@ -10,6 +10,7 @@ import { Settings } from './components/Settings';
 import { JobNavigationProvider } from './contexts/JobNavigationContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { Icon } from './components/Icon';
+import { LlmHealthIndicator } from './components/LlmHealthIndicator';
 
 const queryClient = new QueryClient();
 
@@ -124,6 +125,7 @@ function AppContent() {
         <div className="bg-white shadow-sm border-b border-gray-200 h-16 flex items-center justify-between px-6">
           <h2 className="text-xl font-semibold text-gray-800 capitalize">{getCurrentView()}</h2>
           <div className="flex items-center gap-4">
+            <LlmHealthIndicator />
             <button className="p-2 rounded-lg hover:bg-gray-100 transition-colors" title="Notifications">
               <Icon icon="notifications" size={24} className="text-gray-600" />
             </button>
