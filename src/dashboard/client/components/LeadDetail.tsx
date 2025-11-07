@@ -167,13 +167,18 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
     if (!generatedEmail) return;
     
     try {
-      // Generate HTML version of the email
+      // Generate HTML version (just body content for Gmail compatibility)
       const htmlEmail = generateHtmlEmail(lead, includeReferral);
-      const plainTextEmail = `To: ${generatedEmail.to}\nSubject: ${generatedEmail.subject}\n\n${generatedEmail.body}`;
+      // Extract just the body content (Gmail doesn't like full HTML documents)
+      const bodyContentMatch = htmlEmail.match(/<body[^>]*>([\s\S]*)<\/body>/);
+      const htmlContent = bodyContentMatch ? bodyContentMatch[1] : htmlEmail;
+      
+      // Plain text version (just body, no To/Subject since those are separate fields)
+      const plainTextEmail = generatedEmail.body;
       
       // Try modern clipboard API with HTML support
       if (navigator.clipboard && navigator.clipboard.write) {
-        const htmlBlob = new Blob([htmlEmail], { type: 'text/html' });
+        const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
         const textBlob = new Blob([plainTextEmail], { type: 'text/plain' });
         
         const clipboardItem = new ClipboardItem({
@@ -436,11 +441,25 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
                   </div>
 
                   <div className="border-t border-gray-200 pt-2">
-                    <span className="text-xs font-medium text-gray-500">Body Preview:</span>
-                    <div className="mt-1 p-2 bg-gray-50 rounded text-xs text-gray-700 whitespace-pre-wrap max-h-48 overflow-y-auto font-mono">
-                      {generatedEmail.body.substring(0, 500)}
-                      {generatedEmail.body.length > 500 && '...'}
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-medium text-gray-500">Formatted Email Body:</span>
+                      <span className="text-xs text-blue-600">Select text below and copy (Ctrl+C) for best formatting</span>
                     </div>
+                    <div 
+                      className="mt-1 p-4 bg-white rounded border border-gray-200 text-sm text-gray-900 max-h-96 overflow-y-auto"
+                      style={{
+                        fontFamily: 'Arial, "Helvetica Neue", Helvetica, sans-serif',
+                        fontSize: '12pt',
+                        lineHeight: '1.6'
+                      }}
+                      dangerouslySetInnerHTML={{
+                        __html: (() => {
+                          const htmlEmail = generateHtmlEmail(lead, includeReferral);
+                          const bodyContentMatch = htmlEmail.match(/<body[^>]*>([\s\S]*)<\/body>/);
+                          return bodyContentMatch ? bodyContentMatch[1] : generatedEmail.body;
+                        })()
+                      }}
+                    />
                   </div>
                 </div>
 
@@ -465,32 +484,38 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleOpenEmailClient}
-                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm"
-                  >
-                    <Icon icon="open_in_new" size={16} />
-                    Open in Email Client
-                  </button>
-                  <button
-                    onClick={handleCopyEmail}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors text-sm ${
-                      copiedEmail
-                        ? 'bg-green-600 text-white'
-                        : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                    }`}
-                  >
-                    <Icon icon={copiedEmail ? 'check' : 'content_copy'} size={16} />
-                    {copiedEmail ? 'Copied!' : 'Copy'}
-                  </button>
-                  <button
-                    onClick={() => setShowEmailSection(false)}
-                    className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-md hover:bg-gray-50 transition-colors text-sm border border-gray-300"
-                  >
-                    <Icon icon="close" size={16} />
-                    Hide
-                  </button>
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleOpenEmailClient}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm"
+                    >
+                      <Icon icon="open_in_new" size={16} />
+                      Open in Email Client
+                    </button>
+                    <button
+                      onClick={handleCopyEmail}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors text-sm ${
+                        copiedEmail
+                          ? 'bg-green-600 text-white'
+                          : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
+                      }`}
+                    >
+                      <Icon icon={copiedEmail ? 'check' : 'content_copy'} size={16} />
+                      {copiedEmail ? 'Copied!' : 'Quick Copy'}
+                    </button>
+                    <button
+                      onClick={() => setShowEmailSection(false)}
+                      className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-md hover:bg-gray-50 transition-colors text-sm border border-gray-300"
+                    >
+                      <Icon icon="close" size={16} />
+                      Hide
+                    </button>
+                  </div>
+                  <div className="px-1 py-2 bg-blue-50 border border-blue-100 rounded text-xs text-blue-800">
+                    <Icon icon="info" size={14} className="inline mr-1" />
+                    <strong>Best practice for Gmail:</strong> Select and copy text directly from the formatted preview above. This preserves all formatting, emojis, and clickable links.
+                  </div>
                 </div>
 
                 {/* Email Status Tracking */}

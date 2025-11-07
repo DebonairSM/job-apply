@@ -42,14 +42,19 @@ export function EmailPreviewModal({ emails: initialEmails, leads, onClose }: Ema
 
   const handleCopyToClipboard = async (email: EmailContent, index: number, lead: Lead) => {
     try {
-      // Get the lead for this email to generate HTML version
+      // Generate HTML version (just body content for Gmail compatibility)
       const includeReferral = referralEnabled.get(index) ?? false;
       const htmlEmail = generateHtmlEmail(lead, includeReferral);
-      const plainTextEmail = `To: ${email.to}\nSubject: ${email.subject}\n\n${email.body}`;
+      // Extract just the body content (Gmail doesn't like full HTML documents)
+      const bodyContentMatch = htmlEmail.match(/<body[^>]*>([\s\S]*)<\/body>/);
+      const htmlContent = bodyContentMatch ? bodyContentMatch[1] : htmlEmail;
+      
+      // Plain text version (just body, no To/Subject since those are separate fields)
+      const plainTextEmail = email.body;
       
       // Try modern clipboard API with HTML support
       if (navigator.clipboard && navigator.clipboard.write) {
-        const htmlBlob = new Blob([htmlEmail], { type: 'text/html' });
+        const htmlBlob = new Blob([htmlContent], { type: 'text/html' });
         const textBlob = new Blob([plainTextEmail], { type: 'text/plain' });
         
         const clipboardItem = new ClipboardItem({

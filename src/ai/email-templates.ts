@@ -619,10 +619,14 @@ export function generateHtmlEmail(lead: Lead, includeReferral?: boolean): string
       
       // Protect existing HTML tags/links
       const protectedLinks: string[] = [];
-      paraText = paraText.replace(/<a [^>]+>[^<]+<\/a>/g, (match) => {
-        protectedLinks.push(match);
-        return `___PROTECTED_LINK_${protectedLinks.length - 1}___`;
-      });
+      const protectLinks = (text: string) => {
+        return text.replace(/<a [^>]+>[^<]+<\/a>/g, (match) => {
+          protectedLinks.push(match);
+          return `___PROTECTED_LINK_${protectedLinks.length - 1}___`;
+        });
+      };
+      
+      paraText = protectLinks(paraText);
       
       // Convert URLs to clickable links
       paraText = paraText.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color: #0066cc; text-decoration: underline;">$1</a>');
@@ -630,6 +634,15 @@ export function generateHtmlEmail(lead: Lead, includeReferral?: boolean): string
       
       // Convert email addresses to mailto links
       paraText = paraText.replace(/\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/g, '<a href="mailto:$1" style="color: #0066cc; text-decoration: underline;">$1</a>');
+      
+      // Protect newly created links before converting bare domains
+      paraText = protectLinks(paraText);
+      
+      // Convert bare domain names to links (e.g., vsol.software)
+      // This runs AFTER protecting email/www links to avoid double-linking
+      paraText = paraText.replace(/\b([a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?)\b/g, (match) => {
+        return `<a href="https://${match}" style="color: #0066cc; text-decoration: underline;">${match}</a>`;
+      });
       
       // Convert phone number to tel: link with proper format: tel:+1XXXXXXXXXX
       paraText = paraText.replace(/\((\d{3})\)\s*(\d{3})-(\d{4})/g, (match, p1, p2, p3) => {
@@ -682,10 +695,21 @@ ${htmlContent}
 
 /**
  * Create mailto link with proper URL encoding
+ * Strips markdown formatting since mailto links only support plain text
  */
 export function createMailtoLink(email: EmailContent): string {
   const subject = encodeURIComponent(email.subject);
-  const body = encodeURIComponent(email.body);
+  
+  // Strip markdown formatting from body (mailto links don't support formatting)
+  let cleanBody = email.body;
+  // Remove **bold** markdown
+  cleanBody = cleanBody.replace(/\*\*([^*]+)\*\*/g, '$1');
+  // Remove *italic* markdown (if present)
+  cleanBody = cleanBody.replace(/\*([^*]+)\*/g, '$1');
+  // Remove _italic_ markdown (if present)
+  cleanBody = cleanBody.replace(/_([^_]+)_/g, '$1');
+  
+  const body = encodeURIComponent(cleanBody);
   
   // Check if the mailto link might be too long (common limit is ~2000 chars)
   const mailtoUrl = `mailto:${email.to}?subject=${subject}&body=${body}`;
