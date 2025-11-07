@@ -78,7 +78,7 @@ www.vsol.software`;
 const REFERRAL_SALT = 'VSOL';
 const REFERRAL_BASE_URL = 'https://vsol.software/referral';
 const WORK_AUTOMATION_URL = 'https://vsol.software/agentic#featured-product';
-const BOOKING_URL = 'https://calendly.com/vsol-software/discovery';
+const BOOKING_URL = 'https://calendly.com/vsol/meeting-with-bandeira';
 
 // =============================================================================
 // NEW EMAIL BUILDER API
@@ -121,9 +121,9 @@ Allow me to show you how we can do the same for yours.`;
   // Product pitch with natural bridge
   const pitch = `That's precisely where our Work Automation Platform brings value.
 
-We specialize in transforming manual workflows — like those currently handled through spreadsheets, todo lists, manual calendars, and planners — into fully automated systems. During a brief discovery session, we analyze your current processes and present AI-generated interactive mockups in real time, followed by a same-day working demonstration of how the system would operate in your environment.
+We specialize in transforming manual workflows — like those currently handled through spreadsheets, todo lists, manual calendars, and planners — into fully automated systems. 
 
-Every engagement includes workflow documentation, ROI analysis, and deployment-ready prototypes.
+During a brief discovery session, we analyze your current processes and present AI-generated interactive mockups in real time. Within just a few hours, we deliver a working prototype that demonstrates how the automated system would function in your environment. Each engagement includes requirements documentation, ROI analysis, and deployment-ready deliverables.
 
 Our approach uses AI-assisted development to create tailored solutions. They're secure, open-source, and local-first, giving your organization full control of its data. The platform can reduce infrastructure costs significantly while improving reliability.
 
@@ -489,7 +489,7 @@ Allow me to show you how we can do the same for yours.`;
   
   const mainPitch = `I'd like to share our **Work Automation Platform** with you.
 
-We transform manual workflows — like those currently handled through spreadsheets, todo lists, manual calendars, and planners — into fully automated systems with **AI-generated interactive mockups** delivered during discovery calls. We analyze your current processes, design streamlined solutions, and provide **working demonstrations same-day**. Complete with **workflow documentation, ROI analysis, and deployment-ready prototypes**.
+We transform manual workflows — like those currently handled through spreadsheets, todo lists, manual calendars, and planners — into fully automated systems with **AI-generated interactive mockups** delivered during discovery calls. We analyze your current processes, design streamlined solutions, and provide **working demonstrations same-day**.
 
 Our approach uses AI-assisted development to create tailored, secure, open-source, **local-first** solutions that can **cut costs by up to 100x** while giving organizations full control of their data. Over time, we also train an internal technical leader to build and test proof-of-concept features in a gated CI/CD pipeline.
 

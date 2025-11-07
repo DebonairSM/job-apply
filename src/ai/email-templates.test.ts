@@ -40,7 +40,7 @@ describe('Email Templates - New API (buildOutreachEmail)', () => {
       lead: fullProfile,
       productName: 'Spreadsheet Automation Platform',
       productUrl: 'https://vsol.software/agentic#featured-product',
-      calendlyUrl: 'https://calendly.com/vsol-software/discovery'
+      calendlyUrl: 'https://calendly.com/vsol/meeting-with-bandeira'
     };
 
     const email = buildOutreachEmail(context, 'chiefs');
@@ -77,7 +77,7 @@ describe('Email Templates - New API (buildOutreachEmail)', () => {
       lead: minimalProfile,
       productName: 'Workflow Automation Platform',
       productUrl: 'https://vsol.software/agentic#featured-product',
-      calendlyUrl: 'https://calendly.com/vsol-software/discovery'
+      calendlyUrl: 'https://calendly.com/vsol/meeting-with-bandeira'
     };
 
     const email = buildOutreachEmail(context, 'generic');
@@ -116,7 +116,7 @@ describe('Email Templates - New API (buildOutreachEmail)', () => {
       lead: profile,
       productName: 'Spreadsheet Automation Platform',
       productUrl: 'https://vsol.software/agentic#featured-product',
-      calendlyUrl: 'https://calendly.com/vsol-software/discovery'
+      calendlyUrl: 'https://calendly.com/vsol/meeting-with-bandeira'
     };
 
     const email = buildOutreachEmail(context, 'chiefs');
@@ -138,7 +138,7 @@ describe('Email Templates - New API (buildOutreachEmail)', () => {
       lead: profile,
       productName: 'Workflow Automation Platform',
       productUrl: 'https://vsol.software/agentic#featured-product',
-      calendlyUrl: 'https://calendly.com/vsol-software/discovery'
+      calendlyUrl: 'https://calendly.com/vsol/meeting-with-bandeira'
     };
 
     const email = buildOutreachEmail(context, 'generic');
@@ -160,7 +160,7 @@ describe('Email Templates - New API (buildOutreachEmail)', () => {
       lead: executiveProfile,
       productName: 'Spreadsheet Automation Platform',
       productUrl: 'https://vsol.software/agentic#featured-product',
-      calendlyUrl: 'https://calendly.com/vsol-software/discovery'
+      calendlyUrl: 'https://calendly.com/vsol/meeting-with-bandeira'
     };
 
     const email = buildOutreachEmail(context, 'chiefs');

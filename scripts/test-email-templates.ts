@@ -35,7 +35,7 @@ const chiefsContext: EmailContext = {
   lead: fullProfile,
   productName: 'Spreadsheet Automation Platform',
   productUrl: 'https://vsol.software/agentic#featured-product',
-  calendlyUrl: 'https://calendly.com/vsol-software/discovery'
+  calendlyUrl: 'https://calendly.com/vsol/meeting-with-bandeira'
 };
 
 const chiefsEmail = buildOutreachEmail(chiefsContext, 'chiefs');
@@ -61,7 +61,7 @@ const genericContext: EmailContext = {
   lead: minimalProfile,
   productName: 'Workflow Automation Platform',
   productUrl: 'https://vsol.software/agentic#featured-product',
-  calendlyUrl: 'https://calendly.com/vsol-software/discovery'
+  calendlyUrl: 'https://calendly.com/vsol/meeting-with-bandeira'
 };
 
 const genericEmail = buildOutreachEmail(genericContext, 'generic');
