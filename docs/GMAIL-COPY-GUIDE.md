@@ -21,7 +21,7 @@ Gmail aggressively strips HTML formatting from clipboard paste operations for se
 
 ✅ This method preserves:
 - All emojis (📞 ✉️ 🌐)
-- Clickable links (phone, email, website)
+- Clickable links (phone, email, website, company LinkedIn, personal LinkedIn)
 - Bold formatting
 - Proper line breaks and spacing
 
@@ -43,10 +43,11 @@ Gmail aggressively strips HTML formatting from clipboard paste operations for se
 
 ## Dashboard Updates
 
-The email preview now shows:
+Both the LeadDetail component and EmailPreviewModal now show:
 - **Blue info banner** reminding users to copy from the preview
 - **Formatted preview box** with all HTML rendering (emojis, links, bold text)
 - **Visual formatting** matching exactly what will appear in Gmail
+- All signature links are clickable, including the company LinkedIn link
 
 ## Technical Details
 
@@ -87,6 +88,8 @@ Test the email copy in Gmail:
    - ✅ Phone number is clickable (tel: link)
    - ✅ Email is clickable (mailto: link)
    - ✅ Website is clickable (https: link)
+   - ✅ Personal LinkedIn link is clickable
+   - ✅ Company LinkedIn link is clickable
    - ✅ "Work Automation Platform" is bold
    - ✅ Proper spacing and line breaks
 
@@ -107,6 +110,8 @@ For Outlook, Apple Mail, or other clients:
 **For other email clients: Either method works**
 - Quick Copy button is faster
 - Visual copy ensures consistency across all clients
+
+
 
 
 

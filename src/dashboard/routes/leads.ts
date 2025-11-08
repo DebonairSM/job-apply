@@ -3,7 +3,7 @@ import { spawn, ChildProcess } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { existsSync } from 'fs';
-import { getLeads, getLeadsCount, getLeadById, getLeadStats, getScrapingRuns, getScrapingRun, getActiveScrapingRuns, softDeleteLead, getLeadsWithUpcomingBirthdays, deleteIncompleteLeads, updateLeadBackground, updateLeadStatus, createScrapingRun, updateScrapingRun } from '../../lib/db.js';
+import { getLeads, getLeadsCount, getLeadById, getLeadStats, getScrapingRuns, getScrapingRun, getActiveScrapingRuns, softDeleteLead, getLeadsWithUpcomingBirthdays, deleteIncompleteLeads, updateLeadBackground, updateLeadStatus, updateLeadEmail, createScrapingRun, updateScrapingRun } from '../../lib/db.js';
 import { generateLeadBackground } from '../../ai/background-generator.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -302,6 +302,43 @@ router.patch('/:id/status', (req: Request, res: Response): void => {
   } catch (error) {
     console.error('Error updating lead status:', error);
     sendErrorResponse(res, 500, 'Failed to update status', error instanceof Error ? error.message : undefined);
+  }
+});
+
+// PATCH /api/leads/:id/email - Update lead email address
+router.patch('/:id/email', (req: Request, res: Response): void => {
+  try {
+    const leadId = sanitizeStringParameter(req.params.id);
+    if (!leadId) {
+      sendErrorResponse(res, 400, 'Invalid lead ID');
+      return;
+    }
+    
+    const { email } = req.body;
+    const sanitizedEmail = sanitizeStringParameter(email);
+    
+    if (!sanitizedEmail) {
+      sendErrorResponse(res, 400, 'Email is required');
+      return;
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(sanitizedEmail)) {
+      sendErrorResponse(res, 400, 'Invalid email format');
+      return;
+    }
+    
+    const updated = updateLeadEmail(leadId, sanitizedEmail);
+    if (!updated) {
+      sendErrorResponse(res, 404, 'Lead not found');
+      return;
+    }
+    
+    res.json({ success: true, email: sanitizedEmail });
+  } catch (error) {
+    console.error('Error updating lead email:', error);
+    sendErrorResponse(res, 500, 'Failed to update email', error instanceof Error ? error.message : undefined);
   }
 });
 

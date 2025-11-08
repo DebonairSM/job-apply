@@ -145,11 +145,27 @@ export function EmailPreviewModal({ emails: initialEmails, leads, onClose }: Ema
               </div>
 
               {/* Email Body Preview */}
-              <div className="bg-gray-50 rounded p-3 mb-3">
-                <div className="text-sm text-gray-600 whitespace-pre-wrap font-mono text-xs max-h-32 overflow-y-auto">
-                  {email.body.substring(0, 300)}
-                  {email.body.length > 300 && '...'}
+              <div className="space-y-2 mb-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-gray-500">Formatted Email Body:</span>
+                  <span className="text-xs text-blue-600">Select text below and copy (Ctrl+C) for best formatting</span>
                 </div>
+                <div 
+                  className="p-4 bg-white rounded border border-gray-200 text-sm text-gray-900 max-h-64 overflow-y-auto"
+                  style={{
+                    fontFamily: 'Arial, "Helvetica Neue", Helvetica, sans-serif',
+                    fontSize: '12pt',
+                    lineHeight: '1.6'
+                  }}
+                  dangerouslySetInnerHTML={{
+                    __html: (() => {
+                      const includeReferral = referralEnabled.get(index) ?? false;
+                      const htmlEmail = generateHtmlEmail(leads[index], includeReferral);
+                      const bodyContentMatch = htmlEmail.match(/<body[^>]*>([\s\S]*)<\/body>/);
+                      return bodyContentMatch ? bodyContentMatch[1] : email.body;
+                    })()
+                  }}
+                />
               </div>
 
               {/* Referral Program Checkbox */}
@@ -173,25 +189,31 @@ export function EmailPreviewModal({ emails: initialEmails, leads, onClose }: Ema
               </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleOpenEmailClient(email)}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                >
-                  <Icon icon="open_in_new" size={18} />
-                  <span>Open in Email Client</span>
-                </button>
-                <button
-                  onClick={() => handleCopyToClipboard(email, index, leads[index])}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
-                    copiedIndex === index
-                      ? 'bg-green-600 text-white'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  <Icon icon={copiedIndex === index ? 'check' : 'content_copy'} size={18} />
-                  <span>{copiedIndex === index ? 'Copied!' : 'Copy to Clipboard'}</span>
-                </button>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleOpenEmailClient(email)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                  >
+                    <Icon icon="open_in_new" size={18} />
+                    <span>Open in Email Client</span>
+                  </button>
+                  <button
+                    onClick={() => handleCopyToClipboard(email, index, leads[index])}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors ${
+                      copiedIndex === index
+                        ? 'bg-green-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <Icon icon={copiedIndex === index ? 'check' : 'content_copy'} size={18} />
+                    <span>{copiedIndex === index ? 'Copied!' : 'Quick Copy'}</span>
+                  </button>
+                </div>
+                <div className="px-2 py-2 bg-blue-50 border border-blue-100 rounded text-xs text-blue-800">
+                  <Icon icon="info" size={14} className="inline mr-1" />
+                  <strong>Best practice for Gmail:</strong> Select and copy text directly from the formatted preview above. This preserves all formatting, emojis, and clickable links (including the company LinkedIn link).
+                </div>
               </div>
             </div>
           ))}
@@ -202,7 +224,7 @@ export function EmailPreviewModal({ emails: initialEmails, leads, onClose }: Ema
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">
               <Icon icon="info" size={16} className="inline mr-1" />
-              Click "Open in Email Client" to compose each email in your default email application
+              For Gmail: Select text from formatted preview and copy with Ctrl+C. For other clients: Use "Open in Email Client" button.
             </div>
             <button
               onClick={onClose}

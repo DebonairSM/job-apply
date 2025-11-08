@@ -75,6 +75,40 @@ export const api = {
     return { data };
   },
 
+  // Generic PATCH method for flexible endpoint access
+  async patch(endpoint: string, body?: any): Promise<{ data: any }> {
+    const url = endpoint.startsWith('/') ? `${API_BASE}${endpoint}` : `${API_BASE}/${endpoint}`;
+    
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    
+    if (!response.ok) {
+      // Try to get error message from response
+      let errorMessage = `Failed to patch ${endpoint}`;
+      try {
+        const errorData = await response.json();
+        if (errorData.error) {
+          errorMessage = errorData.error;
+          if (errorData.details) {
+            errorMessage += `: ${errorData.details}`;
+          }
+        }
+      } catch {
+        // If can't parse error, use status text
+        errorMessage = `Failed to patch ${endpoint}: ${response.statusText}`;
+      }
+      const error: any = new Error(errorMessage);
+      error.response = { data: { error: errorMessage }, status: response.status };
+      throw error;
+    }
+    
+    const data = await response.json();
+    return { data };
+  },
+
   async getStats(): Promise<JobStats> {
     const response = await fetch(`${API_BASE}/stats`);
     if (!response.ok) throw new Error('Failed to fetch stats');

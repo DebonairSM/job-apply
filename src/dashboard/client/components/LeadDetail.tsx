@@ -45,6 +45,9 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   const [copiedEmail, setCopiedEmail] = useState(false);
   const [generatedEmail, setGeneratedEmail] = useState<EmailContent | null>(null);
   const [emailStatus, setEmailStatus] = useState<string>(lead.email_status || 'not_contacted');
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
+  const [editedEmail, setEditedEmail] = useState(lead.email || '');
+  const [isSavingEmail, setIsSavingEmail] = useState(false);
   const queryClient = useQueryClient();
   const generateBackground = useGenerateBackground();
   const { showToast } = useToastContext();
@@ -254,6 +257,40 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
       console.error('Error updating lead status:', error);
       showToast('error', 'Failed to update status. Please try again.');
     }
+  };
+
+  const handleSaveEmail = async () => {
+    if (!editedEmail.trim()) {
+      showToast('error', 'Email cannot be empty');
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(editedEmail)) {
+      showToast('error', 'Please enter a valid email address');
+      return;
+    }
+
+    setIsSavingEmail(true);
+    try {
+      await api.patch(`/leads/${lead.id}/email`, { email: editedEmail });
+      lead.email = editedEmail; // Update local lead object
+      setIsEditingEmail(false);
+      showToast('success', 'Email updated successfully');
+      // Invalidate queries to refresh the list
+      await queryClient.invalidateQueries({ queryKey: ['leads'] });
+    } catch (error) {
+      console.error('Error updating lead email:', error);
+      showToast('error', 'Failed to update email. Please try again.');
+    } finally {
+      setIsSavingEmail(false);
+    }
+  };
+
+  const handleCancelEditEmail = () => {
+    setEditedEmail(lead.email || '');
+    setIsEditingEmail(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -578,19 +615,70 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
           <div className="bg-gray-50 rounded-lg p-4 space-y-3">
             <h3 className="font-semibold text-gray-900">Contact Information</h3>
             
-            {lead.email ? (
-              <div className="flex items-center gap-3">
-                <Icon icon="email" size={20} className="text-green-500" />
-                <a href={`mailto:${lead.email}`} className="text-blue-600 hover:text-blue-800">
-                  {lead.email}
-                </a>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3 text-gray-500">
-                <Icon icon="email" size={20} className="text-gray-400" />
-                <span>No email available</span>
-              </div>
-            )}
+            {/* Email Section with Edit Capability */}
+            <div className="space-y-2">
+              {isEditingEmail ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Icon icon="email" size={20} className="text-green-500" />
+                    <input
+                      type="email"
+                      value={editedEmail}
+                      onChange={(e) => setEditedEmail(e.target.value)}
+                      placeholder="email@example.com"
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                      disabled={isSavingEmail}
+                    />
+                  </div>
+                  <div className="flex gap-2 ml-8">
+                    <button
+                      onClick={handleSaveEmail}
+                      disabled={isSavingEmail}
+                      className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm flex items-center gap-1 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    >
+                      <Icon icon={isSavingEmail ? "refresh" : "check"} size={16} className={isSavingEmail ? "animate-spin" : ""} />
+                      {isSavingEmail ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                      onClick={handleCancelEditEmail}
+                      disabled={isSavingEmail}
+                      className="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm flex items-center gap-1 disabled:cursor-not-allowed"
+                    >
+                      <Icon icon="close" size={16} />
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : lead.email ? (
+                <div className="flex items-center gap-3">
+                  <Icon icon="email" size={20} className="text-green-500" />
+                  <a href={`mailto:${lead.email}`} className="text-blue-600 hover:text-blue-800 flex-1">
+                    {lead.email}
+                  </a>
+                  <button
+                    onClick={() => setIsEditingEmail(true)}
+                    className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors text-xs flex items-center gap-1"
+                    title="Edit email"
+                  >
+                    <Icon icon="edit" size={14} />
+                    Edit
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <Icon icon="email" size={20} className="text-gray-400" />
+                  <span className="text-gray-500 flex-1">No email available</span>
+                  <button
+                    onClick={() => setIsEditingEmail(true)}
+                    className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm flex items-center gap-1"
+                    title="Add email"
+                  >
+                    <Icon icon="add" size={16} />
+                    Add Email
+                  </button>
+                </div>
+              )}
+            </div>
 
             {lead.phone && (
               <div className="flex items-center gap-3">

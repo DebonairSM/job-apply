@@ -2132,6 +2132,18 @@ export function updateLeadStatus(leadId: string, status: string): boolean {
   return result.changes > 0;
 }
 
+export function updateLeadEmail(leadId: string, email: string): boolean {
+  const database = getDb();
+  const stmt = database.prepare(`
+    UPDATE leads 
+    SET email = ?
+    WHERE id = ? AND deleted_at IS NULL
+  `);
+  
+  const result = stmt.run(email, leadId);
+  return result.changes > 0;
+}
+
 export function leadExistsByUrl(profileUrl: string): boolean {
   const database = getDb();
   // Normalize URL by removing trailing slash
