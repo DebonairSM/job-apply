@@ -47,3 +47,4 @@ console.log('\nFull mailto link (first 200 chars):');
 console.log(mailtoLink.substring(0, 200) + '...');
 
 
+

@@ -9,6 +9,7 @@ import { LeverAdapter } from '../adapters/lever.js';
 import { WorkdayAdapter } from '../adapters/workday.js';
 import { ATSAdapter } from '../adapters/base.js';
 import { shouldStop as checkStopSignal, clearStopSignal } from '../lib/stop-signal.js';
+import { warmupOllamaModel } from '../ai/ollama-client.js';
 
 export interface ApplyOptions {
   easy?: boolean;
@@ -847,6 +848,9 @@ export async function applyCommand(opts: ApplyOptions): Promise<void> {
   console.log(`\n🚀 Starting application process...`);
   console.log(`   Jobs to process: ${jobs.length}`);
   console.log(`   Dry run: ${opts.dryRun ? 'Yes' : 'No'}\n`);
+
+  // Pre-warm the LLM model to avoid timeouts on first use
+  await warmupOllamaModel();
 
   // Clear any existing stop signal from previous runs
   clearStopSignal();

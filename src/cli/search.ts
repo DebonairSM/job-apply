@@ -9,6 +9,7 @@ import { searchJobs } from '../services/search.js';
 import { SearchDependencies } from '../services/types.js';
 import crypto from 'crypto';
 import { createBackup } from '../services/backup-service.js';
+import { warmupOllamaModel } from '../ai/ollama-client.js';
 
 export interface SearchOptions {
   keywords?: string;
@@ -745,6 +746,9 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
     console.log(`   Max Pages: All available`);
   }
   console.log();
+
+  // Pre-warm the LLM model to avoid timeouts on first use
+  await warmupOllamaModel();
 
   // Clear any existing stop signal from previous runs
   clearStopSignal();

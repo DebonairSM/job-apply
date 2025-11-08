@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { networkInterfaces } from 'os';
 import { initDb } from '../lib/db.js';
+import { warmupOllamaModel } from '../ai/ollama-client.js';
 import statsRouter from './routes/stats.js';
 import jobsRouter from './routes/jobs.js';
 import leadsRouter from './routes/leads.js';
@@ -30,6 +31,20 @@ const __dirname = dirname(__filename);
 console.log('🔧 Initializing database...');
 initDb();
 console.log('✅ Database initialized');
+
+// Pre-warm the LLM model to avoid timeouts on first API call
+console.log('🔥 Warming up LLM model...');
+warmupOllamaModel()
+  .then(success => {
+    if (success) {
+      console.log('✅ LLM model ready');
+    } else {
+      console.warn('⚠️  LLM warmup failed - first AI operations may be slow');
+    }
+  })
+  .catch(error => {
+    console.warn('⚠️  LLM warmup error:', error.message);
+  });
 
 const app = express();
 const PORT = process.env.PORT || 3000;

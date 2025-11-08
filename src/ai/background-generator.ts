@@ -31,17 +31,17 @@ About: ${about}
 ${campaignContext}
 
 Requirements:
-- Start with "Given your background as" or "Given your role in" or similar natural phrasing
+- Use natural, conversational openers such as: "I noticed your work in...", "With your background in...", "Given your role leading...", "Your experience as...", "From your background as..."
 - Reference their actual role and expertise from the title/about
 - Subtly connect their background to why our campaign would be relevant to them (without being too salesy)
-- For example: "Given your role driving digital transformation, you've likely encountered challenges with spreadsheet-based workflows..." or "Given your background in operations, I thought our approach to workflow automation might interest you."
+- For example: "I noticed your work driving digital transformation and thought our approach to workflow automation might interest you." or "With your background in operations, you've likely encountered challenges with manual processes."
 - Keep it brief and genuine - MAXIMUM 1 sentence
 - End the sentence naturally (period, not a question)
 - Do NOT use phrases like "I hope this message finds you well" or other filler
 - Do NOT ask questions or make explicit asks - this is just acknowledging their expertise and making a subtle connection
 - Do NOT use placeholder brackets like [industry/field] - make reasonable assumptions or use general terms
 - Do NOT include meta-commentary like "Here's a possible email introduction:" or "Email introduction:" - output ONLY the sentence itself
-- Output ONLY the acknowledgment sentence starting with "Given" - nothing else
+- Output ONLY the acknowledgment sentence - nothing else
 
 Your response must be ONLY the sentence, with NO preamble or labels:`;
   } else if (title) {
@@ -54,17 +54,17 @@ Title: ${title}
 ${campaignContext}
 
 Requirements:
-- Start with "Given your background as" or "Given your role in" or similar natural phrasing
+- Use natural, conversational openers such as: "I noticed your work as...", "With your background in...", "Given your role as...", "Your experience as...", "From your role as..."
 - Reference their actual role/expertise from the title
 - Subtly connect their background to why our campaign would be relevant to them (without being too salesy)
-- For example: "Given your role as CTO, you've likely dealt with the challenges of manual processes and data silos..." or "Given your background in innovation leadership, I thought our AI-assisted automation approach might interest you."
+- For example: "I noticed your work as CTO and thought our AI-assisted automation approach might interest you." or "With your background in innovation leadership, you've likely dealt with the challenges of manual processes."
 - Keep it brief and genuine - MAXIMUM 1 sentence
 - End the sentence naturally (period, not a question)
 - Do NOT use phrases like "I hope this message finds you well" or other filler
 - Do NOT ask questions or make explicit asks - this is just acknowledging their expertise and making a subtle connection
 - Do NOT use placeholder brackets like [industry/field] - make reasonable assumptions or use general terms
 - Do NOT include meta-commentary like "Here's a possible email introduction:" or "Email introduction:" - output ONLY the sentence itself
-- Output ONLY the acknowledgment sentence starting with "Given" - nothing else
+- Output ONLY the acknowledgment sentence - nothing else
 
 Your response must be ONLY the sentence, with NO preamble or labels:`;
   } else {
@@ -79,9 +79,9 @@ Your response must be ONLY the sentence, with NO preamble or labels:`;
     if (title) {
       const titleWords = title.split(/[|,]/).map(s => s.trim());
       const mainRole = titleWords[0] || title;
-      return `Given your background as ${mainRole}, I thought you might be interested in this.`;
+      return `I noticed your work as ${mainRole} and thought you might be interested in this.`;
     }
-    return "Given your background and expertise, I thought you might be interested in this opportunity.";
+    return "I came across your background and thought you might be interested in this opportunity.";
   }
 
   try {
@@ -120,9 +120,9 @@ Your response must be ONLY the sentence, with NO preamble or labels:`;
       // Extract key words from title (simple heuristic)
       const titleWords = title.split(/[|,]/).map(s => s.trim());
       const mainRole = titleWords[0] || title;
-      return `Given your background as ${mainRole}, I thought you might be interested in this.`;
+      return `I noticed your work as ${mainRole} and thought you might be interested in this.`;
     }
 
-    return "Given your background and expertise, I thought you might be interested in this opportunity.";
+    return "I came across your background and thought you might be interested in this opportunity.";
   }
 }

@@ -68,6 +68,11 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
           // Update local state immediately with the generated background
           setCurrentBackground(generatedBackground);
         },
+        onError: (error: any) => {
+          console.error('Auto-generate background failed:', error);
+          // Silently fail on auto-generation to avoid annoying the user on page load
+          // They can manually retry if needed
+        },
       });
     }
   }, [lead.id]);
@@ -96,6 +101,11 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
       onSuccess: (generatedBackground) => {
         // Update local state immediately with the generated background
         setCurrentBackground(generatedBackground);
+      },
+      onError: (error: any) => {
+        console.error('Error generating background:', error);
+        const errorMessage = error?.response?.data?.error || error?.message || 'Failed to generate background';
+        showToast('error', `Background generation failed: ${errorMessage}`);
       },
     });
   };
@@ -141,7 +151,9 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
     }
 
     try {
-      const email = generateOutreachEmail(lead, includeReferral);
+      // Use current background state (may be different from lead.background if regenerated)
+      const leadWithCurrentBackground = { ...lead, background: currentBackground };
+      const email = generateOutreachEmail(leadWithCurrentBackground, includeReferral);
       setGeneratedEmail(email);
       setShowEmailSection(true);
     } catch (error) {
@@ -157,7 +169,9 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
     // Regenerate email with new referral setting
     if (lead.email) {
       try {
-        const email = generateOutreachEmail(lead, newValue);
+        // Use current background state (may be different from lead.background if regenerated)
+        const leadWithCurrentBackground = { ...lead, background: currentBackground };
+        const email = generateOutreachEmail(leadWithCurrentBackground, newValue);
         setGeneratedEmail(email);
       } catch (error) {
         console.error('Error regenerating email:', error);
@@ -169,8 +183,10 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
     if (!generatedEmail) return;
     
     try {
+      // Use current background state (may be different from lead.background if regenerated)
+      const leadWithCurrentBackground = { ...lead, background: currentBackground };
       // Generate HTML version (just body content for Gmail compatibility)
-      const htmlEmail = generateHtmlEmail(lead, includeReferral);
+      const htmlEmail = generateHtmlEmail(leadWithCurrentBackground, includeReferral);
       // Extract just the body content (Gmail doesn't like full HTML documents)
       const bodyContentMatch = htmlEmail.match(/<body[^>]*>([\s\S]*)<\/body>/);
       const htmlContent = bodyContentMatch ? bodyContentMatch[1] : htmlEmail;

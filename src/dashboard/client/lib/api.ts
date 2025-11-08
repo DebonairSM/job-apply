@@ -13,16 +13,57 @@ export const api = {
   },
 
   // Generic POST method for flexible endpoint access
-  async post(endpoint: string, body?: any): Promise<{ data: any }> {
+  async post(endpoint: string, body?: any, timeoutMs: number = 150000): Promise<{ data: any }> {
     const url = endpoint.startsWith('/') ? `${API_BASE}${endpoint}` : `${API_BASE}/${endpoint}`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: body ? { 'Content-Type': 'application/json' } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    if (!response.ok) throw new Error(`Failed to post ${endpoint}`);
-    const data = await response.json();
-    return { data };
+    
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: body ? { 'Content-Type': 'application/json' } : undefined,
+        body: body ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      
+      if (!response.ok) {
+        // Try to get error message from response
+        let errorMessage = `Failed to post ${endpoint}`;
+        try {
+          const errorData = await response.json();
+          if (errorData.error) {
+            errorMessage = errorData.error;
+            if (errorData.details) {
+              errorMessage += `: ${errorData.details}`;
+            }
+          }
+        } catch {
+          // If can't parse error, use status text
+          errorMessage = `Failed to post ${endpoint}: ${response.statusText}`;
+        }
+        const error: any = new Error(errorMessage);
+        error.response = { data: { error: errorMessage }, status: response.status };
+        throw error;
+      }
+      
+      const data = await response.json();
+      return { data };
+    } catch (error: any) {
+      clearTimeout(timeoutId);
+      
+      // Handle abort/timeout error
+      if (error.name === 'AbortError') {
+        const timeoutError: any = new Error(`Request timeout after ${timeoutMs}ms`);
+        timeoutError.response = { data: { error: `Request timeout after ${timeoutMs}ms` } };
+        throw timeoutError;
+      }
+      
+      // Re-throw other errors
+      throw error;
+    }
   },
 
   // Generic DELETE method for flexible endpoint access

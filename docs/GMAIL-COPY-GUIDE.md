@@ -109,3 +109,4 @@ For Outlook, Apple Mail, or other clients:
 - Visual copy ensures consistency across all clients
 
 
+

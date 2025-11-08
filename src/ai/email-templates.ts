@@ -215,19 +215,38 @@ function buildProblemFraming(lead: LeadProfile, template: 'chiefs' | 'generic'):
   if (template === 'chiefs') {
     // Workflow automation focus for C-level (concise, conversational)
     if (roleType === 'executive') {
+      // Handle case 2 pattern (ends with "dealt with") - complete the thought naturally
+      if (opener.endsWith("dealt with")) {
+        return `${opener} the challenge of manual workflows slowing down decision-making. Many executive teams are turning to automation to remove those bottlenecks and improve operational reliability.`;
+      }
       return `${opener}, you're familiar with the challenge of manual workflows slowing down decision-making. Many executive teams are turning to automation to remove those bottlenecks and improve operational reliability.`;
     } else if (roleType === 'operations') {
+      if (opener.endsWith("dealt with")) {
+        return `${opener} how manual processes create friction in operations. Many teams in similar settings are turning to automation to remove manual steps and improve reliability.`;
+      }
       return `${opener}, you've likely encountered how manual processes create friction in operations. Many teams in similar settings are turning to automation to remove manual steps and improve reliability.`;
     } else {
+      if (opener.endsWith("dealt with")) {
+        return `${opener} how manual workflows can impact efficiency. Many organizations are turning to automation to streamline these processes and reduce operational overhead.`;
+      }
       return `${opener}, you understand how manual workflows can impact efficiency. Many organizations are turning to automation to streamline these processes and reduce operational overhead.`;
     }
   } else {
     // Generic workflow automation (concise, conversational)
     if (roleType === 'executive') {
+      if (opener.endsWith("dealt with")) {
+        return `${opener} workflows that resist automation while consuming valuable time. Many leadership teams are exploring new approaches to automate these processes efficiently.`;
+      }
       return `${opener}, you're likely aware of workflows that resist automation while consuming valuable time. Many leadership teams are exploring new approaches to automate these processes efficiently.`;
     } else if (roleType === 'technical') {
+      if (opener.endsWith("dealt with")) {
+        return `${opener} inefficiencies in manual workflows. Many technical teams are turning to automation platforms that balance speed with flexibility for complex processes.`;
+      }
       return `${opener}, you've probably identified inefficiencies in manual workflows. Many technical teams are turning to automation platforms that balance speed with flexibility for complex processes.`;
     } else {
+      if (opener.endsWith("dealt with")) {
+        return `${opener} how manual workflows create friction. Many teams in similar settings are turning to automation to remove manual steps and improve reliability.`;
+      }
       return `${opener}, you understand how manual workflows create friction. Many teams in similar settings are turning to automation to remove manual steps and improve reliability.`;
     }
   }
@@ -240,17 +259,21 @@ function buildProblemFraming(lead: LeadProfile, template: 'chiefs' | 'generic'):
 function generateProfessionalOpener(roleTitle: string, companyName: string): string {
   // Use hash of company name to consistently vary opener style per company (not random each time)
   const hash = companyName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const variation = hash % 4;
+  const variation = hash % 6;
   
   switch (variation) {
     case 0:
-      return `I noticed your work as ${roleTitle} at ${companyName}`;
+      return `I came across your background as ${roleTitle} at ${companyName}`;
     case 1:
-      return `I saw your experience as ${roleTitle} at ${companyName}`;
+      return `Your work as ${roleTitle} at ${companyName} caught my attention`;
     case 2:
-      return `I came across your role as ${roleTitle} at ${companyName}`;
+      return `From your role as ${roleTitle} at ${companyName}, it's clear you've dealt with`;
     case 3:
-      return `I noticed your experience as ${roleTitle} at ${companyName}`;
+      return `I noticed your work as ${roleTitle} at ${companyName}`;
+    case 4:
+      return `Your background as ${roleTitle} at ${companyName} stood out`;
+    case 5:
+      return `Given your role as ${roleTitle} at ${companyName}`;
     default:
       return `I noticed your work as ${roleTitle} at ${companyName}`;
   }

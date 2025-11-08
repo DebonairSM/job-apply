@@ -110,7 +110,8 @@ export function loadTechnicalConfig(): TechnicalConfig {
   return {
     ollamaBaseUrl: env.OLLAMA_BASE_URL || 'http://localhost:11434',
     llmModel: env.LLM_MODEL || 'llama3.1:8b',
-    backgroundGenModel: env.BACKGROUND_GEN_MODEL || env.LLM_MODEL || 'qwen2.5:14b',
+    // Use same model as llmModel by default (llama3.1:8b) since qwen2.5:14b is too slow/times out
+    backgroundGenModel: env.BACKGROUND_GEN_MODEL || env.LLM_MODEL || 'llama3.1:8b',
     llmTemperature: parseFloat(env.LLM_TEMPERATURE || '0.1'),
     headless: env.HEADLESS === 'true',
     slowMo: parseInt(env.SLOW_MO || '80', 10),

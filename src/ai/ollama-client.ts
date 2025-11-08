@@ -1,7 +1,7 @@
 import { loadTechnicalConfig } from '../lib/session.js';
 
-// Timeout for LLM requests (30 seconds)
-const LLM_REQUEST_TIMEOUT_MS = 30000;
+// Timeout for LLM requests (2 minutes to allow for model loading)
+const LLM_REQUEST_TIMEOUT_MS = 120000;
 
 // Timeout for health checks (5 seconds)
 const HEALTH_CHECK_TIMEOUT_MS = 5000;
@@ -87,6 +87,48 @@ export function markOllamaHealthy(): void {
     isHealthy: true,
     lastChecked: Date.now(),
   };
+}
+
+/**
+ * Pre-warm the Ollama model by sending a simple request
+ * This loads the model into memory to avoid timeouts on first real use
+ */
+export async function warmupOllamaModel(model?: string): Promise<boolean> {
+  const config = loadTechnicalConfig();
+  const modelToWarm = model || config.llmModel;
+  
+  console.log(`Warming up Ollama model: ${modelToWarm}...`);
+  
+  try {
+    const response = await fetch(`${config.ollamaBaseUrl}/api/generate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: modelToWarm,
+        prompt: 'Hi',
+        stream: false,
+        options: {
+          temperature: 0.1,
+        },
+      }),
+      signal: createTimeoutSignal(LLM_REQUEST_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      console.warn(`Failed to warm up model: ${response.status} ${response.statusText}`);
+      return false;
+    }
+
+    await response.json();
+    console.log(`Model ${modelToWarm} warmed up successfully`);
+    markOllamaHealthy();
+    return true;
+  } catch (error) {
+    console.warn('Model warmup failed:', error instanceof Error ? error.message : String(error));
+    return false;
+  }
 }
 
 export interface OllamaGenerateOptions {

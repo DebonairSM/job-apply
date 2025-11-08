@@ -5,6 +5,7 @@ import { scrapeConnections } from '../services/lead-scraper.js';
 import { shouldStop as checkStopSignal, clearStopSignal } from '../lib/stop-signal.js';
 import { getLeadProfile, getLeadProfileKeys } from '../ai/lead-profiles.js';
 import { createBackup } from '../services/backup-service.js';
+import { warmupOllamaModel } from '../ai/ollama-client.js';
 
 export interface LeadSearchOptions {
   titles?: string;
@@ -70,6 +71,9 @@ export async function leadSearchCommand(opts: LeadSearchOptions): Promise<void> 
   }
   
   console.log();
+
+  // Pre-warm the LLM model to avoid timeouts on first use
+  await warmupOllamaModel();
 
   // Clear any existing stop signal
   clearStopSignal();
