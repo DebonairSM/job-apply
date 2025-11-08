@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Icon } from './Icon';
 import { EmailContent, createMailtoLink, generateOutreachEmail, generateHtmlEmail } from '../../../ai/email-templates';
+import { useToastContext } from '../contexts/ToastContext';
 
 interface Lead {
   id: string;
@@ -23,6 +24,7 @@ interface EmailPreviewModalProps {
 export function EmailPreviewModal({ emails: initialEmails, leads, onClose }: EmailPreviewModalProps) {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [referralEnabled, setReferralEnabled] = useState<Map<number, boolean>>(new Map());
+  const { showToast } = useToastContext();
 
   // Regenerate emails when referral preferences change
   const emails = useMemo(() => {
@@ -91,7 +93,7 @@ export function EmailPreviewModal({ emails: initialEmails, leads, onClose }: Ema
       }
     } catch (error) {
       console.error('Failed to copy to clipboard:', error);
-      alert('Failed to copy to clipboard. Please try again.');
+      showToast('error', 'Failed to copy to clipboard. Please try again.');
     }
   };
 

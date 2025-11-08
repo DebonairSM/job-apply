@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import { JsonViewer } from './JsonViewer';
+import { useToastContext } from '../contexts/ToastContext';
 
 interface CompleteDataModalProps {
   jobId: string;
@@ -13,6 +14,7 @@ export function CompleteDataModal({ jobId, jobTitle, isOpen, onClose }: Complete
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { showToast } = useToastContext();
 
   useEffect(() => {
     if (isOpen && jobId) {
@@ -73,10 +75,9 @@ export function CompleteDataModal({ jobId, jobTitle, isOpen, onClose }: Complete
           document.body.removeChild(textArea);
         }
       }
-      // You could add a toast notification here
     } catch (err) {
       console.error('Failed to copy to clipboard:', err);
-      alert('Failed to copy to clipboard. Please try again.');
+      showToast('error', 'Failed to copy to clipboard. Please try again.');
     }
   };
 

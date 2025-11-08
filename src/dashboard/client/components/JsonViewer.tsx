@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useToastContext } from '../contexts/ToastContext';
 
 interface JsonViewerProps {
   data: any;
@@ -9,6 +10,7 @@ interface JsonViewerProps {
 export function JsonViewer({ data, title, defaultExpanded = false }: JsonViewerProps) {
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
   const [copied, setCopied] = useState(false);
+  const { showToast } = useToastContext();
 
   const jsonString = JSON.stringify(data, null, 2);
 
@@ -40,7 +42,7 @@ export function JsonViewer({ data, title, defaultExpanded = false }: JsonViewerP
       }
     } catch (err) {
       console.error('Failed to copy to clipboard:', err);
-      alert('Failed to copy to clipboard. Please try again.');
+      showToast('error', 'Failed to copy to clipboard. Please try again.');
     }
   };
 

@@ -108,3 +108,4 @@ For Outlook, Apple Mail, or other clients:
 - Quick Copy button is faster
 - Visual copy ensures consistency across all clients
 
+

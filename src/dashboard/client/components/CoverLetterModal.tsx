@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Job } from '../lib/types';
+import { useToastContext } from '../contexts/ToastContext';
 
 interface CoverLetterModalProps {
   job: Job;
@@ -11,6 +12,7 @@ export function CoverLetterModal({ job, isOpen, onClose }: CoverLetterModalProps
   const [isGenerating, setIsGenerating] = useState(false);
   const [coverLetter, setCoverLetter] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const { showToast } = useToastContext();
 
   const generateCoverLetter = async () => {
     setIsGenerating(true);
@@ -70,10 +72,9 @@ export function CoverLetterModal({ job, isOpen, onClose }: CoverLetterModalProps
           document.body.removeChild(textArea);
         }
       }
-      // Could add a toast notification here
     } catch (err) {
       console.error('Failed to copy to clipboard:', err);
-      alert('Failed to copy to clipboard. Please try again.');
+      showToast('error', 'Failed to copy to clipboard. Please try again.');
     }
   };
 

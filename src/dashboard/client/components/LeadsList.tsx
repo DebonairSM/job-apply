@@ -5,6 +5,7 @@ import { LeadDetail } from './LeadDetail';
 import { Icon } from './Icon';
 import { LeadScrapeModal, ScrapeConfig } from './LeadScrapeModal';
 import { ActiveScrapingStatus } from './ActiveScrapingStatus';
+import { useToastContext } from '../contexts/ToastContext';
 
 interface Lead {
   id: string;
@@ -78,6 +79,8 @@ export function LeadsList() {
   
   // Use ref for synchronous lock (protects against React StrictMode double-invoke)
   const isStartingScrapeRef = useRef(false);
+
+  const { showToast } = useToastContext();
 
   // Fetch active scraping runs to disable "Get Leads" button
   const { data: activeRuns = [] } = useQuery({
@@ -226,16 +229,14 @@ export function LeadsList() {
       const response = await api.post('/leads/cleanup-incomplete');
       const result = response.data;
       
-      alert(
-        `${result.message}\n\n` +
-        `Removed leads:\n${result.leads.map((l: { name: string }) => `- ${l.name}`).join('\n')}`
-      );
+      const removedLeadNames = result.leads.map((l: { name: string }) => l.name).join(', ');
+      showToast('success', `${result.message}. Removed leads: ${removedLeadNames}`);
       
       // Refetch leads to update the list
       refetchLeads();
     } catch (error) {
       console.error('Error cleaning up incomplete leads:', error);
-      alert('Failed to cleanup incomplete leads. Check the console for details.');
+      showToast('error', 'Failed to cleanup incomplete leads. Check the console for details.');
     } finally {
       setIsCleaningUp(false);
     }
@@ -258,7 +259,7 @@ export function LeadsList() {
       const result = response.data;
       
       console.log('Scraping started, run ID:', result.runId);
-      alert(`Scraping started successfully!\n\nRun ID: ${result.runId}\n${result.message}\n\nCheck the active scraping status above for progress.`);
+      showToast('success', `Scraping started successfully! Run ID: ${result.runId}. ${result.message}. Check the active scraping status above for progress.`);
       
       // Modal will be closed by the modal component
     } catch (error: any) {

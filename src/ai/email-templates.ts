@@ -76,7 +76,11 @@ VSol Software
 
 📞 (352) 397-8650 | ✉️ info@vsol.software
 
-🌐 vsol.software`;
+🌐 vsol.software
+
+LinkedIn: https://www.linkedin.com/in/rombandeira/
+
+Company: https://www.linkedin.com/company/vsol/`;
 
 const REFERRAL_SALT = 'VSOL';
 const REFERRAL_BASE_URL = 'https://vsol.software/referral';
@@ -630,18 +634,30 @@ export function generateHtmlEmail(lead: Lead, includeReferral?: boolean): string
       
       // Convert URLs to clickable links
       paraText = paraText.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color: #0066cc; text-decoration: underline;">$1</a>');
+      
+      // Protect newly created links before further processing
+      paraText = protectLinks(paraText);
+      
       paraText = paraText.replace(/\b(www\.[^\s<]+)/g, '<a href="https://$1" style="color: #0066cc; text-decoration: underline;">$1</a>');
+      
+      // Protect again after www links
+      paraText = protectLinks(paraText);
       
       // Convert email addresses to mailto links
       paraText = paraText.replace(/\b([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})\b/g, '<a href="mailto:$1" style="color: #0066cc; text-decoration: underline;">$1</a>');
       
-      // Protect newly created links before converting bare domains
+      // Protect again after email links
       paraText = protectLinks(paraText);
       
       // Convert bare domain names to links (e.g., vsol.software)
-      // This runs AFTER protecting email/www links to avoid double-linking
-      paraText = paraText.replace(/\b([a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?)\b/g, (match) => {
-        return `<a href="https://${match}" style="color: #0066cc; text-decoration: underline;">${match}</a>`;
+      // Use negative lookbehind to avoid matching inside existing links or attributes
+      paraText = paraText.replace(/(?<!href="|href='|>)(\b[a-zA-Z0-9-]+\.[a-zA-Z]{2,}(?:\.[a-zA-Z]{2,})?)\b(?!<)/g, (match, domain, offset, string) => {
+        // Additional safety: check if we're inside an HTML tag or existing link
+        const before = string.substring(Math.max(0, offset - 100), offset);
+        if (before.includes('href=') && !before.includes('</a>')) {
+          return match; // Skip if we're inside a href attribute
+        }
+        return `<a href="https://${domain}" style="color: #0066cc; text-decoration: underline;">${domain}</a>`;
       });
       
       // Convert phone number to tel: link with proper format: tel:+1XXXXXXXXXX

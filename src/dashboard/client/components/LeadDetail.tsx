@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import { useQueryClient } from '@tanstack/react-query';
 import { useGenerateBackground } from '../hooks/useGenerateBackground';
 import { generateOutreachEmail, createMailtoLink, generateHtmlEmail, EmailContent } from '../../../ai/email-templates';
+import { useToastContext } from '../contexts/ToastContext';
 
 interface Lead {
   id: string;
@@ -46,6 +47,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   const [emailStatus, setEmailStatus] = useState<string>(lead.email_status || 'not_contacted');
   const queryClient = useQueryClient();
   const generateBackground = useGenerateBackground();
+  const { showToast } = useToastContext();
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return 'N/A';
@@ -84,7 +86,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
       onClose();
     } catch (error) {
       console.error('Error deleting lead:', error);
-      alert('Failed to delete lead. Please try again.');
+      showToast('error', 'Failed to delete lead. Please try again.');
       setIsDeleting(false);
     }
   };
@@ -127,14 +129,14 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
         }
       } catch (error) {
         console.error('Error copying to clipboard:', error);
-        alert('Failed to copy to clipboard. Please try again.');
+        showToast('error', 'Failed to copy to clipboard. Please try again.');
       }
     }
   };
 
   const handleGenerateEmail = () => {
     if (!lead.email) {
-      alert('This lead does not have an email address.');
+      showToast('warning', 'This lead does not have an email address.');
       return;
     }
 
@@ -144,7 +146,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
       setShowEmailSection(true);
     } catch (error) {
       console.error('Error generating email:', error);
-      alert('Failed to generate email. Please ensure the lead has an email address.');
+      showToast('error', 'Failed to generate email. Please ensure the lead has an email address.');
     }
   };
 
@@ -215,7 +217,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
       }
     } catch (error) {
       console.error('Failed to copy email:', error);
-      alert('Failed to copy to clipboard. Please try again.');
+      showToast('error', 'Failed to copy to clipboard. Please try again.');
     }
   };
 
@@ -234,7 +236,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
       await queryClient.invalidateQueries({ queryKey: ['leads'] });
     } catch (error) {
       console.error('Error updating lead status:', error);
-      alert('Failed to update status. Please try again.');
+      showToast('error', 'Failed to update status. Please try again.');
     }
   };
 
