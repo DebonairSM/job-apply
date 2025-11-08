@@ -2038,7 +2038,7 @@ export interface Lead {
   address?: string; // Social media handles or custom addresses
   profile?: string; // Search profile used to find this lead (core, chiefs, etc.)
   background?: string; // AI-generated professional background for email use
-  email_status?: 'not_contacted' | 'email_sent' | 'replied' | 'meeting_scheduled';
+  email_status?: 'not_contacted' | 'email_sent' | 'replied' | 'meeting_scheduled' | 'email_bounced';
   scraped_at?: string;
   created_at?: string;
   deleted_at?: string;

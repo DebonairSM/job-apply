@@ -25,7 +25,7 @@ interface Lead {
   address?: string;
   profile?: string;
   background?: string; // AI-generated professional background for email use
-  email_status?: 'not_contacted' | 'email_sent' | 'replied' | 'meeting_scheduled';
+  email_status?: 'not_contacted' | 'email_sent' | 'replied' | 'meeting_scheduled' | 'email_bounced';
   scraped_at?: string;
   created_at?: string;
   deleted_at?: string;
@@ -303,6 +303,8 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
         return 'text-green-600 bg-green-100';
       case 'meeting_scheduled':
         return 'text-purple-600 bg-purple-100';
+      case 'email_bounced':
+        return 'text-red-600 bg-red-100';
       default:
         return 'text-gray-600 bg-gray-100';
     }
@@ -318,6 +320,8 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
         return 'Replied';
       case 'meeting_scheduled':
         return 'Meeting Scheduled';
+      case 'email_bounced':
+        return 'Email Bounced';
       default:
         return status;
     }
@@ -604,6 +608,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
                       <option value="email_sent">Email Sent</option>
                       <option value="replied">Replied</option>
                       <option value="meeting_scheduled">Meeting Scheduled</option>
+                      <option value="email_bounced">Email Bounced</option>
                     </select>
                   </div>
                 </div>

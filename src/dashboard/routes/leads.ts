@@ -12,7 +12,7 @@ const __dirname = dirname(__filename);
 const router = express.Router();
 
 // Constants for validation
-const VALID_EMAIL_STATUSES = ['not_contacted', 'email_sent', 'replied', 'meeting_scheduled'] as const;
+const VALID_EMAIL_STATUSES = ['not_contacted', 'email_sent', 'replied', 'meeting_scheduled', 'email_bounced'] as const;
 const VALID_CONNECTION_DEGREES = ['1st', '2nd', '3rd'] as const;
 const DEFAULT_LIMIT = 50;
 const DEFAULT_OFFSET = 0;

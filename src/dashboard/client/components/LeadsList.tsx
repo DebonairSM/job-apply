@@ -26,7 +26,7 @@ interface Lead {
   address?: string;
   profile?: string;
   background?: string; // AI-generated professional background for email use
-  email_status?: 'not_contacted' | 'email_sent' | 'replied' | 'meeting_scheduled';
+  email_status?: 'not_contacted' | 'email_sent' | 'replied' | 'meeting_scheduled' | 'email_bounced';
   scraped_at?: string;
   created_at?: string;
   deleted_at?: string;
@@ -195,6 +195,8 @@ export function LeadsList() {
         return 'bg-green-100 text-green-800';
       case 'meeting_scheduled':
         return 'bg-purple-100 text-purple-800';
+      case 'email_bounced':
+        return 'bg-red-100 text-red-800';
       case 'not_contacted':
       default:
         return 'bg-gray-100 text-gray-800';
@@ -211,6 +213,8 @@ export function LeadsList() {
         return 'Replied';
       case 'meeting_scheduled':
         return 'Meeting Scheduled';
+      case 'email_bounced':
+        return 'Email Bounced';
       default:
         return 'Not Contacted';
     }
