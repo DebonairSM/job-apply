@@ -37,6 +37,7 @@ interface LeadDetailProps {
 }
 
 export function LeadDetail({ lead, onClose }: LeadDetailProps) {
+  const [activeTab, setActiveTab] = useState<'overview' | 'outreach' | 'details'>('overview');
   const [isDeleting, setIsDeleting] = useState(false);
   const [copiedBackground, setCopiedBackground] = useState(false);
   const [currentBackground, setCurrentBackground] = useState(lead.background);
@@ -240,6 +241,20 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
     }
   };
 
+  const handleEmailBodyClick = async () => {
+    if (!generatedEmail) return;
+    
+    // Copy the email
+    await handleCopyEmail();
+    
+    // Auto-update status to email_sent if not already contacted
+    if (emailStatus === 'not_contacted') {
+      await handleStatusChange('email_sent');
+    }
+    
+    showToast('success', 'Email copied to clipboard!');
+  };
+
   const handleOpenEmailClient = () => {
     if (generatedEmail) {
       const mailtoLink = createMailtoLink(generatedEmail);
@@ -342,469 +357,460 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
           </button>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Title and Company */}
-          <div className="space-y-3">
-            {lead.title && (
-              <div>
-                <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Title</label>
-                <p className="mt-1 text-lg text-gray-900">{lead.title}</p>
-              </div>
-            )}
-
-            {lead.company && (
-              <div>
-                <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Company</label>
-                <p className="mt-1 text-lg text-gray-900">{lead.company}</p>
-              </div>
-            )}
-
-            {lead.location && (
-              <div>
-                <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Location</label>
-                <p className="mt-1 text-lg text-gray-900 flex items-center gap-2">
-                  <Icon icon="place" size={20} className="text-gray-500" />
-                  {lead.location}
-                </p>
-              </div>
-            )}
-
-            {lead.profile && (
-              <div>
-                <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Profile</label>
-                <p className="mt-1">
-                  <span className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-blue-100 text-blue-800">
-                    {lead.profile}
-                  </span>
-                </p>
-              </div>
-            )}
-
-            {lead.worked_together && (
-              <div>
-                <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Worked Together</label>
-                <p className="mt-1 text-lg text-gray-900 flex items-center gap-2">
-                  <Icon icon="users" size={20} className="text-blue-500" />
-                  {lead.worked_together}
-                </p>
-              </div>
-            )}
+        {/* Tab Navigation */}
+        <div className="border-b border-gray-200">
+          <div className="flex px-6">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`px-4 py-3 font-medium text-sm transition-colors relative ${
+                activeTab === 'overview'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveTab('outreach')}
+              className={`px-4 py-3 font-medium text-sm transition-colors relative ${
+                activeTab === 'outreach'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Outreach
+            </button>
+            <button
+              onClick={() => setActiveTab('details')}
+              className={`px-4 py-3 font-medium text-sm transition-colors relative ${
+                activeTab === 'details'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Details
+            </button>
           </div>
+        </div>
 
-          {/* AI-Generated Background for Email */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 space-y-3 border border-blue-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Icon icon="auto-fix" size={20} className="text-blue-600" />
-                <h3 className="font-semibold text-gray-900">Email Background</h3>
-              </div>
-              <div className="flex gap-2">
-                {generateBackground.isPending ? (
-                  <span className="text-sm text-gray-500 flex items-center gap-1">
-                    <Icon icon="refresh" size={16} className="animate-spin" />
-                    Generating...
-                  </span>
-                ) : currentBackground ? (
-                  <>
-                    <button
-                      onClick={handleCopyBackground}
-                      className="px-3 py-1 bg-white text-blue-600 rounded-md hover:bg-blue-50 transition-colors text-sm flex items-center gap-1 border border-blue-200"
-                      title="Copy to clipboard"
-                    >
-                      <Icon icon={copiedBackground ? "check" : "content-copy"} size={16} />
-                      {copiedBackground ? 'Copied!' : 'Copy'}
-                    </button>
-                    <button
-                      onClick={handleGenerateBackground}
-                      className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm flex items-center gap-1"
-                    >
-                      <Icon icon="refresh" size={16} />
-                      Regenerate
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    onClick={handleGenerateBackground}
-                    className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm flex items-center gap-1"
-                  >
-                    <Icon icon="auto-fix" size={16} />
-                    Generate
-                  </button>
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {/* Overview Tab */}
+          {activeTab === 'overview' && (
+            <div className="space-y-4">
+              {/* Title and Company */}
+              <div className="space-y-3">
+                {lead.title && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Title</label>
+                    <p className="mt-1 text-lg text-gray-900">{lead.title}</p>
+                  </div>
+                )}
+
+                {lead.company && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Company</label>
+                    <p className="mt-1 text-lg text-gray-900">{lead.company}</p>
+                  </div>
+                )}
+
+                {lead.location && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Location</label>
+                    <p className="mt-1 text-lg text-gray-900 flex items-center gap-2">
+                      <Icon icon="place" size={20} className="text-gray-500" />
+                      {lead.location}
+                    </p>
+                  </div>
+                )}
+
+                {lead.profile && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Profile</label>
+                    <p className="mt-1">
+                      <span className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium bg-blue-100 text-blue-800">
+                        {lead.profile}
+                      </span>
+                    </p>
+                  </div>
+                )}
+
+                {lead.worked_together && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Worked Together</label>
+                    <p className="mt-1 text-lg text-gray-900 flex items-center gap-2">
+                      <Icon icon="users" size={20} className="text-blue-500" />
+                      {lead.worked_together}
+                    </p>
+                  </div>
                 )}
               </div>
-            </div>
-            
-            {generateBackground.isError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
-                Failed to generate background. Please try again.
-              </div>
-            )}
-            
-            {currentBackground ? (
-              <div className="p-3 bg-white rounded-md border border-blue-100">
-                <p className="text-gray-900 leading-relaxed">{currentBackground}</p>
-              </div>
-            ) : !generateBackground.isPending && (
-              <div className="p-3 bg-white rounded-md border border-blue-100 text-gray-500 text-sm">
-                Click "Generate" to create a professional email introduction based on this person's title and background.
-              </div>
-            )}
-          </div>
 
-          {/* Email Outreach Section */}
-          <div className="bg-gradient-to-r from-green-50 to-teal-50 rounded-lg p-4 space-y-3 border border-green-200">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Icon icon="email" size={20} className="text-green-600" />
-                <h3 className="font-semibold text-gray-900">Email Outreach</h3>
-              </div>
-              {!showEmailSection && (
-                <button
-                  onClick={handleGenerateEmail}
-                  disabled={!lead.email}
-                  className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm flex items-center gap-1 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  title={!lead.email ? 'No email address available' : 'Generate email'}
-                >
-                  <Icon icon="email" size={16} />
-                  Generate Email
-                </button>
-              )}
-            </div>
-
-            {!lead.email && !showEmailSection && (
-              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800 text-sm flex items-center gap-2">
-                <Icon icon="warning" size={16} />
-                No email address available for this lead
-              </div>
-            )}
-
-            {showEmailSection && generatedEmail && (
-              <div className="space-y-3">
-                {/* Email Preview */}
-                <div className="bg-white rounded-lg border border-green-100 p-3 space-y-2">
-                  <div className="flex items-start gap-2">
-                    <Icon icon="person" size={16} className="text-gray-400 mt-0.5" />
-                    <div className="flex-1">
-                      <span className="text-xs font-medium text-gray-500">To:</span>
-                      <p className="text-sm text-gray-900">{generatedEmail.to}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-start gap-2">
-                    <Icon icon="subject" size={16} className="text-gray-400 mt-0.5" />
-                    <div className="flex-1">
-                      <span className="text-xs font-medium text-gray-500">Subject:</span>
-                      <p className="text-sm text-gray-900">{generatedEmail.subject}</p>
-                    </div>
-                  </div>
-
-                  <div className="border-t border-gray-200 pt-2">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-gray-500">Formatted Email Body:</span>
-                      <span className="text-xs text-blue-600">Select text below and copy (Ctrl+C) for best formatting</span>
-                    </div>
-                    <div 
-                      className="mt-1 p-4 bg-white rounded border border-gray-200 text-sm text-gray-900 max-h-96 overflow-y-auto"
-                      style={{
-                        fontFamily: 'Arial, "Helvetica Neue", Helvetica, sans-serif',
-                        fontSize: '12pt',
-                        lineHeight: '1.6'
-                      }}
-                      dangerouslySetInnerHTML={{
-                        __html: (() => {
-                          const htmlEmail = generateHtmlEmail(lead, includeReferral);
-                          const bodyContentMatch = htmlEmail.match(/<body[^>]*>([\s\S]*)<\/body>/);
-                          return bodyContentMatch ? bodyContentMatch[1] : generatedEmail.body;
-                        })()
-                      }}
-                    />
+              {/* About Section */}
+              {lead.about && (
+                <div>
+                  <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">About</label>
+                  <div className="mt-2 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                    <p className="text-gray-900 whitespace-pre-wrap">{lead.about}</p>
                   </div>
                 </div>
+              )}
 
-                {/* Referral Checkbox */}
-                <div className="flex items-center">
-                  <label className="flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={includeReferral}
-                      onChange={handleToggleReferral}
-                      className="w-4 h-4 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 focus:ring-2"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">
-                      Include Referral Program
-                    </span>
-                  </label>
-                  {includeReferral && generatedEmail.referralLink && (
-                    <span className="ml-3 text-xs text-gray-500">
-                      Link: {generatedEmail.referralLink.substring(0, 30)}...
-                    </span>
+              {/* Articles Section */}
+              {lead.articles && (() => {
+                try {
+                  const articleUrls = JSON.parse(lead.articles) as string[];
+                  if (articleUrls.length > 0) {
+                    return (
+                      <div>
+                        <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                          Published Articles ({articleUrls.length})
+                        </label>
+                        <div className="mt-2 space-y-2">
+                          {articleUrls.map((url, index) => (
+                            <div key={index} className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200">
+                              <a
+                                href={url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 flex items-center gap-2"
+                              >
+                                <Icon icon="article" size={18} className="text-gray-500" />
+                                <span className="flex-1 break-all">
+                                  {url.split('/').pop() || url}
+                                </span>
+                                <Icon icon="open-in-new" size={16} />
+                              </a>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }
+                } catch (error) {
+                  // Invalid JSON, skip rendering
+                }
+                return null;
+              })()}
+            </div>
+          )}
+
+          {/* Outreach Tab */}
+          {activeTab === 'outreach' && (
+            <div className="space-y-4">
+              {/* Email Status Section - Moved to top */}
+              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                <h4 className="text-sm font-semibold text-gray-700 mb-3">Email Status</h4>
+                <div className="flex items-center gap-3">
+                  <div className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(emailStatus)}`}>
+                    {getStatusLabel(emailStatus)}
+                  </div>
+                  <select
+                    value={emailStatus}
+                    onChange={(e) => handleStatusChange(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="not_contacted">Not Contacted</option>
+                    <option value="email_sent">Email Sent</option>
+                    <option value="replied">Replied</option>
+                    <option value="meeting_scheduled">Meeting Scheduled</option>
+                    <option value="email_bounced">Email Bounced</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* AI-Generated Background Section - Simplified */}
+              <div className="bg-white rounded-lg p-4 space-y-3 border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Icon icon="auto-fix" size={20} className="text-blue-600" />
+                    <h3 className="font-semibold text-gray-900">Email Background</h3>
+                  </div>
+                  <div className="flex gap-2">
+                    {generateBackground.isPending ? (
+                      <span className="text-sm text-gray-500 flex items-center gap-1">
+                        <Icon icon="refresh" size={16} className="animate-spin" />
+                        Generating...
+                      </span>
+                    ) : currentBackground ? (
+                      <button
+                        onClick={handleGenerateBackground}
+                        className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm flex items-center gap-1"
+                      >
+                        <Icon icon="refresh" size={16} />
+                        Regenerate
+                      </button>
+                    ) : (
+                      <button
+                        onClick={handleGenerateBackground}
+                        className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm flex items-center gap-1"
+                      >
+                        <Icon icon="auto-fix" size={16} />
+                        Generate
+                      </button>
+                    )}
+                  </div>
+                </div>
+                
+                {generateBackground.isError && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+                    Failed to generate background. Please try again.
+                  </div>
+                )}
+                
+                {currentBackground ? (
+                  <div className="p-3 bg-gray-50 rounded-md border border-gray-200">
+                    <p className="text-gray-900 leading-relaxed">{currentBackground}</p>
+                  </div>
+                ) : !generateBackground.isPending && (
+                  <div className="p-3 bg-gray-50 rounded-md border border-gray-200 text-gray-500 text-sm">
+                    Click "Generate" to create a professional email introduction based on this person's title and background.
+                  </div>
+                )}
+              </div>
+
+              {/* Email Generation Section - Simplified */}
+              <div className="bg-white rounded-lg p-4 space-y-3 border border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Icon icon="email" size={20} className="text-blue-600" />
+                    <h3 className="font-semibold text-gray-900">Email Outreach</h3>
+                  </div>
+                  {!showEmailSection && (
+                    <button
+                      onClick={handleGenerateEmail}
+                      disabled={!lead.email}
+                      className="px-3 py-1 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm flex items-center gap-1 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      title={!lead.email ? 'No email address available' : 'Generate email'}
+                    >
+                      <Icon icon="email" size={16} />
+                      Generate Email
+                    </button>
                   )}
                 </div>
 
-                {/* Action Buttons */}
-                <div className="space-y-2">
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleOpenEmailClient}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm"
-                    >
-                      <Icon icon="open_in_new" size={16} />
-                      Open in Email Client
-                    </button>
-                    <button
-                      onClick={handleCopyEmail}
-                      className={`flex items-center gap-2 px-4 py-2 rounded-md transition-colors text-sm ${
-                        copiedEmail
-                          ? 'bg-green-600 text-white'
-                          : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-                      }`}
-                    >
-                      <Icon icon={copiedEmail ? 'check' : 'content_copy'} size={16} />
-                      {copiedEmail ? 'Copied!' : 'Quick Copy'}
-                    </button>
-                    <button
-                      onClick={() => setShowEmailSection(false)}
-                      className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-md hover:bg-gray-50 transition-colors text-sm border border-gray-300"
-                    >
-                      <Icon icon="close" size={16} />
-                      Hide
-                    </button>
+                {!lead.email && !showEmailSection && (
+                  <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800 text-sm flex items-center gap-2">
+                    <Icon icon="warning" size={16} />
+                    No email address available for this lead
                   </div>
-                  <div className="px-1 py-2 bg-blue-50 border border-blue-100 rounded text-xs text-blue-800">
-                    <Icon icon="info" size={14} className="inline mr-1" />
-                    <strong>Best practice for Gmail:</strong> Select and copy text directly from the formatted preview above. This preserves all formatting, emojis, and clickable links.
-                  </div>
-                </div>
+                )}
 
-                {/* Email Status Tracking */}
-                <div className="pt-4 mt-4 border-t border-gray-200">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Email Status</h4>
-                  
-                  <div className="flex items-center gap-3">
-                    {/* Current Status Badge */}
-                    <div className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(emailStatus)}`}>
-                      {getStatusLabel(emailStatus)}
+                {showEmailSection && generatedEmail && (
+                  <div className="space-y-3">
+                    {/* Email Preview - Click to Copy */}
+                    <div className="bg-white rounded-lg border border-gray-200 p-3 space-y-2">
+                      <div className="flex items-start gap-2">
+                        <Icon icon="person" size={16} className="text-gray-400 mt-0.5" />
+                        <div className="flex-1">
+                          <span className="text-xs font-medium text-gray-500">To:</span>
+                          <p className="text-sm text-gray-900">{generatedEmail.to}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-start gap-2">
+                        <Icon icon="subject" size={16} className="text-gray-400 mt-0.5" />
+                        <div className="flex-1">
+                          <span className="text-xs font-medium text-gray-500">Subject:</span>
+                          <p className="text-sm text-gray-900">{generatedEmail.subject}</p>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-gray-200 pt-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-medium text-gray-500">Email Body:</span>
+                          <span className="text-xs text-blue-600">{copiedEmail ? '✓ Copied!' : 'Click to copy'}</span>
+                        </div>
+                        <div 
+                          onClick={handleEmailBodyClick}
+                          className="mt-1 p-4 bg-gray-50 rounded border border-gray-300 text-sm text-gray-900 max-h-96 overflow-y-auto cursor-pointer hover:bg-gray-100 hover:border-blue-400 transition-colors"
+                          title="Click to copy email"
+                          style={{
+                            fontFamily: 'Arial, "Helvetica Neue", Helvetica, sans-serif',
+                            fontSize: '12pt',
+                            lineHeight: '1.6'
+                          }}
+                          dangerouslySetInnerHTML={{
+                            __html: (() => {
+                              const htmlEmail = generateHtmlEmail(lead, includeReferral);
+                              const bodyContentMatch = htmlEmail.match(/<body[^>]*>([\s\S]*)<\/body>/);
+                              return bodyContentMatch ? bodyContentMatch[1] : generatedEmail.body;
+                            })()
+                          }}
+                        />
+                      </div>
                     </div>
 
-                    {/* Quick Action: Mark as Sent */}
-                    {emailStatus === 'not_contacted' && (
-                      <button
-                        onClick={() => handleStatusChange('email_sent')}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
-                      >
-                        <Icon icon="send" size={16} />
-                        Sent Initial Email
-                      </button>
-                    )}
-
-                    {/* Status Dropdown */}
-                    <select
-                      value={emailStatus}
-                      onChange={(e) => handleStatusChange(e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="not_contacted">Not Contacted</option>
-                      <option value="email_sent">Email Sent</option>
-                      <option value="replied">Replied</option>
-                      <option value="meeting_scheduled">Meeting Scheduled</option>
-                      <option value="email_bounced">Email Bounced</option>
-                    </select>
+                    {/* Referral Checkbox - Inline */}
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={includeReferral}
+                        onChange={handleToggleReferral}
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">
+                        Include Referral Program
+                        {includeReferral && generatedEmail.referralLink && (
+                          <span className="ml-2 text-xs text-gray-500">
+                            ({generatedEmail.referralLink.substring(0, 30)}...)
+                          </span>
+                        )}
+                      </span>
+                    </label>
                   </div>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Contact Info */}
-          <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-            <h3 className="font-semibold text-gray-900">Contact Information</h3>
-            
-            {/* Email Section with Edit Capability */}
-            <div className="space-y-2">
-              {isEditingEmail ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Icon icon="email" size={20} className="text-green-500" />
-                    <input
-                      type="email"
-                      value={editedEmail}
-                      onChange={(e) => setEditedEmail(e.target.value)}
-                      placeholder="email@example.com"
-                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-                      disabled={isSavingEmail}
-                    />
-                  </div>
-                  <div className="flex gap-2 ml-8">
-                    <button
-                      onClick={handleSaveEmail}
-                      disabled={isSavingEmail}
-                      className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm flex items-center gap-1 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    >
-                      <Icon icon={isSavingEmail ? "refresh" : "check"} size={16} className={isSavingEmail ? "animate-spin" : ""} />
-                      {isSavingEmail ? 'Saving...' : 'Save'}
-                    </button>
-                    <button
-                      onClick={handleCancelEditEmail}
-                      disabled={isSavingEmail}
-                      className="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm flex items-center gap-1 disabled:cursor-not-allowed"
-                    >
-                      <Icon icon="close" size={16} />
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              ) : lead.email ? (
-                <div className="flex items-center gap-3">
-                  <Icon icon="email" size={20} className="text-green-500" />
-                  <a href={`mailto:${lead.email}`} className="text-blue-600 hover:text-blue-800 flex-1">
-                    {lead.email}
-                  </a>
-                  <button
-                    onClick={() => setIsEditingEmail(true)}
-                    className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors text-xs flex items-center gap-1"
-                    title="Edit email"
-                  >
-                    <Icon icon="edit" size={14} />
-                    Edit
-                  </button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <Icon icon="email" size={20} className="text-gray-400" />
-                  <span className="text-gray-500 flex-1">No email available</span>
-                  <button
-                    onClick={() => setIsEditingEmail(true)}
-                    className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm flex items-center gap-1"
-                    title="Add email"
-                  >
-                    <Icon icon="add" size={16} />
-                    Add Email
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {lead.phone && (
-              <div className="flex items-center gap-3">
-                <Icon icon="phone" size={20} className="text-blue-500" />
-                <a href={`tel:${lead.phone.replace(/[^0-9]/g, '')}`} className="text-blue-600 hover:text-blue-800">
-                  {lead.phone}
-                </a>
-              </div>
-            )}
-
-            {lead.website && (
-              <div className="flex items-center gap-3">
-                <Icon icon="language" size={20} className="text-purple-500" />
-                <a
-                  href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-                >
-                  {lead.website}
-                  <Icon icon="open-in-new" size={16} />
-                </a>
-              </div>
-            )}
-
-            <div className="flex items-center gap-3">
-              <Icon icon="link" size={20} className="text-blue-500" />
-              <a
-                href={lead.profile_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
-              >
-                View LinkedIn Profile
-                <Icon icon="open-in-new" size={16} />
-              </a>
-            </div>
-
-            {lead.address && (
-              <div className="flex items-center gap-3">
-                <Icon icon="place" size={20} className="text-orange-500" />
-                <span className="text-gray-900">{lead.address}</span>
-              </div>
-            )}
-
-            {lead.birthday && (
-              <div className="flex items-center gap-3">
-                <Icon icon="cake" size={20} className="text-pink-500" />
-                <span className="text-gray-900">Birthday: {lead.birthday}</span>
-              </div>
-            )}
-
-            {lead.connected_date && (
-              <div className="flex items-center gap-3">
-                <Icon icon="people" size={20} className="text-blue-500" />
-                <span className="text-gray-900">Connected: {lead.connected_date}</span>
-              </div>
-            )}
-          </div>
-
-          {/* About Section */}
-          {lead.about && (
-            <div>
-              <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">About</label>
-              <div className="mt-2 p-4 bg-gray-50 rounded-lg">
-                <p className="text-gray-900 whitespace-pre-wrap">{lead.about}</p>
+                )}
               </div>
             </div>
           )}
 
-          {/* Articles Section */}
-          {lead.articles && (() => {
-            try {
-              const articleUrls = JSON.parse(lead.articles) as string[];
-              if (articleUrls.length > 0) {
-                return (
-                  <div>
-                    <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                      Published Articles ({articleUrls.length})
-                    </label>
-                    <div className="mt-2 space-y-2">
-                      {articleUrls.map((url, index) => (
-                        <div key={index} className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                          <a
-                            href={url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 flex items-center gap-2"
-                          >
-                            <Icon icon="article" size={18} className="text-gray-500" />
-                            <span className="flex-1 break-all">
-                              {url.split('/').pop() || url}
-                            </span>
-                            <Icon icon="open-in-new" size={16} />
-                          </a>
-                        </div>
-                      ))}
+          {/* Details Tab */}
+          {activeTab === 'details' && (
+            <div className="space-y-4">
+              {/* Contact Information */}
+              <div className="bg-white rounded-lg p-4 space-y-3 border border-gray-200">
+                <h3 className="font-semibold text-gray-900">Contact Information</h3>
+                
+                {/* Email Section with Edit Capability */}
+                <div className="space-y-2">
+                  {isEditingEmail ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Icon icon="email" size={20} className="text-green-500" />
+                        <input
+                          type="email"
+                          value={editedEmail}
+                          onChange={(e) => setEditedEmail(e.target.value)}
+                          placeholder="email@example.com"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          disabled={isSavingEmail}
+                        />
+                      </div>
+                      <div className="flex gap-2 ml-8">
+                        <button
+                          onClick={handleSaveEmail}
+                          disabled={isSavingEmail}
+                          className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm flex items-center gap-1 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        >
+                          <Icon icon={isSavingEmail ? "refresh" : "check"} size={16} className={isSavingEmail ? "animate-spin" : ""} />
+                          {isSavingEmail ? 'Saving...' : 'Save'}
+                        </button>
+                        <button
+                          onClick={handleCancelEditEmail}
+                          disabled={isSavingEmail}
+                          className="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm flex items-center gap-1 disabled:cursor-not-allowed"
+                        >
+                          <Icon icon="close" size={16} />
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : lead.email ? (
+                    <div className="flex items-center gap-3">
+                      <Icon icon="email" size={20} className="text-green-500" />
+                      <a href={`mailto:${lead.email}`} className="text-blue-600 hover:text-blue-800 flex-1">
+                        {lead.email}
+                      </a>
+                      <button
+                        onClick={() => setIsEditingEmail(true)}
+                        className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors text-xs flex items-center gap-1"
+                        title="Edit email"
+                      >
+                        <Icon icon="edit" size={14} />
+                        Edit
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <Icon icon="email" size={20} className="text-gray-400" />
+                      <span className="text-gray-500 flex-1">No email available</span>
+                      <button
+                        onClick={() => setIsEditingEmail(true)}
+                        className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm flex items-center gap-1"
+                        title="Add email"
+                      >
+                        <Icon icon="add" size={16} />
+                        Add Email
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {lead.phone && (
+                  <div className="flex items-center gap-3">
+                    <Icon icon="phone" size={20} className="text-blue-500" />
+                    <a href={`tel:${lead.phone.replace(/[^0-9]/g, '')}`} className="text-blue-600 hover:text-blue-800">
+                      {lead.phone}
+                    </a>
+                  </div>
+                )}
+
+                {lead.website && (
+                  <div className="flex items-center gap-3">
+                    <Icon icon="language" size={20} className="text-purple-500" />
+                    <a
+                      href={lead.website.startsWith('http') ? lead.website : `https://${lead.website}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                    >
+                      {lead.website}
+                      <Icon icon="open-in-new" size={16} />
+                    </a>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-3">
+                  <Icon icon="link" size={20} className="text-blue-500" />
+                  <a
+                    href={lead.profile_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                  >
+                    View LinkedIn Profile
+                    <Icon icon="open-in-new" size={16} />
+                  </a>
+                </div>
+
+                {lead.address && (
+                  <div className="flex items-center gap-3">
+                    <Icon icon="place" size={20} className="text-orange-500" />
+                    <span className="text-gray-900">{lead.address}</span>
+                  </div>
+                )}
+
+                {lead.birthday && (
+                  <div className="flex items-center gap-3">
+                    <Icon icon="cake" size={20} className="text-pink-500" />
+                    <span className="text-gray-900">Birthday: {lead.birthday}</span>
+                  </div>
+                )}
+
+                {lead.connected_date && (
+                  <div className="flex items-center gap-3">
+                    <Icon icon="people" size={20} className="text-blue-500" />
+                    <span className="text-gray-900">Connected: {lead.connected_date}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Profile Metadata */}
+              {lead.linkedin_id && (
+                <div className="bg-white rounded-lg p-4 space-y-2 text-sm border border-gray-200">
+                  <h3 className="font-semibold text-gray-900">Profile Information</h3>
+                  <div className="grid grid-cols-1 gap-3 text-gray-600">
+                    <div>
+                      <span className="font-medium">LinkedIn ID:</span>{' '}
+                      <span className="text-gray-900 font-mono">{lead.linkedin_id}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium">Profile Added:</span>{' '}
+                      {formatDate(lead.created_at)}
                     </div>
                   </div>
-                );
-              }
-            } catch (error) {
-              // Invalid JSON, skip rendering
-            }
-            return null;
-          })()}
-
-          {/* Profile Information */}
-          {lead.linkedin_id && (
-            <div className="bg-gray-50 rounded-lg p-4 space-y-2 text-sm">
-              <h3 className="font-semibold text-gray-900">Profile Information</h3>
-              <div className="grid grid-cols-1 gap-3 text-gray-600">
-                <div>
-                  <span className="font-medium">LinkedIn ID:</span>{' '}
-                  <span className="text-gray-900 font-mono">{lead.linkedin_id}</span>
                 </div>
-                <div>
-                  <span className="font-medium">Profile Added:</span>{' '}
-                  {formatDate(lead.created_at)}
-                </div>
-              </div>
+              )}
             </div>
           )}
         </div>
@@ -820,23 +826,15 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
             {isDeleting ? 'Deleting...' : 'Delete Lead'}
           </button>
           
-          <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
-            >
-              Close
-            </button>
-            <a
-              href={lead.profile_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
-            >
-              Open LinkedIn
-              <Icon icon="open-in-new" size={16} />
-            </a>
-          </div>
+          <a
+            href={lead.profile_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+          >
+            Open LinkedIn
+            <Icon icon="open-in-new" size={16} />
+          </a>
         </div>
       </div>
     </div>
