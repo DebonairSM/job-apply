@@ -214,8 +214,8 @@ export const BOOLEAN_SEARCHES: Record<string, string> = {
 export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>> = {
   // Core Azure API profile - balanced emphasis on Azure platform and .NET
   core: {
-    coreAzure: 35,           // Strong Azure platform focus
-    seniority: 15,
+    coreAzure: 33,           // Strong Azure platform focus
+    seniority: 17,           // Increased from 15 to emphasize remote+seniority
     coreNet: 30,             // Core .NET skills
     frontendFrameworks: 10,
     legacyModernization: 10,
@@ -224,8 +224,8 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
   
   // Backend/API-focused roles (maps to core)
   backend: {
-    coreAzure: 40,
-    seniority: 15,
+    coreAzure: 38,
+    seniority: 17,           // Increased from 15 to emphasize remote+seniority
     coreNet: 35,             // Strong .NET backend focus
     frontendFrameworks: 0,   // Backend only
     legacyModernization: 10,
@@ -234,8 +234,8 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
   
   // Pure .NET development roles
   'core-net': {
-    coreAzure: 10,           // Some Azure helpful but not primary
-    seniority: 15,
+    coreAzure: 8,            // Some Azure helpful but not primary
+    seniority: 17,           // Increased from 15 to emphasize remote+seniority
     coreNet: 60,             // Primary focus on .NET skills
     frontendFrameworks: 10,
     legacyModernization: 5,
@@ -244,8 +244,8 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
   
   // Legacy modernization specialists
   'legacy-modernization': {
-    coreAzure: 25,           // Cloud migration target
-    seniority: 20,           // Senior experience important
+    coreAzure: 23,           // Cloud migration target
+    seniority: 22,           // Increased from 20 to emphasize remote+seniority
     coreNet: 30,             // Both old and new .NET
     frontendFrameworks: 5,
     legacyModernization: 20, // Primary focus on modernization
@@ -254,8 +254,8 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
   
   // Contract roles - pure .NET development
   contract: {
-    coreAzure: 10,           // Some Azure helpful but not primary
-    seniority: 15,
+    coreAzure: 8,            // Some Azure helpful but not primary
+    seniority: 17,           // Increased from 15 to emphasize remote+seniority
     coreNet: 60,             // Primary focus on .NET skills
     frontendFrameworks: 10,
     legacyModernization: 5,
@@ -264,8 +264,8 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
   
   // Simplified ASP.NET search - basic keyword matching
   'aspnet-simple': {
-    coreAzure: 10,
-    seniority: 20,
+    coreAzure: 8,
+    seniority: 22,           // Increased from 20 to emphasize remote+seniority
     coreNet: 60,             // Heavy focus on .NET skills
     frontendFrameworks: 5,
     legacyModernization: 5,
@@ -274,8 +274,8 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
   
   // C# + Azure without frontend frameworks
   'csharp-azure-no-frontend': {
-    coreAzure: 50,           // Strong Azure focus
-    seniority: 20,
+    coreAzure: 48,           // Strong Azure focus
+    seniority: 22,           // Increased from 20 to emphasize remote+seniority
     coreNet: 30,
     frontendFrameworks: 0,   // Explicitly avoid frontend
     legacyModernization: 0,
@@ -284,8 +284,8 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
   
   // AZ-204 certification focused on Azure Developer Associate skills
   'az204-csharp': {
-    coreAzure: 60,           // AZ-204 is primarily about Azure services
-    seniority: 15,
+    coreAzure: 58,           // AZ-204 is primarily about Azure services
+    seniority: 17,           // Increased from 15 to emphasize remote+seniority
     coreNet: 20,             // C# required but secondary to Azure skills
     frontendFrameworks: 0,   // Backend-focused certification
     legacyModernization: 5,
@@ -294,8 +294,8 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
   
   // AI-enhanced .NET development with modern AI tools and agentic systems
   'ai-enhanced-net': {
-    coreAzure: 35,           // Azure AI services are important
-    seniority: 15,
+    coreAzure: 33,           // Azure AI services are important
+    seniority: 17,           // Increased from 15 to emphasize remote+seniority
     coreNet: 40,             // Strong .NET foundation required
     frontendFrameworks: 10,   // Some frontend work common in AI apps
     legacyModernization: 0,
@@ -304,8 +304,8 @@ export const PROFILE_WEIGHT_DISTRIBUTIONS: Record<string, Record<string, number>
   
   // Legacy web development - WebForms, classic MVC, jQuery, Kendo UI, .NET Framework 4.x
   'legacy-web': {
-    coreAzure: 5,            // Minimal Azure (legacy is often on-prem)
-    seniority: 15,
+    coreAzure: 3,            // Minimal Azure (legacy is often on-prem)
+    seniority: 17,           // Increased from 15 to emphasize remote+seniority
     coreNet: 20,             // Some modern .NET helpful
     frontendFrameworks: 5,   // Blazor acceptable
     legacyModernization: 10, // Some modernization context

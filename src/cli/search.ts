@@ -672,10 +672,9 @@ function buildSearchUrl(opts: SearchOptions, page: number = 1): string {
     throw new Error('Either keywords or profile must be specified');
   }
   
-  // Add remote filter to search string if remote is enabled
-  if (opts.remote) {
-    keywords += ' AND Remote';
-  }
+  // Don't add "AND Remote" to LinkedIn search - it catches hybrid jobs
+  // Instead, we filter for truly remote positions post-search using LocationRequirementFilter
+  // (Hybrid jobs often mention "remote" but require onsite days)
   
   params.set('keywords', keywords);
   

@@ -205,6 +205,127 @@ class ProhibitedKeywordsFilter implements JobFilter {
   }
 }
 
+// Remote-only enforcement filter - blocks hybrid and onsite positions
+class LocationRequirementFilter implements JobFilter {
+  private onsitePatterns: RegExp[];
+  private hybridPatterns: RegExp[];
+  
+  constructor() {
+    // Patterns that indicate onsite or hybrid requirements
+    this.onsitePatterns = [
+      /\b100%\s*onsite\b/i,
+      /\bfully\s*onsite\b/i,
+      /\bin[-\s]office\b/i,
+      /\bon[-\s]?site\b/i,  // Matches "onsite", "on-site", or "on site"
+      /\brelocate\s+to\b/i,
+      /\bmust\s+be\s+local\s+to\b/i,
+      /\bmust\s+be\s+located\s+in\b/i,
+    ];
+    
+    this.hybridPatterns = [
+      /\bhybrid\b/i,
+      /\d+\s*days?\s+(?:a\s+|per\s+)?week\s+(?:in|at|onsite|on-site)/i,  // "3 days a week in office"
+      /\d+x\s*(?:a\s+)?week/i,  // "3x a week"
+      /\boffice\s+\d+\s+days/i,  // "office 3 days"
+    ];
+  }
+  
+  shouldFilter(job: JobInput): boolean {
+    const text = `${job.title} ${job.description}`.toLowerCase();
+    
+    // Check for onsite patterns
+    for (const pattern of this.onsitePatterns) {
+      if (pattern.test(text)) {
+        return true;
+      }
+    }
+    
+    // Check for hybrid patterns
+    for (const pattern of this.hybridPatterns) {
+      if (pattern.test(text)) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+  
+  get reason(): string {
+    return 'Job requires onsite or hybrid work arrangement';
+  }
+}
+
+// Education requirement filter - blocks jobs requiring specific degrees
+class EducationRequirementFilter implements JobFilter {
+  private degreePatterns: RegExp[];
+  
+  constructor() {
+    this.degreePatterns = [
+      /\brequires?\s+(?:a\s+)?(?:bachelor'?s?|BS|BA|B\.S\.|B\.A\.)\s+(?:degree\s+)?in\s+computer\s+science\b/i,
+      /\bcomputer\s+science\s+degree\s+required\b/i,
+      /\bCS\s+degree\s+required\b/i,
+      /\bmust\s+have\s+(?:a\s+)?(?:bachelor'?s?|BS|BA)\s+in\s+(?:CS|computer\s+science)\b/i,
+      /\b(?:bachelor'?s?|BS|BA)\s+(?:degree\s+)?in\s+(?:CS|computer\s+science)\s+(?:is\s+)?required\b/i,
+    ];
+  }
+  
+  shouldFilter(job: JobInput): boolean {
+    const text = `${job.title} ${job.description}`;
+    
+    for (const pattern of this.degreePatterns) {
+      if (pattern.test(text)) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+  
+  get reason(): string {
+    return 'Job requires Computer Science degree';
+  }
+}
+
+// AWS-heavy filter - blocks AWS-focused jobs when using Azure profiles
+class AwsHeavyFilter implements JobFilter {
+  private shouldApply: boolean;
+  
+  constructor(profile?: string) {
+    // Only apply for Azure-focused profiles
+    const azureProfiles = ['core', 'backend', 'core-net', 'csharp-azure-no-frontend', 'az204-csharp', 'ai-enhanced-net'];
+    this.shouldApply = profile ? azureProfiles.includes(profile) : false;
+  }
+  
+  shouldFilter(job: JobInput): boolean {
+    if (!this.shouldApply) return false;
+    
+    const text = `${job.title} ${job.description}`;
+    
+    // Count AWS vs Azure mentions
+    const awsMentions = (text.match(/\bAWS\b/gi) || []).length;
+    const azureMentions = (text.match(/\bAzure\b/gi) || []).length;
+    
+    // Filter if AWS mentioned more than Azure (AWS-heavy role)
+    // Also filter if AWS is in title and Azure is not
+    const awsInTitle = /\bAWS\b/i.test(job.title);
+    const azureInTitle = /\bAzure\b/i.test(job.title);
+    
+    if (awsInTitle && !azureInTitle) {
+      return true;
+    }
+    
+    if (awsMentions > azureMentions && awsMentions >= 3) {
+      return true;
+    }
+    
+    return false;
+  }
+  
+  get reason(): string {
+    return 'Job is AWS-focused rather than Azure-focused';
+  }
+}
+
 // Role type filter - blocks non-software development roles
 class RoleTypeFilter implements JobFilter {
   private rolePatterns: Array<{ type: string; patterns: RegExp[] }>;
@@ -314,6 +435,17 @@ export function buildFiltersFromPatterns(profile?: string): JobFilter[] {
   
   // Add role type filter (always active, blocks non-software development roles)
   filters.push(new RoleTypeFilter());
+  
+  // Add location requirement filter (always active for remote-only search)
+  filters.push(new LocationRequirementFilter());
+  
+  // Add education requirement filter (always active)
+  filters.push(new EducationRequirementFilter());
+  
+  // Add AWS-heavy filter for Azure profiles
+  if (profile) {
+    filters.push(new AwsHeavyFilter(profile));
+  }
   
   // Add contract-only filter if using contract profile
   if (profile === 'contract') {
