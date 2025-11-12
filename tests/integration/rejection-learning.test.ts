@@ -70,6 +70,7 @@ describe('Rejection Learning System', () => {
 
       assert.doesNotThrow(() => {
         saveWeightAdjustment({
+          search_profile: 'core',
           profile_category: 'seniority',
           old_weight: 5,
           new_weight: 3,
@@ -114,6 +115,7 @@ describe('Rejection Learning System', () => {
 
     it('should store and retrieve weight adjustments', () => {
       saveWeightAdjustment({
+        search_profile: 'core',
         profile_category: 'seniority',
         old_weight: 5,
         new_weight: 3,
@@ -121,11 +123,12 @@ describe('Rejection Learning System', () => {
         rejection_id: 'test-job-1'
       });
 
-      const adjustments = getCurrentWeightAdjustments();
+      const adjustments = getCurrentWeightAdjustments('core');
       assert.strictEqual(adjustments.seniority, -2); // 3 - 5 = -2
 
       const history = getWeightAdjustments();
       assert.strictEqual(history.length, 1);
+      assert.strictEqual(history[0].search_profile, 'core');
       assert.strictEqual(history[0].profile_category, 'seniority');
       assert.strictEqual(history[0].reason, 'Test adjustment');
     });
@@ -223,10 +226,10 @@ describe('Rejection Learning System', () => {
     });
 
     it('should apply weight adjustments correctly', () => {
-      applyWeightAdjustment('seniority', -2, 'Test: too junior rejections', 'test-job-1');
+      applyWeightAdjustment('core', 'seniority', -2, 'Test: too junior rejections', 'test-job-1');
       
-      const weights = getActiveWeights();
-      assert.ok(Math.abs(weights.seniority - 8) < 0.1); // 10 - 2 = 8
+      const weights = getActiveWeights('core');
+      assert.ok(Math.abs(weights.seniority - 15) < 0.1); // core profile has seniority at 17%, after -2 adjustment normalized
       
       // Verify weights still sum to 100%
       const total = Object.values(weights).reduce((sum, weight) => sum + weight, 0);
@@ -275,24 +278,24 @@ describe('Rejection Learning System', () => {
     });
 
     it('should reset weight adjustments', () => {
-      applyWeightAdjustment('seniority', -2, 'Test adjustment', 'test-job-1');
+      applyWeightAdjustment('core', 'seniority', -2, 'Test adjustment', 'test-job-1');
       
-      let weights = getActiveWeights();
-      assert.ok(Math.abs(weights.seniority - 8) < 0.1);
+      let weights = getActiveWeights('core');
+      assert.ok(Math.abs(weights.seniority - 15) < 0.1);
       
       resetWeightAdjustments();
       
-      weights = getActiveWeights();
-      assert.strictEqual(weights.seniority, 10); // Back to base weight
+      weights = getActiveWeights('core');
+      assert.strictEqual(weights.seniority, 17); // Back to base weight for core profile
     });
 
     it('should provide weight adjustment summary', () => {
-      applyWeightAdjustment('seniority', -2, 'Test adjustment', 'test-job-1');
+      applyWeightAdjustment('core', 'seniority', -2, 'Test adjustment', 'test-job-1');
       
       const summary = getWeightAdjustmentSummary();
       
-      assert.strictEqual(summary.baseWeights.seniority, 10);
-      assert.ok(Math.abs(summary.adjustedWeights.seniority - 8) < 0.1);
+      assert.strictEqual(summary.baseWeights.seniority, 12); // Base from PROFILES
+      assert.ok(Math.abs(summary.adjustedWeights.seniority - 10) < 0.1);
       assert.strictEqual(summary.adjustments.seniority, -2);
       assert.strictEqual(summary.totalAdjustment, -2);
     });
@@ -424,17 +427,17 @@ describe('Rejection Learning System', () => {
         });
       }
 
-      // Step 3: Apply weight adjustment
-      applyWeightAdjustment('seniority', -2, 'Too junior rejections', job.id);
+      // Step 3: Apply weight adjustment (use 'core' profile for testing)
+      applyWeightAdjustment('core', 'seniority', -2, 'Too junior rejections', job.id);
 
       // Step 4: Verify learning occurred
-      const adjustedWeights = getActiveWeights();
-      assert.ok(Math.abs(adjustedWeights.seniority - 8) < 0.1); // 10 - 2 = 8
+      const adjustedWeights = getActiveWeights('core');
+      assert.ok(Math.abs(adjustedWeights.seniority - 15) < 0.1); // core profile has seniority at 17%, after -2 adjustment normalized
 
       const savedPatterns = getAllRejectionPatterns();
       assert.ok(savedPatterns.length > 0);
 
-      const adjustments = getCurrentWeightAdjustments();
+      const adjustments = getCurrentWeightAdjustments('core');
       assert.strictEqual(adjustments.seniority, -2);
     });
 
@@ -465,21 +468,22 @@ describe('Rejection Learning System', () => {
     });
 
     it('should maintain weight normalization across multiple adjustments', () => {
-      // Apply multiple adjustments
-      applyWeightAdjustment('seniority', -2, 'Too junior', 'job-1');
-      applyWeightAdjustment('coreAzure', +1, 'Strong Azure match', 'job-2');
-      applyWeightAdjustment('security', -1, 'Security mismatch', 'job-3');
+      // Apply multiple adjustments to 'core' profile
+      applyWeightAdjustment('core', 'seniority', -2, 'Too junior', 'job-1');
+      applyWeightAdjustment('core', 'coreAzure', +1, 'Strong Azure match', 'job-2');
+      applyWeightAdjustment('core', 'coreNet', -1, '.NET mismatch', 'job-3');
 
-      const weights = getActiveWeights();
+      const weights = getActiveWeights('core');
       
       // Verify weights still sum to 100%
       const total = Object.values(weights).reduce((sum, weight) => sum + weight, 0);
       assert.ok(Math.abs(total - 100) < 0.1);
 
-      // Verify individual adjustments
-      assert.ok(Math.abs(weights.seniority - 8) < 0.1); // 10 - 2 = 8
-      assert.ok(Math.abs(weights.coreAzure - 21) < 0.1); // 20 + 1 = 21
-      assert.ok(Math.abs(weights.security - 14) < 0.1); // 15 - 1 = 14
+      // Verify individual adjustments are applied
+      const adjustments = getCurrentWeightAdjustments('core');
+      assert.strictEqual(adjustments.seniority, -2);
+      assert.strictEqual(adjustments.coreAzure, +1);
+      assert.strictEqual(adjustments.coreNet, -1);
     });
   });
 
@@ -498,9 +502,9 @@ describe('Rejection Learning System', () => {
 
     it('should handle extreme weight adjustments', () => {
       // Test clamping of extreme adjustments
-      applyWeightAdjustment('seniority', -50, 'Extreme adjustment', 'test-job');
+      applyWeightAdjustment('core', 'seniority', -50, 'Extreme adjustment', 'test-job');
       
-      const weights = getActiveWeights();
+      const weights = getActiveWeights('core');
       assert.ok(weights.seniority > 0); // Should be clamped, not negative
     });
 

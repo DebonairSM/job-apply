@@ -11,6 +11,7 @@ import { warmupOllamaModel } from '../ai/ollama-client.js';
 import statsRouter from './routes/stats.js';
 import jobsRouter from './routes/jobs.js';
 import leadsRouter from './routes/leads.js';
+import campaignsRouter from './routes/campaigns.js';
 import runsRouter from './routes/runs.js';
 import analyticsRouter from './routes/analytics.js';
 import coverLetterRouter from './routes/cover-letter-router.js';
@@ -87,6 +88,7 @@ app.use('/artifacts', express.static(artifactsPath));
 app.use('/api/stats', statsRouter);
 app.use('/api/jobs', jobsRouter);
 app.use('/api/leads', leadsRouter);
+app.use('/api/campaigns', campaignsRouter);
 app.use('/api/runs', runsRouter);
 app.use('/api/analytics', analyticsRouter);
 app.use('/api/cover-letter', coverLetterRouter);
@@ -113,7 +115,18 @@ app.get('/api/health', (_req: express.Request, res: express.Response): void => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Error handling middleware - must be before static files
+// Serve static files in production
+if (process.env.NODE_ENV === 'production') {
+  const clientBuildPath = join(__dirname, '../../dist/client');
+  app.use(express.static(clientBuildPath));
+  
+  // Catch-all route for SPA - must be after API routes
+  app.use((_req: express.Request, res: express.Response): void => {
+    res.sendFile(join(clientBuildPath, 'index.html'));
+  });
+}
+
+// Error handling middleware - must be last
 app.use((err: Error, req: express.Request, res: express.Response, _next: express.NextFunction): void => {
   console.error('❌ Unhandled error in request:');
   console.error(`   Method: ${req.method}`);
@@ -134,17 +147,6 @@ app.use((err: Error, req: express.Request, res: express.Response, _next: express
   
   res.status(500).json(response);
 });
-
-// Serve static files in production
-if (process.env.NODE_ENV === 'production') {
-  const clientBuildPath = join(__dirname, '../../dist/client');
-  app.use(express.static(clientBuildPath));
-  
-  // Catch-all route for SPA - must be after API routes
-  app.use((_req: express.Request, res: express.Response): void => {
-    res.sendFile(join(clientBuildPath, 'index.html'));
-  });
-}
 
 // Determine if we should use HTTPS or HTTP
 const useHttps = fs.existsSync(join(__dirname, '../../localhost+2-key.pem'));

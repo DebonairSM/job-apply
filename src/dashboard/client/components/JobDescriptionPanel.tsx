@@ -23,7 +23,7 @@ export function JobDescriptionPanel({
 }: JobDescriptionPanelProps) {
   // Generate highlighted HTML with counts
   const highlightResult = useMemo(() => {
-    if (!description) return { html: '', counts: { blue: 0, green: 0 } };
+    if (!description) return { html: '', counts: { blue: 0, green: 0, red: 0, yellow: 0 } };
     
     // Always apply resume-based highlighting
     return highlightKeywords(description, { useResumeKeywords: true });
@@ -97,19 +97,27 @@ export function JobDescriptionPanel({
                 <div className="flex flex-wrap gap-3 text-xs">
                   <div className="flex items-center gap-1.5">
                     <span className="text-gray-600">ASP.NET Core</span>
-                    {highlightResult.counts.blue > 0 && (
-                      <span className="px-1.5 py-0.5 bg-blue-200 text-blue-900 rounded font-medium">
-                        {highlightResult.counts.blue}
-                      </span>
-                    )}
+                    <span className="px-1.5 py-0.5 bg-blue-200 text-blue-900 rounded font-medium">
+                      {highlightResult.counts.blue}
+                    </span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="text-gray-600">Resume Keywords</span>
-                    {highlightResult.counts.green > 0 && (
-                      <span className="px-1.5 py-0.5 bg-green-200 text-green-900 rounded font-medium">
-                        {highlightResult.counts.green}
-                      </span>
-                    )}
+                    <span className="px-1.5 py-0.5 bg-green-200 text-green-900 rounded font-medium">
+                      {highlightResult.counts.green}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-gray-600">Warnings</span>
+                    <span className="px-1.5 py-0.5 bg-yellow-200 text-yellow-900 rounded font-medium">
+                      {highlightResult.counts.yellow}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-gray-600">Blockers</span>
+                    <span className="px-1.5 py-0.5 bg-red-200 text-red-900 rounded font-medium">
+                      {highlightResult.counts.red}
+                    </span>
                   </div>
                 </div>
               </div>

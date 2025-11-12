@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Icon } from './Icon';
 import { api } from '../lib/api';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useGenerateBackground } from '../hooks/useGenerateBackground';
 import { generateOutreachEmail, createMailtoLink, generateHtmlEmail, EmailContent } from '../../../ai/email-templates';
 import { useToastContext } from '../contexts/ToastContext';
+import { TOAST_DURATION_MS } from '../constants/timing';
+import { extractErrorMessage } from '../utils/error-helpers';
 
 interface Lead {
   id: string;
@@ -31,6 +33,24 @@ interface Lead {
   deleted_at?: string;
 }
 
+interface Campaign {
+  id: string;
+  name: string;
+  description?: string;
+  subject_template: string;
+  body_template: string;
+  static_placeholders?: string;
+  status: 'active' | 'inactive';
+  created_at?: string;
+  updated_at?: string;
+}
+
+interface RenderedEmail {
+  subject: string;
+  body: string;
+  placeholders_used: Record<string, string>;
+}
+
 interface LeadDetailProps {
   lead: Lead;
   onClose: () => void;
@@ -49,9 +69,23 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [editedEmail, setEditedEmail] = useState(lead.email || '');
   const [isSavingEmail, setIsSavingEmail] = useState(false);
+  const [selectedCampaignId, setSelectedCampaignId] = useState<string>('');
+  const [showCampaignPreview, setShowCampaignPreview] = useState(false);
+  const [renderedCampaign, setRenderedCampaign] = useState<RenderedEmail | null>(null);
+  const [isRenderingCampaign, setIsRenderingCampaign] = useState(false);
+  const [copiedCampaignEmail, setCopiedCampaignEmail] = useState(false);
   const queryClient = useQueryClient();
   const generateBackground = useGenerateBackground();
   const { showToast } = useToastContext();
+
+  // Fetch active campaigns
+  const { data: activeCampaigns = [] } = useQuery({
+    queryKey: ['campaigns', 'active'],
+    queryFn: async () => {
+      const response = await api.get('/campaigns/active');
+      return response.data as Campaign[];
+    }
+  });
 
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return 'N/A';
@@ -72,7 +106,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
           // Update local state immediately with the generated background
           setCurrentBackground(generatedBackground);
         },
-        onError: (error: any) => {
+        onError: (error: unknown) => {
           console.error('Auto-generate background failed:', error);
           // Silently fail on auto-generation to avoid annoying the user on page load
           // They can manually retry if needed
@@ -106,9 +140,9 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
         // Update local state immediately with the generated background
         setCurrentBackground(generatedBackground);
       },
-      onError: (error: any) => {
+      onError: (error: unknown) => {
         console.error('Error generating background:', error);
-        const errorMessage = error?.response?.data?.error || error?.message || 'Failed to generate background';
+        const errorMessage = extractErrorMessage(error, 'Failed to generate background');
         showToast('error', `Background generation failed: ${errorMessage}`);
       },
     });
@@ -121,7 +155,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
         if (navigator.clipboard && navigator.clipboard.writeText) {
           await navigator.clipboard.writeText(currentBackground);
           setCopiedBackground(true);
-          setTimeout(() => setCopiedBackground(false), 2000);
+          setTimeout(() => setCopiedBackground(false), TOAST_DURATION_MS);
         } else {
           // Fallback to older method
           const textArea = document.createElement('textarea');
@@ -136,7 +170,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
           try {
             document.execCommand('copy');
             setCopiedBackground(true);
-            setTimeout(() => setCopiedBackground(false), 2000);
+            setTimeout(() => setCopiedBackground(false), TOAST_DURATION_MS);
           } finally {
             document.body.removeChild(textArea);
           }
@@ -210,12 +244,12 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
         
         await navigator.clipboard.write([clipboardItem]);
         setCopiedEmail(true);
-        setTimeout(() => setCopiedEmail(false), 2000);
+        setTimeout(() => setCopiedEmail(false), TOAST_DURATION_MS);
       } else if (navigator.clipboard && navigator.clipboard.writeText) {
         // Fallback to plain text if HTML copy not supported
         await navigator.clipboard.writeText(plainTextEmail);
         setCopiedEmail(true);
-        setTimeout(() => setCopiedEmail(false), 2000);
+        setTimeout(() => setCopiedEmail(false), TOAST_DURATION_MS);
       } else {
         // Legacy fallback
         const textArea = document.createElement('textarea');
@@ -230,7 +264,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
         try {
           document.execCommand('copy');
           setCopiedEmail(true);
-          setTimeout(() => setCopiedEmail(false), 2000);
+          setTimeout(() => setCopiedEmail(false), TOAST_DURATION_MS);
         } finally {
           document.body.removeChild(textArea);
         }
@@ -308,6 +342,70 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
     setIsEditingEmail(false);
   };
 
+  const handlePreviewCampaign = async () => {
+    if (!selectedCampaignId) {
+      showToast('warning', 'Please select a campaign first');
+      return;
+    }
+
+    setIsRenderingCampaign(true);
+    try {
+      const response = await api.post(`/campaigns/${selectedCampaignId}/render/${lead.id}`);
+      setRenderedCampaign(response.data);
+      setShowCampaignPreview(true);
+    } catch (error: unknown) {
+      console.error('Error rendering campaign:', error);
+      const errorMessage = extractErrorMessage(error, 'Failed to render campaign');
+      showToast('error', errorMessage);
+    } finally {
+      setIsRenderingCampaign(false);
+    }
+  };
+
+  const handleCopyCampaignEmail = async (type: 'html' | 'plain') => {
+    if (!renderedCampaign) return;
+
+    try {
+      if (type === 'html') {
+        // Convert plain text body to HTML-like format for Gmail
+        const htmlBody = renderedCampaign.body
+          .split('\n\n')
+          .map(para => `<p style="margin: 0 0 1em 0;">${para.replace(/\n/g, '<br>')}</p>`)
+          .join('');
+
+        const htmlBlob = new Blob([htmlBody], { type: 'text/html' });
+        const textBlob = new Blob([renderedCampaign.body], { type: 'text/plain' });
+
+        if (navigator.clipboard && navigator.clipboard.write) {
+          const clipboardItem = new ClipboardItem({
+            'text/html': htmlBlob,
+            'text/plain': textBlob
+          });
+          await navigator.clipboard.write([clipboardItem]);
+        } else if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(renderedCampaign.body);
+        }
+      } else {
+        // Plain text
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(renderedCampaign.body);
+        }
+      }
+
+      setCopiedCampaignEmail(true);
+      setTimeout(() => setCopiedCampaignEmail(false), TOAST_DURATION_MS);
+      showToast('success', 'Email copied to clipboard!');
+
+      // Auto-update status to email_sent if not already contacted
+      if (emailStatus === 'not_contacted') {
+        await handleStatusChange('email_sent');
+      }
+    } catch (error) {
+      console.error('Failed to copy campaign email:', error);
+      showToast('error', 'Failed to copy to clipboard. Please try again.');
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'not_contacted':
@@ -350,10 +448,11 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
           <h2 className="text-2xl font-bold text-gray-900">{lead.name}</h2>
           <button
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-gray-300"
             aria-label="Close"
+            title="Close"
           >
-            <Icon icon="close" size={24} className="text-gray-600" />
+            <Icon icon="close" size={24} className="text-gray-500 hover:text-gray-700" />
           </button>
         </div>
 
@@ -518,6 +617,56 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
                   </select>
                 </div>
               </div>
+
+              {/* Campaign Email Section */}
+              {activeCampaigns.length > 0 && (
+                <div className="bg-white rounded-lg p-4 space-y-3 border border-gray-200">
+                  <div className="flex items-center gap-2">
+                    <Icon icon="campaign" size={20} className="text-purple-600" />
+                    <h3 className="font-semibold text-gray-900">Campaign Email</h3>
+                  </div>
+                  
+                  <div className="flex items-center gap-3">
+                    <select
+                      value={selectedCampaignId}
+                      onChange={(e) => setSelectedCampaignId(e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">Select a campaign...</option>
+                      {activeCampaigns.map((campaign) => (
+                        <option key={campaign.id} value={campaign.id}>
+                          {campaign.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handlePreviewCampaign}
+                      disabled={!selectedCampaignId || isRenderingCampaign || !lead.email}
+                      className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors text-sm flex items-center gap-1 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      title={!lead.email ? 'No email address available' : 'Preview campaign email'}
+                    >
+                      {isRenderingCampaign ? (
+                        <>
+                          <Icon icon="refresh" size={16} className="animate-spin" />
+                          Loading...
+                        </>
+                      ) : (
+                        <>
+                          <Icon icon="visibility" size={16} />
+                          Preview
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {!lead.email && (
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800 text-sm flex items-center gap-2">
+                      <Icon icon="warning" size={16} />
+                      No email address available for this lead
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* AI-Generated Background Section - Simplified */}
               <div className="bg-white rounded-lg p-4 space-y-3 border border-gray-200">
@@ -837,6 +986,97 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
           </a>
         </div>
       </div>
+
+      {/* Campaign Preview Modal */}
+      {showCampaignPreview && renderedCampaign && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">Campaign Email Preview</h2>
+              <button
+                onClick={() => setShowCampaignPreview(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <Icon icon="close" size={24} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {/* Subject */}
+              <div>
+                <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Subject</label>
+                <p className="mt-1 text-lg text-gray-900">{renderedCampaign.subject}</p>
+              </div>
+
+              {/* Body */}
+              <div>
+                <label className="text-sm font-medium text-gray-500 uppercase tracking-wide">Email Body</label>
+                <div 
+                  className="mt-2 p-4 bg-gray-50 rounded border border-gray-300 text-sm text-gray-900 whitespace-pre-wrap"
+                  style={{
+                    fontFamily: 'Arial, "Helvetica Neue", Helvetica, sans-serif',
+                    fontSize: '12pt',
+                    lineHeight: '1.6'
+                  }}
+                >
+                  {renderedCampaign.body}
+                </div>
+              </div>
+
+              {/* Placeholders Used */}
+              <div>
+                <button
+                  onClick={() => {
+                    const el = document.getElementById('placeholders-details');
+                    if (el) el.classList.toggle('hidden');
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                >
+                  <Icon icon="info" size={16} />
+                  <span>View Placeholders Used</span>
+                </button>
+                <div id="placeholders-details" className="hidden mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                  <p className="text-sm font-semibold text-blue-900 mb-2">Placeholders replaced:</p>
+                  <div className="grid grid-cols-2 gap-2 text-sm text-blue-800">
+                    {Object.entries(renderedCampaign.placeholders_used).map(([key, value]) => (
+                      value && (
+                        <div key={key} className="flex items-start gap-2">
+                          <span className="font-mono bg-blue-100 px-1 rounded">{`{{${key}}}`}</span>
+                          <span className="text-gray-700">→</span>
+                          <span className="flex-1 break-words">{value}</span>
+                        </div>
+                      )
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer with Copy Buttons */}
+            <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between bg-gray-50">
+              <div className="text-sm text-gray-600">
+                {copiedCampaignEmail && <span className="text-green-600 font-medium">✓ Copied to clipboard!</span>}
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => handleCopyCampaignEmail('plain')}
+                  className="px-4 py-2 text-gray-700 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors flex items-center gap-1"
+                >
+                  <Icon icon="content_copy" size={20} />
+                  <span>Copy Plain Text</span>
+                </button>
+                <button
+                  onClick={() => handleCopyCampaignEmail('html')}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-1"
+                >
+                  <Icon icon="content_copy" size={20} />
+                  <span>Copy HTML</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

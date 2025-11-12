@@ -1,5 +1,6 @@
 import express from 'express';
-import { getDb, getJobsByStatus, getJobById, updateJobStatus, toggleJobCurated, getAnswers, getRunHistory, getAllMappings, getUnprocessedRejections, markRejectionsAsProcessed } from '../../lib/db.js';
+import { getDb, getJobsByStatus, getJobById, updateJobStatus, toggleJobCurated, getAnswers, getRunHistory, getAllMappings, getUnprocessedRejections, markRejectionsAsProcessed, updateJobRank } from '../../lib/db.js';
+import { rankJob } from '../../ai/ranker.js';
 
 const router = express.Router();
 
@@ -433,6 +434,52 @@ router.post('/rejections/mark-processed', (req, res) => {
   } catch (error) {
     console.error('Error marking rejections as processed:', error);
     res.status(500).json({ error: 'Failed to mark rejections as processed' });
+  }
+});
+
+router.post('/:id/rescore', async (req, res) => {
+  try {
+    const jobId = req.params.id;
+    
+    // Get the job
+    const job = getJobById(jobId);
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+    
+    // Ensure we have the required data for rescoring
+    if (!job.description) {
+      return res.status(400).json({ error: 'Job has no description to rescore' });
+    }
+    
+    if (!job.profile) {
+      return res.status(400).json({ error: 'Job has no profile to rescore against' });
+    }
+    
+    // Rescore the job using the ranker
+    const rankResult = await rankJob({
+      title: job.title,
+      company: job.company,
+      description: job.description
+    }, job.profile);
+    
+    // Update the job rank and scoring data in the database
+    updateJobRank(
+      jobId,
+      rankResult.fitScore,
+      JSON.stringify(rankResult.categoryScores),
+      JSON.stringify(rankResult.reasons),
+      JSON.stringify(rankResult.mustHaves),
+      JSON.stringify(rankResult.blockers),
+      JSON.stringify(rankResult.missingKeywords)
+    );
+    
+    // Return the updated job
+    const updatedJob = getJobById(jobId);
+    res.json(updatedJob);
+  } catch (error) {
+    console.error('Error rescoring job:', error);
+    res.status(500).json({ error: 'Failed to rescore job' });
   }
 });
 

@@ -245,6 +245,17 @@ export const api = {
     const response = await fetch(`${API_BASE}/analytics/profiles`);
     if (!response.ok) throw new Error('Failed to fetch profile analytics');
     return response.json();
+  },
+
+  async rescoreJob(jobId: string): Promise<Job> {
+    const response = await fetch(`${API_BASE}/jobs/${jobId}/rescore`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    if (!response.ok) throw new Error('Failed to rescore job');
+    return response.json();
   }
 };
 

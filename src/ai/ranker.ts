@@ -177,12 +177,46 @@ Return ONLY valid JSON in this exact format with ALL categories. Use double quot
 
   // Recalculate fitScore from category scores using current weights (profile-specific)
   // LLMs are bad at arithmetic, so we calculate the weighted sum ourselves
+  // Special handling: categories with empty mustHave are "bonus-only" - they boost scores when present
+  // but don't penalize when absent (their weight is redistributed to other categories)
   const { getActiveWeights } = await import('./weight-manager.js');
   const adjustedWeights = getActiveWeights(actualProfileKey);
 
-  let calculatedFitScore = 0;
+  // Identify bonus-only categories (empty mustHave) with zero scores
+  const bonusCategories: Record<string, boolean> = {};
+  let redistributedWeight = 0;
+  
   Object.entries(adjustedWeights).forEach(([key, weight]) => {
-    const finalWeight = weight / 100;  // adjustedWeights already contains final weights
+    const prof = PROFILES[key];
+    const categoryScore = result.categoryScores[key as keyof typeof result.categoryScores] || 0;
+    
+    // If category has no required keywords and scores 0, mark for redistribution
+    if (prof && prof.mustHave.length === 0 && categoryScore === 0 && weight > 0) {
+      bonusCategories[key] = true;
+      redistributedWeight += weight;
+    }
+  });
+
+  // Calculate weights after redistribution
+  const finalWeights: Record<string, number> = {};
+  const requiredCategoriesWeight = 100 - redistributedWeight;
+  
+  Object.entries(adjustedWeights).forEach(([key, weight]) => {
+    if (bonusCategories[key]) {
+      // Bonus category with zero score - weight goes to 0
+      finalWeights[key] = 0;
+    } else if (requiredCategoriesWeight > 0) {
+      // Redistribute bonus weight proportionally to other categories
+      finalWeights[key] = weight + (weight / requiredCategoriesWeight) * redistributedWeight;
+    } else {
+      finalWeights[key] = weight;
+    }
+  });
+
+  // Calculate final fit score using redistributed weights
+  let calculatedFitScore = 0;
+  Object.entries(finalWeights).forEach(([key, weight]) => {
+    const finalWeight = weight / 100;
     const categoryScore = result.categoryScores[key as keyof typeof result.categoryScores] || 0;
     calculatedFitScore += categoryScore * finalWeight;
   });

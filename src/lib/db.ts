@@ -75,61 +75,91 @@ export function initDb(): void {
   try {
     database.exec(`ALTER TABLE jobs ADD COLUMN applied_method TEXT`);
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add applied_method column:', e.message);
+      throw e;
+    }
   }
   
   try {
     database.exec(`ALTER TABLE jobs ADD COLUMN rejection_reason TEXT`);
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add rejection_reason column:', e.message);
+      throw e;
+    }
   }
   
   try {
     database.exec(`ALTER TABLE jobs ADD COLUMN category_scores TEXT`);
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add category_scores column:', e.message);
+      throw e;
+    }
   }
   
   try {
     database.exec(`ALTER TABLE jobs ADD COLUMN missing_keywords TEXT`);
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add missing_keywords column:', e.message);
+      throw e;
+    }
   }
   
   try {
     database.exec(`ALTER TABLE jobs ADD COLUMN posted_date TEXT`);
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add posted_date column:', e.message);
+      throw e;
+    }
   }
   
   try {
     database.exec(`ALTER TABLE jobs ADD COLUMN status_updated_at TEXT`);
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add status_updated_at column:', e.message);
+      throw e;
+    }
   }
   
   try {
     database.exec(`ALTER TABLE jobs ADD COLUMN description TEXT`);
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add description column:', e.message);
+      throw e;
+    }
   }
   
   try {
     database.exec(`ALTER TABLE jobs ADD COLUMN profile TEXT`);
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add profile column:', e.message);
+      throw e;
+    }
   }
 
   try {
     database.exec(`ALTER TABLE jobs ADD COLUMN rejection_processed INTEGER DEFAULT 0`);
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add rejection_processed column:', e.message);
+      throw e;
+    }
   }
 
   try {
     database.exec(`ALTER TABLE jobs ADD COLUMN curated INTEGER DEFAULT 0`);
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add curated column:', e.message);
+      throw e;
+    }
   }
 
   // Rejection patterns table
@@ -150,6 +180,7 @@ export function initDb(): void {
   database.exec(`
     CREATE TABLE IF NOT EXISTS weight_adjustments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
+      search_profile TEXT NOT NULL,
       profile_category TEXT NOT NULL,
       old_weight REAL NOT NULL,
       new_weight REAL NOT NULL,
@@ -201,7 +232,10 @@ export function initDb(): void {
       ALTER TABLE label_map ADD COLUMN success_count INTEGER DEFAULT 0;
     `);
   } catch (error) {
-    // Column already exists, ignore
+    if (error instanceof Error && !error.message.includes('duplicate column')) {
+      console.error('Failed to add success_count column to label_map:', error.message);
+      throw error;
+    }
   }
   
   try {
@@ -209,7 +243,33 @@ export function initDb(): void {
       ALTER TABLE label_map ADD COLUMN failure_count INTEGER DEFAULT 0;
     `);
   } catch (error) {
-    // Column already exists, ignore
+    if (error instanceof Error && !error.message.includes('duplicate column')) {
+      console.error('Failed to add failure_count column to label_map:', error.message);
+      throw error;
+    }
+  }
+  
+  // Migrate existing weight_adjustments table to add search_profile column
+  try {
+    database.exec(`
+      ALTER TABLE weight_adjustments ADD COLUMN search_profile TEXT;
+    `);
+  } catch (error) {
+    if (error instanceof Error && !error.message.includes('duplicate column')) {
+      console.error('Failed to add search_profile column to weight_adjustments:', error.message);
+      throw error;
+    }
+  }
+  
+  // Set default 'unknown' for existing rows without search_profile
+  try {
+    database.exec(`
+      UPDATE weight_adjustments 
+      SET search_profile = 'unknown' 
+      WHERE search_profile IS NULL;
+    `);
+  } catch (error) {
+    // Ignore if no rows to update
   }
   
   try {
@@ -217,7 +277,10 @@ export function initDb(): void {
       ALTER TABLE label_map ADD COLUMN field_type TEXT;
     `);
   } catch (error) {
-    // Column already exists, ignore
+    if (error instanceof Error && !error.message.includes('duplicate column')) {
+      console.error('Failed to add field_type column to label_map:', error.message);
+      throw error;
+    }
   }
   
   try {
@@ -225,7 +288,10 @@ export function initDb(): void {
       ALTER TABLE label_map ADD COLUMN input_strategy TEXT;
     `);
   } catch (error) {
-    // Column already exists, ignore
+    if (error instanceof Error && !error.message.includes('duplicate column')) {
+      console.error('Failed to add input_strategy column to label_map:', error.message);
+      throw error;
+    }
   }
 
   // Runs/execution log table
@@ -388,91 +454,130 @@ export function initDb(): void {
   try {
     database.exec(`ALTER TABLE leads ADD COLUMN location TEXT`);
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add location column to leads:', e.message);
+      throw e;
+    }
   }
 
   // Add worked_together column if it doesn't exist (migration)
   try {
     database.exec(`ALTER TABLE leads ADD COLUMN worked_together TEXT`);
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add worked_together column to leads:', e.message);
+      throw e;
+    }
   }
 
   // Add articles column if it doesn't exist (migration)
   try {
     database.exec(`ALTER TABLE leads ADD COLUMN articles TEXT`);
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add articles column to leads:', e.message);
+      throw e;
+    }
   }
 
   // Add deleted_at column for soft delete functionality (migration)
   try {
     database.exec(`ALTER TABLE leads ADD COLUMN deleted_at TEXT`);
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add deleted_at column to leads:', e.message);
+      throw e;
+    }
   }
 
   // Add birthday column if it doesn't exist (migration)
   try {
     database.exec(`ALTER TABLE leads ADD COLUMN birthday TEXT`);
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add birthday column to leads:', e.message);
+      throw e;
+    }
   }
 
   // Add connected_date column if it doesn't exist (migration)
   try {
     database.exec(`ALTER TABLE leads ADD COLUMN connected_date TEXT`);
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add connected_date column to leads:', e.message);
+      throw e;
+    }
   }
 
   // Add address column if it doesn't exist (migration)
   try {
     database.exec(`ALTER TABLE leads ADD COLUMN address TEXT`);
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add address column to leads:', e.message);
+      throw e;
+    }
   }
 
   // Add phone column if it doesn't exist (migration)
   try {
     database.exec(`ALTER TABLE leads ADD COLUMN phone TEXT`);
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add phone column to leads:', e.message);
+      throw e;
+    }
   }
 
   // Add website column if it doesn't exist (migration)
   try {
     database.exec(`ALTER TABLE leads ADD COLUMN website TEXT`);
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add website column to leads:', e.message);
+      throw e;
+    }
   }
 
   // Add profile column if it doesn't exist (migration)
   try {
     database.exec(`ALTER TABLE leads ADD COLUMN profile TEXT`);
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add profile column to leads:', e.message);
+      throw e;
+    }
   }
 
   // Backfill existing leads with 'chiefs' profile (all existing leads came from chiefs search)
   try {
     database.exec(`UPDATE leads SET profile = 'chiefs' WHERE profile IS NULL`);
   } catch (e) {
-    // Already backfilled, ignore
+    if (e instanceof Error) {
+      console.error('Failed to backfill profile column in leads:', e.message);
+      // Don't throw - this is a data migration that may already be done
+    }
   }
 
   // Add background column if it doesn't exist (migration)
   try {
     database.exec(`ALTER TABLE leads ADD COLUMN background TEXT`);
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add background column to leads:', e.message);
+      throw e;
+    }
   }
 
   // Add email_status column if it doesn't exist (migration)
   try {
     database.exec(`ALTER TABLE leads ADD COLUMN email_status TEXT DEFAULT 'not_contacted'`);
   } catch (e) {
-    // Column already exists, ignore
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add email_status column to leads:', e.message);
+      throw e;
+    }
   }
 
   // Lead scraping runs table for batch processing and resume capability
@@ -545,6 +650,21 @@ export function initDb(): void {
       console.error('   ⚠ Migration warning (current_page):', e.message);
     }
   }
+  
+  // Campaigns table for email template management
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS campaigns (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      subject_template TEXT NOT NULL,
+      body_template TEXT NOT NULL,
+      static_placeholders TEXT,
+      status TEXT DEFAULT 'active',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
   
   console.log('📊 Database schema ready');
 }
@@ -840,6 +960,29 @@ export function toggleJobCurated(jobId: string): void {
   const newCuratedValue = job.curated ? 0 : 1;
   const stmt = database.prepare('UPDATE jobs SET curated = ? WHERE id = ?');
   stmt.run(newCuratedValue, jobId);
+}
+
+export function updateJobRank(
+  jobId: string, 
+  rank: number, 
+  categoryScores: string, 
+  fitReasons: string, 
+  mustHaves: string, 
+  blockers: string, 
+  missingKeywords: string
+): void {
+  const database = getDb();
+  const stmt = database.prepare(`
+    UPDATE jobs 
+    SET rank = ?, 
+        category_scores = ?, 
+        fit_reasons = ?, 
+        must_haves = ?, 
+        blockers = ?, 
+        missing_keywords = ?
+    WHERE id = ?
+  `);
+  stmt.run(rank, categoryScores, fitReasons, mustHaves, blockers, missingKeywords, jobId);
 }
 
 export interface JobStats {
@@ -1310,6 +1453,7 @@ export interface RejectionPattern {
 
 export interface WeightAdjustment {
   id?: number;
+  search_profile: string;
   profile_category: string;
   old_weight: number;
   new_weight: number;
@@ -1419,6 +1563,7 @@ export function getWeightAdjustments(): WeightAdjustment[] {
 }
 
 export function saveWeightAdjustment(adjustment: {
+  search_profile: string;
   profile_category: string;
   old_weight: number;
   new_weight: number;
@@ -1428,9 +1573,10 @@ export function saveWeightAdjustment(adjustment: {
   const database = getDb();
   database.prepare(`
     INSERT INTO weight_adjustments 
-    (profile_category, old_weight, new_weight, reason, rejection_id)
-    VALUES (?, ?, ?, ?, ?)
+    (search_profile, profile_category, old_weight, new_weight, reason, rejection_id)
+    VALUES (?, ?, ?, ?, ?, ?)
   `).run(
+    adjustment.search_profile,
     adjustment.profile_category,
     adjustment.old_weight,
     adjustment.new_weight,
@@ -1439,13 +1585,26 @@ export function saveWeightAdjustment(adjustment: {
   );
 }
 
-export function getCurrentWeightAdjustments(): Record<string, number> {
+export function getCurrentWeightAdjustments(searchProfile?: string): Record<string, number> {
   const database = getDb();
-  const adjustments = database.prepare(`
+  
+  let query = `
     SELECT profile_category, SUM(new_weight - old_weight) as total_adjustment
     FROM weight_adjustments
-    GROUP BY profile_category
-  `).all() as Array<{ profile_category: string; total_adjustment: number }>;
+  `;
+  
+  const params: any[] = [];
+  if (searchProfile) {
+    query += ` WHERE search_profile = ?`;
+    params.push(searchProfile);
+  }
+  
+  query += ` GROUP BY profile_category`;
+  
+  const adjustments = database.prepare(query).all(...params) as Array<{ 
+    profile_category: string; 
+    total_adjustment: number 
+  }>;
   
   const result: Record<string, number> = {};
   for (const adj of adjustments) {
@@ -2656,6 +2815,131 @@ export function getLastIncompleteScrapingRun(): LeadScrapingRun | null {
     "SELECT * FROM lead_scraping_runs WHERE status IN ('in_progress', 'stopped') ORDER BY started_at DESC LIMIT 1"
   );
   return stmt.get() as LeadScrapingRun | null;
+}
+
+// Campaign operations
+export interface Campaign {
+  id: string;
+  name: string;
+  description?: string;
+  subject_template: string;
+  body_template: string;
+  static_placeholders?: string; // JSON string
+  status: 'active' | 'inactive';
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface CampaignStaticPlaceholders {
+  product_name?: string;
+  demo_name?: string;
+  demo_link?: string;
+  call_to_action?: string;
+  calendly_link?: string;
+  referral_base_url?: string;
+}
+
+export function getAllCampaigns(): Campaign[] {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM campaigns ORDER BY updated_at DESC');
+  return stmt.all() as Campaign[];
+}
+
+export function getActiveCampaigns(): Campaign[] {
+  const database = getDb();
+  const stmt = database.prepare("SELECT * FROM campaigns WHERE status = 'active' ORDER BY updated_at DESC");
+  return stmt.all() as Campaign[];
+}
+
+export function getCampaignById(id: string): Campaign | null {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM campaigns WHERE id = ?');
+  return stmt.get(id) as Campaign | null;
+}
+
+export function createCampaign(campaign: Omit<Campaign, 'created_at' | 'updated_at'>): Campaign {
+  const database = getDb();
+  const now = new Date().toISOString();
+  
+  const stmt = database.prepare(`
+    INSERT INTO campaigns (id, name, description, subject_template, body_template, static_placeholders, status, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  
+  stmt.run(
+    campaign.id,
+    campaign.name,
+    campaign.description || null,
+    campaign.subject_template,
+    campaign.body_template,
+    campaign.static_placeholders || null,
+    campaign.status || 'active',
+    now,
+    now
+  );
+  
+  return {
+    ...campaign,
+    created_at: now,
+    updated_at: now
+  };
+}
+
+export function updateCampaign(id: string, updates: Partial<Omit<Campaign, 'id' | 'created_at' | 'updated_at'>>): boolean {
+  const database = getDb();
+  const now = new Date().toISOString();
+  
+  const fields: string[] = [];
+  const values: any[] = [];
+  
+  if (updates.name !== undefined) {
+    fields.push('name = ?');
+    values.push(updates.name);
+  }
+  if (updates.description !== undefined) {
+    fields.push('description = ?');
+    values.push(updates.description);
+  }
+  if (updates.subject_template !== undefined) {
+    fields.push('subject_template = ?');
+    values.push(updates.subject_template);
+  }
+  if (updates.body_template !== undefined) {
+    fields.push('body_template = ?');
+    values.push(updates.body_template);
+  }
+  if (updates.static_placeholders !== undefined) {
+    fields.push('static_placeholders = ?');
+    values.push(updates.static_placeholders);
+  }
+  if (updates.status !== undefined) {
+    fields.push('status = ?');
+    values.push(updates.status);
+  }
+  
+  if (fields.length === 0) {
+    return false;
+  }
+  
+  fields.push('updated_at = ?');
+  values.push(now);
+  values.push(id);
+  
+  const stmt = database.prepare(`
+    UPDATE campaigns 
+    SET ${fields.join(', ')}
+    WHERE id = ?
+  `);
+  
+  const result = stmt.run(...values);
+  return result.changes > 0;
+}
+
+export function deleteCampaign(id: string): boolean {
+  const database = getDb();
+  const stmt = database.prepare('DELETE FROM campaigns WHERE id = ?');
+  const result = stmt.run(id);
+  return result.changes > 0;
 }
 
 // Initialize on import

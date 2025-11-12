@@ -23,6 +23,7 @@ export function SkippedJobsPanel({ isExpanded, onToggle }: SkippedJobsPanelProps
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [expandedJobIds, setExpandedJobIds] = useState<Set<string>>(new Set());
   const [restoringJobIds, setRestoringJobIds] = useState<Set<string>>(new Set());
+  const [rescoringJobIds, setRescoringJobIds] = useState<Set<string>>(new Set());
 
   const { data, isLoading, refetch } = useJobs({
     status: 'skipped',
@@ -152,6 +153,24 @@ export function SkippedJobsPanel({ isExpanded, onToggle }: SkippedJobsPanelProps
       showToast('error', 'Failed to restore job to queue');
     } finally {
       setRestoringJobIds(prev => {
+        const next = new Set(prev);
+        next.delete(jobId);
+        return next;
+      });
+    }
+  };
+
+  const handleRescore = async (jobId: string) => {
+    setRescoringJobIds(prev => new Set(prev).add(jobId));
+    try {
+      await api.rescoreJob(jobId);
+      await refetch();
+      showToast('success', 'Job rescored successfully');
+    } catch (error) {
+      console.error('Failed to rescore job:', error);
+      showToast('error', 'Failed to rescore job');
+    } finally {
+      setRescoringJobIds(prev => {
         const next = new Set(prev);
         next.delete(jobId);
         return next;
@@ -337,7 +356,7 @@ export function SkippedJobsPanel({ isExpanded, onToggle }: SkippedJobsPanelProps
                         {getSortIcon('date')}
                       </div>
                     </th>
-                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-32">
+                    <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-40">
                       Actions
                     </th>
                   </tr>
@@ -347,8 +366,12 @@ export function SkippedJobsPanel({ isExpanded, onToggle }: SkippedJobsPanelProps
                     const isExpanded = expandedJobIds.has(job.id);
                     return (
                       <React.Fragment key={job.id}>
-                        <tr className="hover:bg-gray-50 transition-colors">
-                          <td className="px-3 py-4 whitespace-nowrap text-center">
+                        <tr 
+                          onClick={() => toggleJobExpansion(job.id)}
+                          className="hover:bg-gray-50 transition-colors cursor-pointer"
+                          title={isExpanded ? 'Click to collapse details' : 'Click to expand details'}
+                        >
+                          <td className="px-3 py-4 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -356,6 +379,7 @@ export function SkippedJobsPanel({ isExpanded, onToggle }: SkippedJobsPanelProps
                               }}
                               className="flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-200 transition-colors mx-auto"
                               title={isExpanded ? 'Collapse details' : 'Expand details'}
+                              aria-label={isExpanded ? 'Collapse details' : 'Expand details'}
                             >
                               <svg
                                 className={`w-4 h-4 text-gray-600 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
@@ -377,12 +401,11 @@ export function SkippedJobsPanel({ isExpanded, onToggle }: SkippedJobsPanelProps
                               {formatRank(job.rank)}
                             </span>
                           </td>
-                          <td className="px-4 py-4">
+                          <td className="px-4 py-4" onClick={(e) => e.stopPropagation()}>
                             <a
                               href={job.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
                               className="text-blue-600 hover:text-blue-800 font-medium text-sm break-words"
                             >
                               {job.title}
@@ -406,17 +429,31 @@ export function SkippedJobsPanel({ isExpanded, onToggle }: SkippedJobsPanelProps
                           <td className="px-4 py-4 whitespace-nowrap text-xs text-gray-500">
                             {formatRelativeTime(job.created_at)}
                           </td>
-                          <td className="px-4 py-4 text-center">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRestoreToQueue(job.id);
-                              }}
-                              disabled={restoringJobIds.has(job.id)}
-                              className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-3 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap"
-                            >
-                              {restoringJobIds.has(job.id) ? '...' : 'Restore'}
-                            </button>
+                          <td className="px-4 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex gap-2 justify-center">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRescore(job.id);
+                                }}
+                                disabled={rescoringJobIds.has(job.id)}
+                                className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white px-3 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap"
+                                title="Recalculate job score"
+                              >
+                                {rescoringJobIds.has(job.id) ? '...' : 'Rescore'}
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRestoreToQueue(job.id);
+                                }}
+                                disabled={restoringJobIds.has(job.id)}
+                                className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-3 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap"
+                                title="Restore to queue"
+                              >
+                                {restoringJobIds.has(job.id) ? '...' : 'Restore'}
+                              </button>
+                            </div>
                           </td>
                         </tr>
                         {isExpanded && (

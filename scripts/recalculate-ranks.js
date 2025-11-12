@@ -3,31 +3,34 @@ import { openDatabase } from './lib/db-safety.js';
 // Profile-specific weight distributions (must match src/ai/profiles.ts)
 const PROFILE_WEIGHT_DISTRIBUTIONS = {
   core: {
-    coreAzure: 35, seniority: 15, coreNet: 30, frontendFrameworks: 10, legacyModernization: 10
+    coreAzure: 33, seniority: 17, coreNet: 30, frontendFrameworks: 10, legacyModernization: 10, legacyWeb: 0
   },
   backend: {
-    coreAzure: 40, seniority: 15, coreNet: 35, frontendFrameworks: 0, legacyModernization: 10
+    coreAzure: 38, seniority: 17, coreNet: 35, frontendFrameworks: 0, legacyModernization: 10, legacyWeb: 0
   },
   'core-net': {
-    coreAzure: 10, seniority: 15, coreNet: 60, frontendFrameworks: 10, legacyModernization: 5
+    coreAzure: 8, seniority: 17, coreNet: 60, frontendFrameworks: 10, legacyModernization: 5, legacyWeb: 0
   },
   'legacy-modernization': {
-    coreAzure: 25, seniority: 20, coreNet: 30, frontendFrameworks: 5, legacyModernization: 20
+    coreAzure: 23, seniority: 22, coreNet: 30, frontendFrameworks: 5, legacyModernization: 20, legacyWeb: 0
   },
   contract: {
-    coreAzure: 10, seniority: 15, coreNet: 60, frontendFrameworks: 10, legacyModernization: 5
+    coreAzure: 8, seniority: 17, coreNet: 60, frontendFrameworks: 10, legacyModernization: 5, legacyWeb: 0
   },
   'aspnet-simple': {
-    coreAzure: 10, seniority: 20, coreNet: 60, frontendFrameworks: 5, legacyModernization: 5
+    coreAzure: 8, seniority: 22, coreNet: 60, frontendFrameworks: 5, legacyModernization: 5, legacyWeb: 0
   },
   'csharp-azure-no-frontend': {
-    coreAzure: 50, seniority: 20, coreNet: 30, frontendFrameworks: 0, legacyModernization: 0
+    coreAzure: 48, seniority: 22, coreNet: 30, frontendFrameworks: 0, legacyModernization: 0, legacyWeb: 0
   },
   'az204-csharp': {
-    coreAzure: 60, seniority: 15, coreNet: 20, frontendFrameworks: 0, legacyModernization: 5
+    coreAzure: 58, seniority: 17, coreNet: 20, frontendFrameworks: 0, legacyModernization: 5, legacyWeb: 0
   },
   'ai-enhanced-net': {
-    coreAzure: 35, seniority: 15, coreNet: 40, frontendFrameworks: 10, legacyModernization: 0
+    coreAzure: 33, seniority: 17, coreNet: 40, frontendFrameworks: 10, legacyModernization: 0, legacyWeb: 0
+  },
+  'legacy-web': {
+    coreAzure: 3, seniority: 17, coreNet: 20, frontendFrameworks: 5, legacyModernization: 10, legacyWeb: 45
   }
 };
 
@@ -37,8 +40,13 @@ const DEFAULT_PROFILES = {
   seniority: { weight: 15 },
   coreNet: { weight: 35 },
   frontendFrameworks: { weight: 10 },
-  legacyModernization: { weight: 10 }
+  legacyModernization: { weight: 10 },
+  legacyWeb: { weight: 0 }
 };
+
+// Bonus-only categories (have empty mustHave arrays in profiles.ts)
+// These only boost scores when present, they don't penalize when absent
+const BONUS_ONLY_CATEGORIES = ['frontendFrameworks'];
 
 async function recalculateRanks() {
   const db = openDatabase({ backup: true }); // Auto-backup before changes
@@ -105,11 +113,47 @@ async function recalculateRanks() {
         }
         
         // Calculate weighted score using profile-specific weights + adjustments
-        let fitScore = 0;
+        // Handle bonus-only categories: they boost when present but don't penalize when absent
+        
+        // First pass: identify bonus categories with zero scores and calculate redistribution
+        let redistributedWeight = 0;
+        const bonusCategories = {};
+        
         Object.entries(baseWeights).forEach(([key, baseWeight]) => {
-          const weight = (baseWeight + (adjustments[key] || 0)) / 100;
+          const adjustedWeight = baseWeight + (adjustments[key] || 0);
           const score = scores[key] || 0;
-          fitScore += score * weight;
+          
+          // If this is a bonus-only category with zero score, mark for redistribution
+          if (BONUS_ONLY_CATEGORIES.includes(key) && score === 0 && adjustedWeight > 0) {
+            bonusCategories[key] = true;
+            redistributedWeight += adjustedWeight;
+          }
+        });
+        
+        // Second pass: calculate final weights after redistribution
+        const finalWeights = {};
+        const requiredCategoriesWeight = 100 - redistributedWeight;
+        
+        Object.entries(baseWeights).forEach(([key, baseWeight]) => {
+          const adjustedWeight = baseWeight + (adjustments[key] || 0);
+          
+          if (bonusCategories[key]) {
+            // Bonus category with zero score - weight goes to 0
+            finalWeights[key] = 0;
+          } else if (requiredCategoriesWeight > 0) {
+            // Redistribute bonus weight proportionally to other categories
+            finalWeights[key] = adjustedWeight + (adjustedWeight / requiredCategoriesWeight) * redistributedWeight;
+          } else {
+            finalWeights[key] = adjustedWeight;
+          }
+        });
+        
+        // Third pass: calculate fit score using redistributed weights
+        let fitScore = 0;
+        Object.entries(finalWeights).forEach(([key, weight]) => {
+          const normalizedWeight = weight / 100;
+          const score = scores[key] || 0;
+          fitScore += score * normalizedWeight;
         });
         
         // Update database with precise decimal value

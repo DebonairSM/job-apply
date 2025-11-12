@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Dashboard } from './components/Dashboard';
 import { JobsList } from './components/JobsList';
 import { LeadsList } from './components/LeadsList';
+import { CampaignsPage } from './components/CampaignsPage';
 import { ActivityLog } from './components/ActivityLog';
 import { Automation } from './components/Automation';
 import { Settings } from './components/Settings';
@@ -14,10 +15,8 @@ import { LlmHealthIndicator } from './components/LlmHealthIndicator';
 
 const queryClient = new QueryClient();
 
-type View = 'dashboard' | 'jobs' | 'leads' | 'activity' | 'automation' | 'settings';
-
 interface NavItem {
-  id: View;
+  id: string;
   label: string;
   icon: string;
   path: string;
@@ -141,6 +140,7 @@ function AppContent() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/jobs" element={<JobsList />} />
             <Route path="/leads" element={<LeadsList />} />
+            <Route path="/campaigns" element={<CampaignsPage />} />
             <Route path="/activity" element={<ActivityLog />} />
             <Route path="/automation" element={<Automation />} />
             <Route path="/settings" element={<Settings />} />

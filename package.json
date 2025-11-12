@@ -38,7 +38,9 @@
     "filters:remove": "node scripts/remove-tech-filters.js",
     "filters:list": "node scripts/list-filters.js",
     "block:company": "tsx scripts/block-company.js",
-    "leads:stop-stalled": "tsx scripts/stop-stalled-runs.ts"
+    "rescore:skipped": "tsx scripts/rescore-skipped-jobs.ts",
+    "leads:stop-stalled": "tsx scripts/stop-stalled-runs.ts",
+    "seed:campaigns": "tsx scripts/seed-talkflow-campaigns.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.5",

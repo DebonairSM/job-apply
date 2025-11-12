@@ -62,9 +62,12 @@ async function backfillRejectionLearning() {
         });
       }
       
-      // Apply weight adjustments
+      // Apply weight adjustments (profile-specific)
+      // Use job's search profile, or 'unknown' if not available
+      const searchProfile = job.profile || 'unknown';
       for (const adjustment of analysis.suggestedAdjustments) {
         applyWeightAdjustment(
+          searchProfile,
           adjustment.category,
           adjustment.adjustment,
           adjustment.reason,

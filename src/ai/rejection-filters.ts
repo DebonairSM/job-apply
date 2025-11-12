@@ -205,7 +205,9 @@ class ProhibitedKeywordsFilter implements JobFilter {
   }
 }
 
-// Remote-only enforcement filter - blocks hybrid and onsite positions
+// Remote-only enforcement filter - second layer validation after LinkedIn's native remote filter
+// LinkedIn's f_WT=2 parameter pre-filters at search time, but some hybrid jobs slip through
+// This filter catches hybrid/onsite positions by analyzing job descriptions
 class LocationRequirementFilter implements JobFilter {
   private onsitePatterns: RegExp[];
   private hybridPatterns: RegExp[];

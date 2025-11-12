@@ -438,6 +438,18 @@ export function JobsList() {
           )}
         </div>
         <div className="flex flex-wrap gap-2 sm:gap-3">
+          <button
+            onClick={() => setShowSkippedPanel(prev => !prev)}
+            className={`${
+              showSkippedPanel 
+                ? 'bg-gray-600 hover:bg-gray-700' 
+                : 'bg-gray-500 hover:bg-gray-600'
+            } text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base shadow-sm`}
+          >
+            <Icon icon={showSkippedPanel ? 'visibility-off' : 'visibility'} size={20} />
+            <span className="hidden sm:inline">{showSkippedPanel ? 'Show Regular' : 'Show Skipped'}</span>
+            <span className="sm:hidden">{showSkippedPanel ? 'Regular' : 'Skipped'}</span>
+          </button>
           {clickedJobId && (
             <button
               onClick={clearHighlight}
@@ -448,7 +460,7 @@ export function JobsList() {
               <span className="sm:hidden">Clear</span>
             </button>
           )}
-          {filteredAndSortedJobs.length > 0 && (
+          {filteredAndSortedJobs.length > 0 && !showSkippedPanel && (
             <button
               onClick={toggleAllJobs}
               className={`${
@@ -462,31 +474,36 @@ export function JobsList() {
               <span className="sm:hidden">{hasAnyExpanded ? 'Collapse' : 'Expand'}</span>
             </button>
           )}
-          <button
-            onClick={handleExport}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base shadow-sm"
-          >
-            <Icon icon="download" size={20} />
-            <span className="hidden sm:inline">Export CSV</span>
-            <span className="sm:hidden">Export</span>
-          </button>
-          <button
-            onClick={handleGeneratePrompt}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base shadow-sm"
-          >
-            <Icon icon="psychology" size={20} />
-            <span className="hidden sm:inline">Generate Rejection Prompt</span>
-            <span className="sm:hidden">Prompt</span>
-          </button>
+          {!showSkippedPanel && (
+            <>
+              <button
+                onClick={handleExport}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base shadow-sm"
+              >
+                <Icon icon="download" size={20} />
+                <span className="hidden sm:inline">Export CSV</span>
+                <span className="sm:hidden">Export</span>
+              </button>
+              <button
+                onClick={handleGeneratePrompt}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base shadow-sm"
+              >
+                <Icon icon="psychology" size={20} />
+                <span className="hidden sm:inline">Generate Rejection Prompt</span>
+                <span className="sm:hidden">Prompt</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       {/* Filters */}
-      <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <Icon icon="filter-list" size={24} className="text-gray-600" />
-          <h3 className="text-lg font-semibold text-gray-800">Filters</h3>
-        </div>
+      {!showSkippedPanel && (
+        <div className="mb-6 bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Icon icon="filter-list" size={24} className="text-gray-600" />
+            <h3 className="text-lg font-semibold text-gray-800">Filters</h3>
+          </div>
         <div className="space-y-4">
           {/* Primary Filter Row - Search and Status */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -593,10 +610,12 @@ export function JobsList() {
             </div>
           </div>
         </div>
-      </div>
+        </div>
+      )}
 
       {/* Jobs Table */}
-      <div className="bg-white border-2 border-gray-200 rounded-lg overflow-hidden">
+      {!showSkippedPanel && (
+        <div className="bg-white border-2 border-gray-200 rounded-lg overflow-hidden">
         {isLoading ? (
           <div className="p-8 text-center">Loading jobs...</div>
         ) : !filteredAndSortedJobs.length ? (
@@ -804,29 +823,15 @@ export function JobsList() {
             </table>
           </div>
         )}
-      </div>
-
-      {/* Skipped Jobs Section (collapsible) */}
-      <div className="mt-6">
-        <div className="flex items-center justify-between mb-2">
-          <button
-            onClick={() => setShowSkippedPanel(prev => !prev)}
-            className="px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base border border-gray-300 bg-white hover:bg-gray-50"
-          >
-            {showSkippedPanel ? 'Hide Skipped' : 'Show Skipped'}
-          </button>
-          {!statusFilter && (
-            <span className="text-xs text-gray-500">
-              Skipped are hidden from the main list. Use this toggle or select "Skipped" in Status.
-            </span>
-          )}
         </div>
-        {showSkippedPanel && (
-          <SkippedJobsPanel isExpanded={true} onToggle={() => setShowSkippedPanel(prev => !prev)} />
-        )}
-      </div>
+      )}
 
-      {data && data.total > 0 && (
+      {/* Skipped Jobs Section */}
+      {showSkippedPanel && (
+        <SkippedJobsPanel isExpanded={true} onToggle={() => setShowSkippedPanel(prev => !prev)} />
+      )}
+
+      {!showSkippedPanel && data && data.total > 0 && (
         <div className="mt-4 text-sm text-gray-600">
           Showing {filteredAndSortedJobs.length} of {data.total} jobs
           {filteredAndSortedJobs.length < data.jobs.length && (

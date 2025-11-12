@@ -6,6 +6,8 @@ import { Icon } from './Icon';
 import { LeadScrapeModal, ScrapeConfig } from './LeadScrapeModal';
 import { ActiveScrapingStatus } from './ActiveScrapingStatus';
 import { useToastContext } from '../contexts/ToastContext';
+import { FAST_REFRESH_INTERVAL_MS, MEDIUM_REFRESH_INTERVAL_MS, ACTIVE_SCRAPING_REFRESH_INTERVAL_MS } from '../constants/timing';
+import { extractErrorMessage } from '../utils/error-helpers';
 
 interface Lead {
   id: string;
@@ -89,7 +91,7 @@ export function LeadsList() {
       const response = await api.get('/leads/runs/active');
       return response.data;
     },
-    refetchInterval: 2000,
+    refetchInterval: ACTIVE_SCRAPING_REFRESH_INTERVAL_MS,
     staleTime: 0
   });
 
@@ -112,7 +114,7 @@ export function LeadsList() {
       const response = await api.get(`/leads?${params.toString()}`);
       return response.data as { leads: Lead[]; total: number };
     },
-    refetchInterval: 5000
+    refetchInterval: FAST_REFRESH_INTERVAL_MS
   });
 
   // Fetch stats
@@ -122,7 +124,7 @@ export function LeadsList() {
       const response = await api.get('/leads/stats');
       return response.data as LeadStats;
     },
-    refetchInterval: 10000
+    refetchInterval: MEDIUM_REFRESH_INTERVAL_MS
   });
 
   // Fetch scraping runs
@@ -266,17 +268,13 @@ export function LeadsList() {
       showToast('success', `Scraping started successfully! Run ID: ${result.runId}. ${result.message}. Check the active scraping status above for progress.`);
       
       // Modal will be closed by the modal component
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error starting scrape:', error);
       
       // Extract error message from API response
-      const errorMessage = error?.response?.data?.error || error?.message || 'Failed to start scraping';
-      const errorDetails = error?.response?.data?.details;
+      const errorMessage = extractErrorMessage(error, 'Failed to start scraping');
       
-      // Include details in the error message if available
-      const fullMessage = errorDetails ? `${errorMessage}. ${errorDetails}` : errorMessage;
-      
-      throw new Error(fullMessage);
+      throw new Error(errorMessage);
     } finally {
       setIsStartingScrape(false);
       isStartingScrapeRef.current = false; // Reset lock so user can retry
@@ -341,8 +339,16 @@ export function LeadsList() {
       {/* Active Scraping Status */}
       <ActiveScrapingStatus />
 
-      {/* Get Leads Button */}
-      <div className="flex justify-end">
+      {/* Action Buttons */}
+      <div className="flex justify-end gap-3">
+        <button
+          onClick={() => window.location.href = '/campaigns'}
+          className="flex items-center gap-2 px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors shadow-md font-semibold"
+          title="Manage email campaigns"
+        >
+          <Icon icon="campaign" size={24} />
+          <span>Campaigns</span>
+        </button>
         <button
           onClick={() => setShowScrapeModal(true)}
           disabled={hasActiveScraping}

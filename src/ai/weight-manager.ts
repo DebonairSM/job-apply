@@ -45,8 +45,8 @@ export function getActiveWeights(profileKey?: string): Record<string, number> {
     baseWeights = getDefaultWeights();
   }
   
-  // Get global learning adjustments from database
-  const adjustments = getCurrentWeightAdjustments();
+  // Get profile-specific learning adjustments from database
+  const adjustments = getCurrentWeightAdjustments(profileKey);
   
   // Apply adjustments to base weights
   const adjustedWeights: Record<string, number> = {};
@@ -69,13 +69,14 @@ export function getActiveWeights(profileKey?: string): Record<string, number> {
 
 // Apply a weight adjustment and persist to database
 export function applyWeightAdjustment(
+  searchProfile: string,
   category: string, 
   adjustment: number, 
   reason: string,
   rejectionId?: string
 ): void {
-  // Get current weights
-  const currentWeights = getActiveWeights();
+  // Get current weights for this profile
+  const currentWeights = getActiveWeights(searchProfile);
   const oldWeight = currentWeights[category];
   
   // Guard: Skip if category doesn't exist in current weights
@@ -100,8 +101,9 @@ export function applyWeightAdjustment(
     return;
   }
   
-  // Save adjustment to database
+  // Save adjustment to database with search profile
   saveWeightAdjustment({
+    search_profile: searchProfile,
     profile_category: category,
     old_weight: oldWeight,
     new_weight: finalNewWeight,
@@ -112,7 +114,7 @@ export function applyWeightAdjustment(
   // Invalidate all profile caches to force reload
   weightCache.clear();
   
-  console.log(`📊 Weight adjustment: ${category} ${oldWeight}% → ${finalNewWeight}% (${finalAdjustment > 0 ? '+' : ''}${finalAdjustment}%) - ${reason}`);
+  console.log(`📊 Weight adjustment [${searchProfile}]: ${category} ${oldWeight}% → ${finalNewWeight}% (${finalAdjustment > 0 ? '+' : ''}${finalAdjustment}%) - ${reason}`);
 }
 
 // Normalize weights to ensure they sum to 100%

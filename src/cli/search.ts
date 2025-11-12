@@ -672,14 +672,17 @@ function buildSearchUrl(opts: SearchOptions, page: number = 1): string {
     throw new Error('Either keywords or profile must be specified');
   }
   
-  // Don't add "AND Remote" to LinkedIn search - it catches hybrid jobs
-  // Instead, we filter for truly remote positions post-search using LocationRequirementFilter
-  // (Hybrid jobs often mention "remote" but require onsite days)
-  
   params.set('keywords', keywords);
   
   if (opts.location) {
     params.set('location', opts.location);
+  }
+  
+  // Add LinkedIn's native remote work filter
+  // This pre-filters at the LinkedIn level for efficiency
+  // LocationRequirementFilter will still validate post-search to catch hybrid jobs
+  if (opts.remote) {
+    params.set('f_WT', '2'); // LinkedIn remote work filter
   }
   
   // Add contract job type filter for contract profile
@@ -702,9 +705,11 @@ function buildSearchUrl(opts: SearchOptions, page: number = 1): string {
   }
 
   // Add origin parameter to match LinkedIn's search behavior
-  params.set('origin', 'JOBS_HOME_SEARCH_BUTTON');
+  // Use classic search endpoint (/search/) instead of new AI search (/search-results/)
+  // because the classic endpoint reliably supports f_WT=2 remote filter
+  params.set('origin', 'JOB_SEARCH_PAGE_SEARCH_BUTTON');
 
-  const url = `https://www.linkedin.com/jobs/search-results/?${params.toString()}`;
+  const url = `https://www.linkedin.com/jobs/search/?${params.toString()}`;
   console.log(`[DEBUG] Built search URL: ${url}`);
   return url;
 }
@@ -996,20 +1001,29 @@ export async function searchCommand(opts: SearchOptions): Promise<void> {
   const endTime = Date.now();
   const totalTime = Math.round((endTime - startTime) / 1000);
   const jobsPerMinute = totalTime > 0 ? Math.round((totalAnalyzed / totalTime) * 60) : 0;
+  const totalSkipped = totalAnalyzed - totalQueued;
 
-  console.log(`\n📈 Final Summary:`);
-  console.log(`   Pages Processed: ${currentPage}`);
-  console.log(`   Total Analyzed: ${totalAnalyzed}`);
-  console.log(`   Total Queued: ${totalQueued}`);
-  console.log(`   Overall Success Rate: ${totalAnalyzed > 0 ? Math.round((totalQueued / totalAnalyzed) * 100) : 0}%`);
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`📈 SEARCH COMPLETED`);
+  console.log(`${'='.repeat(60)}`);
+  console.log(`\n🎯 Search Configuration:`);
+  console.log(`   Profile: ${opts.profile || 'custom keywords'}`);
   console.log(`   Min Score Threshold: ${minScore}`);
-  console.log(`   Average Jobs per Page: ${currentPage > 0 ? Math.round(totalAnalyzed / currentPage) : 0}`);
+  console.log(`   Final Page: ${currentPage}`);
+  console.log(`\n📊 Results:`);
+  console.log(`   Jobs Found: ${totalAnalyzed}`);
+  console.log(`   Jobs Queued: ${totalQueued}`);
+  console.log(`   Jobs Skipped: ${totalSkipped}`);
+  console.log(`   Success Rate: ${totalAnalyzed > 0 ? Math.round((totalQueued / totalAnalyzed) * 100) : 0}%`);
+  console.log(`\n⏱️  Performance:`);
   console.log(`   Processing Time: ${totalTime}s (${jobsPerMinute} jobs/min)`);
+  console.log(`   Average Jobs per Page: ${currentPage > 0 ? Math.round(totalAnalyzed / currentPage) : 0}`);
+  console.log(`\n${'='.repeat(60)}`);
   
   if (shouldStop) {
-    console.log('\n✅ Search stopped gracefully.\n');
+    console.log('✅ Search stopped gracefully.\n');
   } else {
-    console.log('\n✅ Search complete!\n');
+    console.log('✅ Search complete!\n');
   }
   
   // Clean up signal handlers

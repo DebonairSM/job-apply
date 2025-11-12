@@ -14,6 +14,14 @@ export interface TechnicalProfile {
   mustHave: string[]; // Required keywords
   preferred: string[]; // Nice-to-have keywords
   description: string;
+  
+  // BONUS-ONLY BEHAVIOR: Categories with empty mustHave arrays are treated as "bonus-only"
+  // When a job scores 0 in a bonus-only category:
+  // - The category's weight is redistributed proportionally to other categories
+  // - The job is NOT penalized for missing those keywords
+  // When a job scores > 0 in a bonus-only category:
+  // - The category boosts the overall score normally
+  // This allows optional features (like frontend frameworks) to enhance scores without penalizing their absence
 }
 
 export const PROFILES: Record<string, TechnicalProfile> = {
@@ -135,6 +143,10 @@ export const PROFILES: Record<string, TechnicalProfile> = {
       'Legacy'
     ],
     preferred: [
+      'VBA',
+      'Visual Basic for Applications',
+      'Excel VBA',
+      'Access VBA',
       'Modernization',
       'Migration',
       'Cloud Migration',
@@ -148,7 +160,7 @@ export const PROFILES: Record<string, TechnicalProfile> = {
       'Legacy System',
       'System Migration'
     ],
-    description: 'Legacy system modernization and migration capabilities'
+    description: 'Legacy system modernization and migration capabilities including VBA to modern .NET transitions'
   },
   
   legacyWeb: {
@@ -165,6 +177,10 @@ export const PROFILES: Record<string, TechnicalProfile> = {
       'VB.NET'
     ],
     preferred: [
+      'VBA',
+      'Visual Basic for Applications',
+      'Excel VBA',
+      'Access VBA',
       'jQuery',
       'Kendo UI',
       '.NET Framework 4.x',
@@ -179,7 +195,7 @@ export const PROFILES: Record<string, TechnicalProfile> = {
       'ASP.NET MVC 4',
       'ASP.NET MVC 5'
     ],
-    description: 'Legacy Microsoft web development technologies including WebForms, classic ASP.NET MVC, jQuery, and .NET Framework 4.x'
+    description: 'Legacy Microsoft web development technologies including VBA, WebForms, classic ASP.NET MVC, jQuery, and .NET Framework 4.x'
   }
 };
 
