@@ -129,12 +129,26 @@ function computeEncodedReferralCode(lead: Lead, staticPlaceholders: CampaignStat
 }
 
 /**
+ * Compute greeting based on whether we worked together
+ * Returns appropriate greeting that reads correctly with or without company
+ */
+function computeGreeting(lead: Lead, staticPlaceholders: CampaignStaticPlaceholders): string {
+  const workedTogether = lead.worked_together?.trim();
+  if (workedTogether) {
+    return `How are you? It's been a while since our days together at ${workedTogether} — I hope all is well with you.`;
+  }
+  return `How are you? It's been a while — I hope all is well with you.`;
+}
+
+/**
  * Registry of computed placeholders
  * These are dynamically calculated based on lead data and static placeholders
  */
 const COMPUTED_PLACEHOLDERS: Record<string, ComputedPlaceholder> = {
   referral_link: computeReferralLink,
-  encoded_referral_code: computeEncodedReferralCode
+  encoded_referral_code: computeEncodedReferralCode,
+  referralcode: computeEncodedReferralCode, // Alias for camelCase usage
+  greeting: computeGreeting
 };
 
 /**
@@ -144,8 +158,18 @@ function buildPlaceholderMap(lead: Lead, staticPlaceholders: CampaignStaticPlace
   const map: Record<string, string> = {};
 
   // Lead data placeholders (all fields from Lead interface)
-  map.first_name = extractFirstName(lead.name);
-  map.last_name = extractLastName(lead.name);
+  const firstName = extractFirstName(lead.name);
+  const lastName = extractLastName(lead.name);
+  
+  // Snake_case (original)
+  map.first_name = firstName;
+  map.last_name = lastName;
+  
+  // CamelCase aliases (for templates that use {{firstName}}, {{lastName}})
+  map.firstname = firstName;
+  map.lastname = lastName;
+  
+  // Other lead fields
   map.name = lead.name || '';
   map.title = lead.title || '';
   map.company = lead.company || '';

@@ -40,7 +40,7 @@
     "block:company": "tsx scripts/block-company.js",
     "rescore:skipped": "tsx scripts/rescore-skipped-jobs.ts",
     "leads:stop-stalled": "tsx scripts/stop-stalled-runs.ts",
-    "seed:campaigns": "tsx scripts/seed-talkflow-campaigns.ts"
+    "seed:campaigns": "tsx scripts/seed-sunny-campaigns.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.5",

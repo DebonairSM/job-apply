@@ -79,7 +79,7 @@ function sendErrorResponse(res: Response, statusCode: number, error: string, det
 // GET /api/leads - List leads with filtering and pagination
 router.get('/', (req: Request, res: Response): void => {
   try {
-    const { search, title, company, location, hasEmail, workedTogether, profile, limit, offset } = req.query;
+    const { search, title, company, location, hasEmail, workedTogether, profile, emailStatus, limit, offset } = req.query;
     
     const filters = {
       search: sanitizeStringParameter(search),
@@ -89,6 +89,7 @@ router.get('/', (req: Request, res: Response): void => {
       hasEmail: parseBooleanParameter(hasEmail),
       workedTogether: parseBooleanParameter(workedTogether),
       profile: sanitizeStringParameter(profile),
+      emailStatus: sanitizeStringParameter(emailStatus),
       limit: parseIntegerParameter(limit, DEFAULT_LIMIT),
       offset: parseIntegerParameter(offset, DEFAULT_OFFSET)
     };
@@ -101,7 +102,8 @@ router.get('/', (req: Request, res: Response): void => {
       location: filters.location,
       hasEmail: filters.hasEmail,
       workedTogether: filters.workedTogether,
-      profile: filters.profile
+      profile: filters.profile,
+      emailStatus: filters.emailStatus
     });
     
     res.json({

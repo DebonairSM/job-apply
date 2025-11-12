@@ -117,21 +117,21 @@ function buildChiefsEmail(ctx: EmailContext): EmailOutput {
   // Subject line
   const subject = `Quick question about ${lead.companyName}'s workflow automation`;
   
-  // Opening - problem framing
+  // Opening - problem framing with role acknowledgment
   const opening = buildProblemFraming(lead, 'chiefs');
   
-  // Personal credibility statement
-  const credibility = `I recently automated my own business end-to-end in under a week. The result? No more spreadsheets, to-do lists, or calendar juggling — just seamless, self-running workflows.`;
+  // Personal credibility statement (more specific results)
+  const credibility = `I recently automated my own business end-to-end in under a week. The result? No more spreadsheets, task lists, or coordination bottlenecks — just seamless, self-running workflows.`;
   
-  // Product pitch with natural bridge
-  const pitch = `That's what our **Work Automation Platform** delivers.
+  // Product pitch with natural bridge and specific timing
+  const pitch = `That's what our **AI-assisted automation platform** delivers.
 
-In a short discovery call, we map your current processes, then show AI-generated interactive mockups in real time. Within hours, you'll see a working prototype of your future system — complete with documentation, ROI analysis, and deployment-ready deliverables.
+In a short discovery call, we map your current processes and use AI to generate interactive mockups in real time. Within hours, you'll see a working prototype of your future system — complete with documentation, ROI insights, and deployment-ready deliverables.
 
-The platform is secure, open-source, and local-first, giving you full control of your data while cutting infrastructure costs and improving reliability. We even help your internal team learn to extend it safely through CI/CD pipelines.`;
+The platform is secure, open-source, and local-first, giving you full control of your data while reducing infrastructure costs and improving reliability. We also help your internal team extend it safely through CI/CD pipelines and adaptive learning.`;
   
   // Call to action (softened, direct)
-  const cta = `Would you be open to a quick conversation this week to explore what automation could look like in your organization?
+  const cta = `Would you be open to a quick conversation this week to explore what this could look like in your organization?
 
 You can book directly here: ${ctx.calendlyUrl}`;
   
@@ -165,18 +165,18 @@ function buildGenericEmail(ctx: EmailContext): EmailOutput {
   // Opening - problem framing
   const opening = buildProblemFraming(lead, 'generic');
   
-  // Personal credibility statement
-  const credibility = `I recently automated my own business end-to-end in under a week. The result? No more spreadsheets, to-do lists, or calendar juggling — just seamless, self-running workflows.`;
+  // Personal credibility statement (more specific results)
+  const credibility = `I recently automated my own business end-to-end in under a week. The result? No more spreadsheets, task lists, or coordination bottlenecks — just seamless, self-running workflows.`;
   
-  // Product pitch with natural bridge
-  const pitch = `That's what our **Work Automation Platform** delivers.
+  // Product pitch with natural bridge and specific timing
+  const pitch = `That's what our **AI-assisted automation platform** delivers.
 
-In a short discovery call, we map your current processes, then show AI-generated interactive mockups in real time. Within hours, you'll see a working prototype of your future system — complete with documentation, ROI analysis, and deployment-ready deliverables.
+In a short discovery call, we map your current processes and use AI to generate interactive mockups in real time. Within hours, you'll see a working prototype of your future system — complete with documentation, ROI insights, and deployment-ready deliverables.
 
-The platform is secure, open-source, and local-first, giving you full control of your data while cutting infrastructure costs and improving reliability. We even help your internal team learn to extend it safely through CI/CD pipelines.`;
+The platform is secure, open-source, and local-first, giving you full control of your data while reducing infrastructure costs and improving reliability. We also help your internal team extend it safely through CI/CD pipelines and adaptive learning.`;
   
   // Call to action (softened)
-  const cta = `Would you be open to a quick conversation this week to explore what automation could look like in your organization?
+  const cta = `Would you be open to a quick conversation this week to explore what this could look like in your organization?
 
 You can book directly here: ${ctx.calendlyUrl}`;
   
@@ -213,41 +213,41 @@ function buildProblemFraming(lead: LeadProfile, template: 'chiefs' | 'generic'):
   const opener = generateProfessionalOpener(lead.roleTitle, lead.companyName);
   
   if (template === 'chiefs') {
-    // Workflow automation focus for C-level (concise, conversational)
+    // Workflow automation focus for C-level (empathetic, specific)
     if (roleType === 'executive') {
       // Handle case 2 pattern (ends with "dealt with") - complete the thought naturally
       if (opener.endsWith("dealt with")) {
-        return `${opener} the challenge of manual workflows slowing down decision-making. Many executive teams are turning to automation to remove those bottlenecks and improve operational reliability.`;
+        return `${opener} operational inefficiencies that could benefit from streamlined workflow automation. You've likely encountered manual workflows slowing down decision-making — exactly what I've been working to solve through AI-assisted systems.`;
       }
-      return `${opener}, you're familiar with the challenge of manual workflows slowing down decision-making. Many executive teams are turning to automation to remove those bottlenecks and improve operational reliability.`;
+      return `${opener}. You've likely encountered operational inefficiencies that could benefit from streamlined workflow automation — exactly what I've been working to solve through AI-assisted systems.`;
     } else if (roleType === 'operations') {
       if (opener.endsWith("dealt with")) {
-        return `${opener} how manual processes create friction in operations. Many teams in similar settings are turning to automation to remove manual steps and improve reliability.`;
+        return `${opener} how manual processes create friction in operations. You've likely encountered inefficiencies that could benefit from streamlined automation — exactly what I've been working to solve through AI-assisted systems.`;
       }
-      return `${opener}, you've likely encountered how manual processes create friction in operations. Many teams in similar settings are turning to automation to remove manual steps and improve reliability.`;
+      return `${opener}. You've likely encountered how manual processes create friction in operations — exactly what I've been working to solve through AI-assisted systems.`;
     } else {
       if (opener.endsWith("dealt with")) {
-        return `${opener} how manual workflows can impact efficiency. Many organizations are turning to automation to streamline these processes and reduce operational overhead.`;
+        return `${opener} how manual workflows can impact efficiency. You've likely encountered operational challenges that could benefit from streamlined automation — exactly what I've been working to solve through AI-assisted systems.`;
       }
-      return `${opener}, you understand how manual workflows can impact efficiency. Many organizations are turning to automation to streamline these processes and reduce operational overhead.`;
+      return `${opener}. You've likely encountered operational challenges that could benefit from streamlined automation — exactly what I've been working to solve through AI-assisted systems.`;
     }
   } else {
-    // Generic workflow automation (concise, conversational)
+    // Generic workflow automation (empathetic, specific)
     if (roleType === 'executive') {
       if (opener.endsWith("dealt with")) {
-        return `${opener} workflows that resist automation while consuming valuable time. Many leadership teams are exploring new approaches to automate these processes efficiently.`;
+        return `${opener} workflows that resist automation while consuming valuable time. You've likely encountered operational inefficiencies that could benefit from streamlined automation — exactly what I've been working to solve through AI-assisted systems.`;
       }
-      return `${opener}, you're likely aware of workflows that resist automation while consuming valuable time. Many leadership teams are exploring new approaches to automate these processes efficiently.`;
+      return `${opener}. You've likely encountered workflows that resist automation while consuming valuable time — exactly what I've been working to solve through AI-assisted systems.`;
     } else if (roleType === 'technical') {
       if (opener.endsWith("dealt with")) {
-        return `${opener} inefficiencies in manual workflows. Many technical teams are turning to automation platforms that balance speed with flexibility for complex processes.`;
+        return `${opener} inefficiencies in manual workflows. You've probably identified processes that could benefit from automation — exactly what I've been working to solve through AI-assisted systems.`;
       }
-      return `${opener}, you've probably identified inefficiencies in manual workflows. Many technical teams are turning to automation platforms that balance speed with flexibility for complex processes.`;
+      return `${opener}. You've probably identified inefficiencies in manual workflows that could benefit from automation — exactly what I've been working to solve through AI-assisted systems.`;
     } else {
       if (opener.endsWith("dealt with")) {
-        return `${opener} how manual workflows create friction. Many teams in similar settings are turning to automation to remove manual steps and improve reliability.`;
+        return `${opener} how manual workflows create friction. You've likely encountered operational challenges that could benefit from streamlined automation — exactly what I've been working to solve through AI-assisted systems.`;
       }
-      return `${opener}, you understand how manual workflows create friction. Many teams in similar settings are turning to automation to remove manual steps and improve reliability.`;
+      return `${opener}. You've likely encountered operational challenges that could benefit from streamlined automation — exactly what I've been working to solve through AI-assisted systems.`;
     }
   }
 }
@@ -432,10 +432,10 @@ function generateReferralLink(lead: Lead): string {
  * Add referral program section to email body
  */
 function addReferralSection(body: string, referralLink: string): string {
-  const referralSection = `P.S. If you're not the right person for this conversation, I'd appreciate a referral! Use this link to refer someone who might benefit:
-${referralLink}
+  const referralSection = `P.S. If you're not the right person for this conversation, I'd appreciate a referral!
 
-Referrals mean a lot to me — I offer a commission for every introduction that turns into a project.`;
+You can share this link — referrals mean a lot to me, and I offer a commission for every introduction that turns into a project:
+👉 ${referralLink}`;
   
   // Insert referral section before signature
   const signatureIndex = body.indexOf(SIGNATURE);
@@ -469,15 +469,15 @@ function generateGenericBody(lead: Lead, firstName: string): string {
   
   const personalizedContext = generatePersonalizedContext(lead);
   
-  const credibility = `I recently automated my own business end-to-end in under a week. The result? No more spreadsheets, to-do lists, or calendar juggling — just seamless, self-running workflows.`;
+  const credibility = `I recently automated my own business end-to-end in under a week. The result? No more spreadsheets, task lists, or coordination bottlenecks — just seamless, self-running workflows.`;
   
-  const mainPitch = `That's what our **Work Automation Platform** delivers.
+  const mainPitch = `That's what our **AI-assisted automation platform** delivers.
 
-In a short discovery call, we map your current processes, then show AI-generated interactive mockups in real time. Within hours, you'll see a working prototype of your future system — complete with documentation, ROI analysis, and deployment-ready deliverables.
+In a short discovery call, we map your current processes and use AI to generate interactive mockups in real time. Within hours, you'll see a working prototype of your future system — complete with documentation, ROI insights, and deployment-ready deliverables.
 
-The platform is secure, open-source, and local-first, giving you full control of your data while cutting infrastructure costs and improving reliability. We even help your internal team learn to extend it safely through CI/CD pipelines.`;
+The platform is secure, open-source, and local-first, giving you full control of your data while reducing infrastructure costs and improving reliability. We also help your internal team extend it safely through CI/CD pipelines and adaptive learning.`;
   
-  const closing = `Would you be open to a quick conversation this week to explore what automation could look like in your organization?
+  const closing = `Would you be open to a quick conversation this week to explore what this could look like in your organization?
 
 You can book directly here: ${BOOKING_URL}
 
@@ -514,15 +514,15 @@ function generateChiefsBody(lead: Lead, firstName: string): string {
   
   const personalizedContext = generatePersonalizedContext(lead);
   
-  const credibility = `I recently automated my own business end-to-end in under a week. The result? No more spreadsheets, to-do lists, or calendar juggling — just seamless, self-running workflows.`;
+  const credibility = `I recently automated my own business end-to-end in under a week. The result? No more spreadsheets, task lists, or coordination bottlenecks — just seamless, self-running workflows.`;
   
-  const mainPitch = `That's what our **Work Automation Platform** delivers.
+  const mainPitch = `That's what our **AI-assisted automation platform** delivers.
 
-In a short discovery call, we map your current processes, then show AI-generated interactive mockups in real time. Within hours, you'll see a working prototype of your future system — complete with documentation, ROI analysis, and deployment-ready deliverables.
+In a short discovery call, we map your current processes and use AI to generate interactive mockups in real time. Within hours, you'll see a working prototype of your future system — complete with documentation, ROI insights, and deployment-ready deliverables.
 
-The platform is secure, open-source, and local-first, giving you full control of your data while cutting infrastructure costs and improving reliability. We even help your internal team learn to extend it safely through CI/CD pipelines.`;
+The platform is secure, open-source, and local-first, giving you full control of your data while reducing infrastructure costs and improving reliability. We also help your internal team extend it safely through CI/CD pipelines and adaptive learning.`;
   
-  const closing = `Would you be open to a quick conversation this week to explore what automation could look like in ${lead.company || 'your organization'}?
+  const closing = `Would you be open to a quick conversation this week to explore what this could look like in ${lead.company || 'your organization'}?
 
 You can book directly here: ${BOOKING_URL}
 

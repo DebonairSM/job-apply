@@ -518,7 +518,7 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
       // Rank the job (expensive LLM operation - only for new jobs)
       const ranking = await rankJob(
         { title, company, description },
-        opts.profile || 'coreAzure' // Use the actual profile from CLI, fallback to coreAzure
+        opts.profile || 'core' // Use the actual profile from CLI, fallback to core
       );
       
       console.log(`   ✓ Ranking complete for job ${i + 1}`);

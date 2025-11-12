@@ -100,3 +100,6 @@ Expected output shows:
 - Consider using this pattern for other optional skills (e.g., specific Azure services)
 - Dashboard could show which categories are bonus-only vs required
 
+
+
+

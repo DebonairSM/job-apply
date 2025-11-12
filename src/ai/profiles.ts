@@ -201,15 +201,15 @@ export const PROFILES: Record<string, TechnicalProfile> = {
 
 // Boolean search strings for LinkedIn (without Remote - added dynamically)
 export const BOOLEAN_SEARCHES: Record<string, string> = {
-  core: '("Senior API Engineer" OR "Senior Backend Developer" OR "Azure API Engineer") AND (C# OR VB.NET OR ".NET") AND (Azure OR "Microsoft Azure") AND ("API Management" OR APIM) AND ("Azure Functions" OR "App Services") AND ("Service Bus" OR "Event Grid")',
+  core: '(Azure OR "Microsoft Azure") AND (C# OR ".NET") AND (API OR "API Management")',
   
-  backend: '("Senior Backend Engineer" OR "Senior API Engineer" OR "Azure Developer" OR ".NET Core Developer") AND (C# OR VB.NET OR ".NET") AND (Azure OR "Microsoft Azure") AND (REST OR API OR APIM OR "API Management") AND ("Azure Functions" OR "App Services") AND (Redis OR SQL OR "EF Core")',
+  backend: '(Azure OR "Microsoft Azure") AND (C# OR ".NET") AND (Backend OR API OR REST)',
   
-  'core-net': '("Senior .NET Developer" OR "Senior Software Engineer" OR ".NET Developer" OR "C# Developer") AND (C# OR VB.NET OR ".NET Core" OR ".NET 6" OR ".NET 8") AND (ASP.NET OR MVC OR "Web API" OR "REST API") AND (Entity Framework OR "EF Core" OR SQL OR Database) AND (Senior OR Lead OR Principal)',
+  'core-net': '(C# OR ".NET Core" OR ".NET") AND (ASP.NET OR "Web API")',
   
-  'legacy-modernization': '("Senior .NET Developer" OR "Legacy Developer" OR "Modernization Engineer" OR "Migration Specialist") AND ((VB.NET OR WebForms OR "ASP.NET MVC" OR Legacy) OR (Modernization OR Migration OR "Cloud Migration")) AND (C# OR ".NET Core" OR ".NET 6" OR ".NET 8") AND (Azure OR Cloud OR "System Migration") AND (Senior OR Lead OR Principal)',
+  'legacy-modernization': '(VB.NET OR Legacy OR Modernization) AND (C# OR ".NET")',
   
-  contract: '("Senior .NET Developer" OR "Contract .NET Developer" OR "C# Contractor" OR "Contract Software Engineer") AND (C# OR ".NET Core" OR ".NET 6" OR ".NET 8") AND (Contract OR Contractor OR "Contract to Hire" OR C2H OR "Contract Position") AND (ASP.NET OR "Web API" OR REST)',
+  contract: '(Contract OR Contractor) AND (C# OR ".NET")',
 
   // Simplified boolean profiles requested
   'aspnet-simple': 'asp.net',

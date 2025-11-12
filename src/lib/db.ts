@@ -2407,6 +2407,7 @@ export function getLeads(filters?: {
   hasEmail?: boolean;
   workedTogether?: boolean;
   profile?: string;
+  emailStatus?: string;
   limit?: number;
   offset?: number;
 }): Lead[] {
@@ -2456,6 +2457,11 @@ export function getLeads(filters?: {
     params.push(filters.profile.toLowerCase());
   }
 
+  if (filters?.emailStatus) {
+    query += ' AND email_status = ?';
+    params.push(filters.emailStatus);
+  }
+
   query += ' ORDER BY scraped_at DESC';
 
   if (filters?.limit) {
@@ -2480,6 +2486,7 @@ export function getLeadsCount(filters?: {
   hasEmail?: boolean;
   workedTogether?: boolean;
   profile?: string;
+  emailStatus?: string;
 }): number {
   const database = getDb();
   let query = 'SELECT COUNT(*) as count FROM leads WHERE deleted_at IS NULL';
@@ -2525,6 +2532,11 @@ export function getLeadsCount(filters?: {
   if (filters?.profile) {
     query += ' AND LOWER(profile) = ?';
     params.push(filters.profile.toLowerCase());
+  }
+
+  if (filters?.emailStatus) {
+    query += ' AND email_status = ?';
+    params.push(filters.emailStatus);
   }
 
   const stmt = database.prepare(query);

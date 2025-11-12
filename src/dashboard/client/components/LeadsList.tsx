@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { LeadDetail } from './LeadDetail';
@@ -65,14 +65,34 @@ interface ScrapingRun {
   current_page?: number;
 }
 
+// LocalStorage key for persisting filter state
+const LEADS_FILTERS_STORAGE_KEY = 'leads-filters';
+
+// Helper to load filters from localStorage
+const loadSavedFilters = () => {
+  try {
+    const saved = localStorage.getItem(LEADS_FILTERS_STORAGE_KEY);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+  } catch (error) {
+    console.error('Failed to load saved filters:', error);
+  }
+  return {};
+};
+
 export function LeadsList() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [titleFilter, setTitleFilter] = useState('');
-  const [companyFilter, setCompanyFilter] = useState('');
-  const [locationFilter, setLocationFilter] = useState('');
-  const [emailFilter, setEmailFilter] = useState<string>('');
-  const [workedTogetherFilter, setWorkedTogetherFilter] = useState<string>('');
-  const [profileFilter, setProfileFilter] = useState<string>('');
+  // Load saved filters on mount
+  const savedFilters = loadSavedFilters();
+  
+  const [searchQuery, setSearchQuery] = useState(savedFilters.searchQuery || '');
+  const [titleFilter, setTitleFilter] = useState(savedFilters.titleFilter || '');
+  const [companyFilter, setCompanyFilter] = useState(savedFilters.companyFilter || '');
+  const [locationFilter, setLocationFilter] = useState(savedFilters.locationFilter || '');
+  const [emailFilter, setEmailFilter] = useState<string>(savedFilters.emailFilter || '');
+  const [emailStatusFilter, setEmailStatusFilter] = useState<string>(savedFilters.emailStatusFilter || '');
+  const [workedTogetherFilter, setWorkedTogetherFilter] = useState<string>(savedFilters.workedTogetherFilter || '');
+  const [profileFilter, setProfileFilter] = useState<string>(savedFilters.profileFilter || '');
   const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
   const [showRuns, setShowRuns] = useState(false);
   const [isCleaningUp, setIsCleaningUp] = useState(false);
@@ -81,6 +101,26 @@ export function LeadsList() {
   
   // Use ref for synchronous lock (protects against React StrictMode double-invoke)
   const isStartingScrapeRef = useRef(false);
+
+  // Persist filters to localStorage whenever they change
+  useEffect(() => {
+    const filters = {
+      searchQuery,
+      titleFilter,
+      companyFilter,
+      locationFilter,
+      emailFilter,
+      emailStatusFilter,
+      workedTogetherFilter,
+      profileFilter,
+    };
+    
+    try {
+      localStorage.setItem(LEADS_FILTERS_STORAGE_KEY, JSON.stringify(filters));
+    } catch (error) {
+      console.error('Failed to save filters to localStorage:', error);
+    }
+  }, [searchQuery, titleFilter, companyFilter, locationFilter, emailFilter, emailStatusFilter, workedTogetherFilter, profileFilter]);
 
   const { showToast } = useToastContext();
 
@@ -99,7 +139,7 @@ export function LeadsList() {
 
   // Fetch leads
   const { data: leadsData, isLoading: leadsLoading, refetch: refetchLeads } = useQuery({
-    queryKey: ['leads', searchQuery, titleFilter, companyFilter, locationFilter, emailFilter, workedTogetherFilter, profileFilter],
+    queryKey: ['leads', searchQuery, titleFilter, companyFilter, locationFilter, emailFilter, emailStatusFilter, workedTogetherFilter, profileFilter],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (searchQuery) params.set('search', searchQuery);
@@ -107,6 +147,7 @@ export function LeadsList() {
       if (companyFilter) params.set('company', companyFilter);
       if (locationFilter) params.set('location', locationFilter);
       if (emailFilter) params.set('hasEmail', emailFilter);
+      if (emailStatusFilter) params.set('emailStatus', emailStatusFilter);
       if (workedTogetherFilter) params.set('workedTogether', workedTogetherFilter);
       if (profileFilter) params.set('profile', profileFilter);
       params.set('limit', '200');
@@ -366,7 +407,7 @@ export function LeadsList() {
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow p-4">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
             <input
@@ -425,7 +466,7 @@ export function LeadsList() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email Status</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Has Email</label>
             <select
               value={emailFilter}
               onChange={(e) => setEmailFilter(e.target.value)}
@@ -434,6 +475,22 @@ export function LeadsList() {
               <option value="">All</option>
               <option value="true">Has Email</option>
               <option value="false">No Email</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email Status</label>
+            <select
+              value={emailStatusFilter}
+              onChange={(e) => setEmailStatusFilter(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">All</option>
+              <option value="not_contacted">Not Contacted</option>
+              <option value="email_sent">Email Sent</option>
+              <option value="replied">Replied</option>
+              <option value="meeting_scheduled">Meeting Scheduled</option>
+              <option value="email_bounced">Email Bounced</option>
             </select>
           </div>
 

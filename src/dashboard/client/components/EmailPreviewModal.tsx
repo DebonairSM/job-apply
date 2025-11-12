@@ -29,7 +29,7 @@ export function EmailPreviewModal({ emails: initialEmails, leads, onClose }: Ema
   // Regenerate emails when referral preferences change
   const emails = useMemo(() => {
     return leads.map((lead, index) => {
-      const includeReferral = referralEnabled.get(index) ?? false;
+      const includeReferral = referralEnabled.get(index) ?? true;
       return generateOutreachEmail(lead, includeReferral);
     });
   }, [leads, referralEnabled]);
@@ -37,7 +37,7 @@ export function EmailPreviewModal({ emails: initialEmails, leads, onClose }: Ema
   const handleToggleReferral = (index: number) => {
     setReferralEnabled(prev => {
       const newMap = new Map(prev);
-      newMap.set(index, !prev.get(index));
+      newMap.set(index, !(prev.get(index) ?? true));
       return newMap;
     });
   };
@@ -45,7 +45,7 @@ export function EmailPreviewModal({ emails: initialEmails, leads, onClose }: Ema
   const handleCopyToClipboard = async (email: EmailContent, index: number, lead: Lead) => {
     try {
       // Generate HTML version (just body content for Gmail compatibility)
-      const includeReferral = referralEnabled.get(index) ?? false;
+      const includeReferral = referralEnabled.get(index) ?? true;
       const htmlEmail = generateHtmlEmail(lead, includeReferral);
       // Extract just the body content (Gmail doesn't like full HTML documents)
       const bodyContentMatch = htmlEmail.match(/<body[^>]*>([\s\S]*)<\/body>/);
@@ -159,7 +159,7 @@ export function EmailPreviewModal({ emails: initialEmails, leads, onClose }: Ema
                   }}
                   dangerouslySetInnerHTML={{
                     __html: (() => {
-                      const includeReferral = referralEnabled.get(index) ?? false;
+                      const includeReferral = referralEnabled.get(index) ?? true;
                       const htmlEmail = generateHtmlEmail(leads[index], includeReferral);
                       const bodyContentMatch = htmlEmail.match(/<body[^>]*>([\s\S]*)<\/body>/);
                       return bodyContentMatch ? bodyContentMatch[1] : email.body;
@@ -173,7 +173,7 @@ export function EmailPreviewModal({ emails: initialEmails, leads, onClose }: Ema
                 <label className="flex items-center cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={referralEnabled.get(index) ?? false}
+                    checked={referralEnabled.get(index) ?? true}
                     onChange={() => handleToggleReferral(index)}
                     className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
                   />
