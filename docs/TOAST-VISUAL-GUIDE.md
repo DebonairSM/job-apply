@@ -117,3 +117,4 @@ Visit the Settings page in your dashboard to see the Toast Demo section. You can
 
 The system is already integrated and will automatically replace any browser alerts from your app or external services like Sunny MCP.
 
+
