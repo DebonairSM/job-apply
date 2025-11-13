@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Job } from '../lib/types';
-import { useToastContext } from '../contexts/ToastContext';
+import { useToast } from '../contexts/ToastContext';
 
 interface HeadlineSummaryModalProps {
   job: Job;
@@ -12,7 +12,7 @@ export function HeadlineSummaryModal({ job, isOpen, onClose }: HeadlineSummaryMo
   const [isGenerating, setIsGenerating] = useState(false);
   const [headlineSummary, setHeadlineSummary] = useState<string>('');
   const [error, setError] = useState<string>('');
-  const { showToast } = useToastContext();
+  const { error: showError } = useToast();
 
   useEffect(() => {
     // Auto-generate headline summary when modal opens
@@ -84,7 +84,7 @@ export function HeadlineSummaryModal({ job, isOpen, onClose }: HeadlineSummaryMo
       }
     } catch (err) {
       console.error('Failed to copy to clipboard:', err);
-      showToast('error', 'Failed to copy to clipboard. Please try again.');
+      showError('Failed to copy to clipboard. Please try again.');
     }
   };
 

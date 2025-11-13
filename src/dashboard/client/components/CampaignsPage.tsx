@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { Icon } from './Icon';
-import { useToastContext } from '../contexts/ToastContext';
+import { useToast } from '../contexts/ToastContext';
 import { extractErrorMessage } from '../utils/error-helpers';
 import { FAST_REFRESH_INTERVAL_MS } from '../constants/timing';
 
@@ -37,7 +37,7 @@ export function CampaignsPage() {
   const [editingCampaign, setEditingCampaign] = useState<Campaign | null>(null);
   const [showPlaceholderGuide, setShowPlaceholderGuide] = useState(false);
   const queryClient = useQueryClient();
-  const { showToast } = useToastContext();
+  const { success, error } = useToast();
 
   // Fetch campaigns
   const { data: campaigns = [], isLoading } = useQuery({
@@ -56,11 +56,11 @@ export function CampaignsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['campaigns'] });
-      showToast('success', 'Campaign deleted successfully');
+      success('Campaign deleted successfully');
     },
-    onError: (error: unknown) => {
-      const errorMessage = extractErrorMessage(error, 'Failed to delete campaign');
-      showToast('error', errorMessage);
+    onError: (err: unknown) => {
+      const errorMessage = extractErrorMessage(err, 'Failed to delete campaign');
+      error(errorMessage);
     }
   });
 
@@ -204,7 +204,7 @@ interface CampaignFormModalProps {
 
 function CampaignFormModal({ campaign, onClose, showPlaceholderGuide, onTogglePlaceholderGuide }: CampaignFormModalProps) {
   const queryClient = useQueryClient();
-  const { showToast } = useToastContext();
+  const { success, error } = useToast();
   
   // Parse existing campaign data
   const existingPlaceholders = campaign?.static_placeholders 
@@ -256,12 +256,12 @@ function CampaignFormModal({ campaign, onClose, showPlaceholderGuide, onTogglePl
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['campaigns'] });
-      showToast('success', campaign ? 'Campaign updated successfully' : 'Campaign created successfully');
+      success(campaign ? 'Campaign updated successfully' : 'Campaign created successfully');
       onClose();
     },
-    onError: (error: unknown) => {
-      const errorMessage = extractErrorMessage(error, 'Failed to save campaign');
-      showToast('error', errorMessage);
+    onError: (err: unknown) => {
+      const errorMessage = extractErrorMessage(err, 'Failed to save campaign');
+      error(errorMessage);
     }
   });
 

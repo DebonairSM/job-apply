@@ -7,7 +7,7 @@ import { JobDetailsPanel } from './JobDetailsPanel';
 import { SkippedJobsPanel } from './SkippedJobsPanel';
 import { formatRelativeTime } from '../lib/dateUtils';
 import { formatRank } from '../lib/formatUtils';
-import { useToastContext } from '../contexts/ToastContext';
+import { useToast } from '../contexts/ToastContext';
 import { Icon } from './Icon';
 
 const statusColors = {
@@ -23,7 +23,7 @@ type SortField = 'title' | 'company' | 'rank' | 'status' | 'type' | 'date';
 type SortDirection = 'asc' | 'desc';
 
 export function JobsList() {
-  const { showToast } = useToastContext();
+  const { success, error } = useToast();
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [easyApplyFilter, setEasyApplyFilter] = useState<string>('');
   const [appliedMethodFilter, setAppliedMethodFilter] = useState<string>('');
@@ -193,7 +193,7 @@ export function JobsList() {
       }
     } catch (error) {
       console.error('Failed to update job:', error);
-      showToast('error', 'Failed to mark job as applied');
+      error('Failed to mark job as applied');
     } finally {
       setUpdatingJobIds(prev => {
         const next = new Set(prev);
@@ -210,7 +210,7 @@ export function JobsList() {
       await refetch();
     } catch (error) {
       console.error('Failed to toggle job curated:', error);
-      showToast('error', 'Failed to toggle job curated');
+      error('Failed to toggle job curated');
     } finally {
       setUpdatingJobIds(prev => {
         const next = new Set(prev);
@@ -253,7 +253,7 @@ export function JobsList() {
       }
     } catch (error) {
       console.error('Failed to reject job:', error);
-      showToast('error', 'Failed to reject job');
+      error('Failed to reject job');
     } finally {
       setUpdatingJobIds(prev => {
         const next = new Set(prev);
@@ -270,7 +270,7 @@ export function JobsList() {
       setShowPromptModal(true);
     } catch (error) {
       console.error('Failed to generate prompt:', error);
-      showToast('error', 'Failed to generate rejection prompt');
+      error('Failed to generate rejection prompt');
     }
   };
 
@@ -280,7 +280,7 @@ export function JobsList() {
       // Try modern Clipboard API first
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(promptData.prompt);
-        showToast('success', 'Prompt copied to clipboard!');
+        success('Prompt copied to clipboard!');
         return;
       }
       
@@ -298,7 +298,7 @@ export function JobsList() {
         const successful = document.execCommand('copy');
         document.body.removeChild(textArea);
         if (successful) {
-          showToast('success', 'Prompt copied to clipboard!');
+          success('Prompt copied to clipboard!');
         } else {
           throw new Error('execCommand copy failed');
         }
@@ -308,7 +308,7 @@ export function JobsList() {
       }
     } catch (error) {
       console.error('Failed to copy prompt:', error);
-      showToast('error', 'Failed to copy to clipboard. Please manually copy the text from the prompt field.');
+      error('Failed to copy to clipboard. Please manually copy the text from the prompt field.');
     }
   };
 
@@ -319,10 +319,10 @@ export function JobsList() {
       setShowPromptModal(false);
       setPromptData(null);
       await refetch();
-      showToast('success', `Marked ${promptData.jobIds.length} rejection(s) as processed`);
+      success(`Marked ${promptData.jobIds.length} rejection(s) as processed`);
     } catch (error) {
       console.error('Failed to mark rejections as processed:', error);
-      showToast('error', 'Failed to mark rejections as processed');
+      error('Failed to mark rejections as processed');
     }
   };
 

@@ -5,7 +5,7 @@ import { LeadDetail } from './LeadDetail';
 import { Icon } from './Icon';
 import { LeadScrapeModal, ScrapeConfig } from './LeadScrapeModal';
 import { ActiveScrapingStatus } from './ActiveScrapingStatus';
-import { useToastContext } from '../contexts/ToastContext';
+import { useToast } from '../contexts/ToastContext';
 import { FAST_REFRESH_INTERVAL_MS, MEDIUM_REFRESH_INTERVAL_MS, ACTIVE_SCRAPING_REFRESH_INTERVAL_MS } from '../constants/timing';
 import { extractErrorMessage } from '../utils/error-helpers';
 
@@ -122,7 +122,7 @@ export function LeadsList() {
     }
   }, [searchQuery, titleFilter, companyFilter, locationFilter, emailFilter, emailStatusFilter, workedTogetherFilter, profileFilter]);
 
-  const { showToast } = useToastContext();
+  const { success, error } = useToast();
 
   // Fetch active scraping runs to disable "Get Leads" button
   const { data: activeRuns = [] } = useQuery({
@@ -277,13 +277,13 @@ export function LeadsList() {
       const result = response.data;
       
       const removedLeadNames = result.leads.map((l: { name: string }) => l.name).join(', ');
-      showToast('success', `${result.message}. Removed leads: ${removedLeadNames}`);
+      success(`${result.message}. Removed leads: ${removedLeadNames}`);
       
       // Refetch leads to update the list
       refetchLeads();
     } catch (error) {
       console.error('Error cleaning up incomplete leads:', error);
-      showToast('error', 'Failed to cleanup incomplete leads. Check the console for details.');
+      error('Failed to cleanup incomplete leads. Check the console for details.');
     } finally {
       setIsCleaningUp(false);
     }
@@ -306,7 +306,7 @@ export function LeadsList() {
       const result = response.data;
       
       console.log('Scraping started, run ID:', result.runId);
-      showToast('success', `Scraping started successfully! Run ID: ${result.runId}. ${result.message}. Check the active scraping status above for progress.`);
+      success(`Scraping started successfully! Run ID: ${result.runId}. ${result.message}. Check the active scraping status above for progress.`);
       
       // Modal will be closed by the modal component
     } catch (error: unknown) {

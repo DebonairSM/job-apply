@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ResumeSync } from './ResumeSync';
+import { ToastDemo } from './ToastDemo';
+import { useToast } from '../contexts/ToastContext';
 
 interface UserProfile {
   id?: number;
@@ -28,8 +30,7 @@ interface BackupInfo {
 
 export function Settings() {
   const queryClient = useQueryClient();
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { success, error: showError } = useToast();
 
   // Fetch profile data
   const { data: profile, isLoading, error } = useQuery<UserProfile>({
@@ -74,13 +75,10 @@ export function Settings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['profile'] });
-      setSuccessMessage('Profile updated successfully!');
-      setErrorMessage(null);
-      setTimeout(() => setSuccessMessage(null), 3000);
+      success('Profile updated successfully!');
     },
-    onError: (error: Error) => {
-      setErrorMessage(error.message);
-      setSuccessMessage(null);
+    onError: (err: Error) => {
+      showError(`Failed to update profile: ${err.message}`);
     },
   });
 
@@ -101,13 +99,10 @@ export function Settings() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['backup-info'] });
-      setSuccessMessage('Backup created successfully!');
-      setErrorMessage(null);
-      setTimeout(() => setSuccessMessage(null), 3000);
+      success('Backup created successfully!');
     },
-    onError: (error: Error) => {
-      setErrorMessage(error.message);
-      setSuccessMessage(null);
+    onError: (err: Error) => {
+      showError(`Failed to create backup: ${err.message}`);
     },
   });
 
@@ -167,18 +162,10 @@ export function Settings() {
       <div className="max-w-4xl mx-auto">
         <h2 className="text-2xl font-bold text-gray-800 mb-6">Settings</h2>
 
-        {/* Success/Error Messages */}
-        {successMessage && (
-          <div className="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
-            <p className="text-green-800">{successMessage}</p>
-          </div>
-        )}
-
-        {errorMessage && (
-          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-            <p className="text-red-800">{errorMessage}</p>
-          </div>
-        )}
+        {/* Toast Demo Component */}
+        <div className="mb-6">
+          <ToastDemo />
+        </div>
 
         {/* Resume Sync Component */}
         <div className="mb-6">

@@ -10,7 +10,7 @@ import {
 } from '../hooks/useAutomation';
 import { usePersistedAutomationSettings } from '../hooks/usePersistedAutomationSettings';
 import { SkippedJobsPanel } from './SkippedJobsPanel';
-import { useToastContext } from '../contexts/ToastContext';
+import { useToast } from '../contexts/ToastContext';
 
 type CommandType = 'search' | 'apply';
 
@@ -46,7 +46,7 @@ const RADIUS_STOPS = [5, 10, 25, 50, 100];
 
 export function Automation() {
   const [isSkippedJobsExpanded, setIsSkippedJobsExpanded] = useState(false);
-  const { showToast } = useToastContext();
+  const { warning, error } = useToast();
   
   const {
     // State values
@@ -110,7 +110,7 @@ export function Automation() {
     if (command === 'search') {
       // Validate search options
       if (!profile && !keywords) {
-        showToast('warning', 'Please select a profile or enter keywords');
+        warning('Please select a profile or enter keywords');
         return;
       }
 
@@ -136,7 +136,7 @@ export function Automation() {
       }, {
         onError: (error: Error) => {
           console.error('[Automation] Search failed:', error.message);
-          showToast('error', `Failed to start search: ${error.message}`);
+          error(`Failed to start search: ${error.message}`);
         }
       });
     } else {
@@ -148,7 +148,7 @@ export function Automation() {
         console.log('[Automation] BLOCKING - No filter selected!');
         console.log('[Automation] State check: easyOnly=%s, externalOnly=%s, jobId=%s', 
           easyOnly, externalOnly, jobId);
-        showToast('warning', 'Please select one of: Easy Apply only, External ATS only, or Specific Job ID');
+        warning('Please select one of: Easy Apply only, External ATS only, or Specific Job ID');
         return;
       }
       
@@ -182,7 +182,7 @@ export function Automation() {
       }, {
         onError: (error: Error) => {
           console.error('[Automation] Start failed:', error.message);
-          showToast('error', `Failed to start: ${error.message}`);
+          error(`Failed to start: ${error.message}`);
         }
       });
     }

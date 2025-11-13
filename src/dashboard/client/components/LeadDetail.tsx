@@ -4,7 +4,7 @@ import { api } from '../lib/api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useGenerateBackground } from '../hooks/useGenerateBackground';
 import { generateOutreachEmail, createMailtoLink, generateHtmlEmail, EmailContent } from '../../../ai/email-templates';
-import { useToastContext } from '../contexts/ToastContext';
+import { useToast } from '../contexts/ToastContext';
 import { TOAST_DURATION_MS } from '../constants/timing';
 import { extractErrorMessage } from '../utils/error-helpers';
 
@@ -82,7 +82,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   });
   const queryClient = useQueryClient();
   const generateBackground = useGenerateBackground();
-  const { showToast } = useToastContext();
+  const { success, error, warning } = useToast();
   
   // Debounce timer for email status updates
   const statusUpdateTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -105,7 +105,8 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   // Update local state when lead prop changes
   useEffect(() => {
     setCurrentBackground(lead.background);
-  }, [lead.background]);
+    setEmailStatus(lead.email_status || 'not_contacted');
+  }, [lead.id]);
 
   // Auto-generate background on mount if it's empty
   useEffect(() => {
@@ -176,7 +177,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
       onClose();
     } catch (error) {
       console.error('Error deleting lead:', error);
-      showToast('error', 'Failed to delete lead. Please try again.');
+      error('Failed to delete lead. Please try again.');
       setIsDeleting(false);
     }
   };
@@ -187,10 +188,10 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
         // Update local state immediately with the generated background
         setCurrentBackground(generatedBackground);
       },
-      onError: (error: unknown) => {
-        console.error('Error generating background:', error);
-        const errorMessage = extractErrorMessage(error, 'Failed to generate background');
-        showToast('error', `Background generation failed: ${errorMessage}`);
+      onError: (err: unknown) => {
+        console.error('Error generating background:', err);
+        const errorMessage = extractErrorMessage(err, 'Failed to generate background');
+        error(`Background generation failed: ${errorMessage}`);
       },
     });
   };
@@ -224,14 +225,14 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
         }
       } catch (error) {
         console.error('Error copying to clipboard:', error);
-        showToast('error', 'Failed to copy to clipboard. Please try again.');
+        error('Failed to copy to clipboard. Please try again.');
       }
     }
   };
 
   const handleGenerateEmail = () => {
     if (!lead.email) {
-      showToast('warning', 'This lead does not have an email address.');
+      warning('This lead does not have an email address.');
       return;
     }
 
@@ -243,7 +244,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
       setShowEmailSection(true);
     } catch (error) {
       console.error('Error generating email:', error);
-      showToast('error', 'Failed to generate email. Please ensure the lead has an email address.');
+      error('Failed to generate email. Please ensure the lead has an email address.');
     }
   };
 
@@ -322,9 +323,9 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
           document.body.removeChild(textArea);
         }
       }
-    } catch (error) {
-      console.error('Failed to copy email:', error);
-      showToast('error', 'Failed to copy to clipboard. Please try again.');
+    } catch (err) {
+      console.error('Failed to copy email:', err);
+      error('Failed to copy to clipboard. Please try again.');
     }
   };
 
@@ -335,7 +336,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
       // Try modern clipboard API first
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(generatedEmail.to);
-        showToast('success', 'Email address copied to clipboard!');
+        success('Email address copied to clipboard!');
       } else {
         // Fallback to older method
         const textArea = document.createElement('textarea');
@@ -349,14 +350,14 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
         
         try {
           document.execCommand('copy');
-          showToast('success', 'Email address copied to clipboard!');
+          success('Email address copied to clipboard!');
         } finally {
           document.body.removeChild(textArea);
         }
       }
     } catch (error) {
       console.error('Error copying to clipboard:', error);
-      showToast('error', 'Failed to copy email address. Please try again.');
+      error('Failed to copy email address. Please try again.');
     }
   };
 
@@ -367,7 +368,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
       // Try modern clipboard API first
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(generatedEmail.subject);
-        showToast('success', 'Subject copied to clipboard!');
+        success('Subject copied to clipboard!');
       } else {
         // Fallback to older method
         const textArea = document.createElement('textarea');
@@ -381,14 +382,14 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
         
         try {
           document.execCommand('copy');
-          showToast('success', 'Subject copied to clipboard!');
+          success('Subject copied to clipboard!');
         } finally {
           document.body.removeChild(textArea);
         }
       }
     } catch (error) {
       console.error('Error copying to clipboard:', error);
-      showToast('error', 'Failed to copy subject. Please try again.');
+      error('Failed to copy subject. Please try again.');
     }
   };
 
@@ -398,7 +399,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
     // Copy the email
     await handleCopyEmail();
     
-    showToast('success', 'Email copied to clipboard!');
+    success('Email copied to clipboard!');
   };
 
   const handleOpenEmailClient = () => {
@@ -424,12 +425,12 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
     statusUpdateTimerRef.current = setTimeout(async () => {
       try {
         await api.patch(`/leads/${lead.id}/status`, { status: emailStatus });
-        // Invalidate queries to refresh the list
-        await queryClient.invalidateQueries({ queryKey: ['leads'] });
-        showToast('success', 'Status updated successfully');
+        // Don't invalidate queries here to avoid refetch loop
+        // The dashboard auto-refreshes every 5 seconds and will pick up the change
+        success('Status updated successfully');
       } catch (error) {
         console.error('Error updating lead status:', error);
-        showToast('error', 'Failed to update status. Please try again.');
+        error('Failed to update status. Please try again.');
         // Revert to original status on error
         setEmailStatus(lead.email_status || 'not_contacted');
       }
@@ -441,7 +442,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
         clearTimeout(statusUpdateTimerRef.current);
       }
     };
-  }, [emailStatus, lead.id, lead.email_status, queryClient, showToast]);
+  }, [emailStatus, lead.email_status, lead.id, success, error]);
   
   // Cycle to next status when clicking on the status badge
   const handleCycleStatus = () => {
@@ -465,28 +466,27 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
 
   const handleSaveEmail = async () => {
     if (!editedEmail.trim()) {
-      showToast('error', 'Email cannot be empty');
+      error('Email cannot be empty');
       return;
     }
 
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(editedEmail)) {
-      showToast('error', 'Please enter a valid email address');
+      error('Please enter a valid email address');
       return;
     }
 
     setIsSavingEmail(true);
     try {
       await api.patch(`/leads/${lead.id}/email`, { email: editedEmail });
-      lead.email = editedEmail; // Update local lead object
       setIsEditingEmail(false);
-      showToast('success', 'Email updated successfully');
-      // Invalidate queries to refresh the list
-      await queryClient.invalidateQueries({ queryKey: ['leads'] });
+      success('Email updated successfully');
+      // Don't invalidate queries here to avoid refetch issues
+      // The dashboard auto-refreshes every 5 seconds and will pick up the change
     } catch (error) {
       console.error('Error updating lead email:', error);
-      showToast('error', 'Failed to update email. Please try again.');
+      error('Failed to update email. Please try again.');
     } finally {
       setIsSavingEmail(false);
     }
@@ -542,7 +542,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
     } catch (error: unknown) {
       console.error('❌ Error rendering campaign:', error);
       const errorMessage = extractErrorMessage(error, 'Failed to render campaign');
-      showToast('error', errorMessage);
+      error(errorMessage);
     } finally {
       setIsRenderingCampaign(false);
     }
@@ -918,7 +918,6 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
                     <option value="meeting_scheduled">Meeting Scheduled</option>
                     <option value="email_bounced">Email Bounced</option>
                   </select>
-                  <span className="text-xs text-gray-500 italic">Updates in 1 second</span>
                 </div>
               </div>
 
@@ -1129,23 +1128,25 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
                       </div>
                     </div>
 
-                    {/* Referral Checkbox - Inline */}
-                    <label className="flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={includeReferral}
-                        onChange={handleToggleReferral}
-                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">
-                        Include Referral Program
-                        {includeReferral && generatedEmail.referralLink && (
-                          <span className="ml-2 text-xs text-gray-500">
-                            ({generatedEmail.referralLink.substring(0, 30)}...)
-                          </span>
-                        )}
-                      </span>
-                    </label>
+                    {/* Referral Checkbox - Only show for non-campaign emails */}
+                    {!renderedCampaign && (
+                      <label className="flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={includeReferral}
+                          onChange={handleToggleReferral}
+                          className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">
+                          Include Referral Program
+                          {includeReferral && generatedEmail.referralLink && (
+                            <span className="ml-2 text-xs text-gray-500">
+                              ({generatedEmail.referralLink.substring(0, 30)}...)
+                            </span>
+                          )}
+                        </span>
+                      </label>
+                    )}
                   </div>
                 )}
               </div>

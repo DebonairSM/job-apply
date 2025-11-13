@@ -5,7 +5,7 @@ import { Job } from '../lib/types';
 import { formatRank } from '../lib/formatUtils';
 import { formatRelativeTime } from '../lib/dateUtils';
 import { JobDetailsPanel } from './JobDetailsPanel';
-import { useToastContext } from '../contexts/ToastContext';
+import { useToast } from '../contexts/ToastContext';
 
 type SortField = 'rank' | 'title' | 'company' | 'date';
 type SortDirection = 'asc' | 'desc';
@@ -16,7 +16,7 @@ interface SkippedJobsPanelProps {
 }
 
 export function SkippedJobsPanel({ isExpanded, onToggle }: SkippedJobsPanelProps) {
-  const { showToast } = useToastContext();
+  const { success, error } = useToast();
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [profileFilter, setProfileFilter] = useState<string>('');
   const [sortField, setSortField] = useState<SortField>('date');
@@ -147,10 +147,10 @@ export function SkippedJobsPanel({ isExpanded, onToggle }: SkippedJobsPanelProps
       }
       
       await refetch();
-      showToast('success', 'Job restored to queue and added to curated list');
-    } catch (error) {
-      console.error('Failed to restore job to queue:', error);
-      showToast('error', 'Failed to restore job to queue');
+      success('Job restored to queue and added to curated list');
+    } catch (err) {
+      console.error('Failed to restore job to queue:', err);
+      error('Failed to restore job to queue');
     } finally {
       setRestoringJobIds(prev => {
         const next = new Set(prev);
@@ -165,10 +165,10 @@ export function SkippedJobsPanel({ isExpanded, onToggle }: SkippedJobsPanelProps
     try {
       await api.rescoreJob(jobId);
       await refetch();
-      showToast('success', 'Job rescored successfully');
-    } catch (error) {
-      console.error('Failed to rescore job:', error);
-      showToast('error', 'Failed to rescore job');
+      success('Job rescored successfully');
+    } catch (err) {
+      console.error('Failed to rescore job:', err);
+      error('Failed to rescore job');
     } finally {
       setRescoringJobIds(prev => {
         const next = new Set(prev);

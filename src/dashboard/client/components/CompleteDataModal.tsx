@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api } from '../lib/api';
 import { JsonViewer } from './JsonViewer';
-import { useToastContext } from '../contexts/ToastContext';
+import { useToast } from '../contexts/ToastContext';
 
 interface CompleteDataModalProps {
   jobId: string;
@@ -14,7 +14,7 @@ export function CompleteDataModal({ jobId, jobTitle, isOpen, onClose }: Complete
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { showToast } = useToastContext();
+  const { error: showError } = useToast();
 
   useEffect(() => {
     if (isOpen && jobId) {
@@ -77,7 +77,7 @@ export function CompleteDataModal({ jobId, jobTitle, isOpen, onClose }: Complete
       }
     } catch (err) {
       console.error('Failed to copy to clipboard:', err);
-      showToast('error', 'Failed to copy to clipboard. Please try again.');
+      showError('Failed to copy to clipboard. Please try again.');
     }
   };
 

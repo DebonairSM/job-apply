@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { Icon } from './Icon';
-import { useToastContext } from '../contexts/ToastContext';
+import { useToast } from '../contexts/ToastContext';
 
 interface ActiveRun {
   id: number;
@@ -20,7 +20,7 @@ interface ActiveRun {
 
 export function ActiveScrapingStatus() {
   const [expandedRuns, setExpandedRuns] = useState<Set<number>>(new Set());
-  const { showToast } = useToastContext();
+  const { success, error } = useToast();
 
   // Fetch active runs every 2 seconds
   const { data: activeRuns = [], refetch } = useQuery({
@@ -99,11 +99,11 @@ export function ActiveScrapingStatus() {
     
     try {
       const response = await api.post(`/leads/runs/${runId}/stop`);
-      showToast('success', response.data.message || 'Scraping stopped successfully!');
+      success(response.data.message || 'Scraping stopped successfully!');
       refetch(); // Refresh to remove from active list
-    } catch (error) {
-      console.error('Error stopping scrape:', error);
-      showToast('error', 'Failed to stop scraping. The process may have already ended.');
+    } catch (err) {
+      console.error('Error stopping scrape:', err);
+      error('Failed to stop scraping. The process may have already ended.');
     }
   };
 

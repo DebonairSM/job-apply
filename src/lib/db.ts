@@ -2844,11 +2844,13 @@ export interface Campaign {
 
 export interface CampaignStaticPlaceholders {
   product_name?: string;
+  value_proposition?: string;
   demo_name?: string;
   demo_link?: string;
   call_to_action?: string;
   calendly_link?: string;
   referral_base_url?: string;
+  signature?: string;
 }
 
 export function getAllCampaigns(): Campaign[] {

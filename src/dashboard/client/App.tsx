@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Dashboard } from './components/Dashboard';
@@ -9,9 +9,11 @@ import { ActivityLog } from './components/ActivityLog';
 import { Automation } from './components/Automation';
 import { Settings } from './components/Settings';
 import { JobNavigationProvider } from './contexts/JobNavigationContext';
-import { ToastProvider } from './contexts/ToastContext';
+import { ToastProvider, useToast } from './contexts/ToastContext';
+import { ToastContainer } from './components/ToastContainer';
 import { Icon } from './components/Icon';
 import { LlmHealthIndicator } from './components/LlmHealthIndicator';
+import { setupAlertInterceptor } from './lib/interceptAlerts';
 
 const queryClient = new QueryClient();
 
@@ -34,6 +36,16 @@ const navItems: NavItem[] = [
 function AppContent() {
   const location = useLocation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const toast = useToast();
+
+  // Setup alert interceptor to replace browser alerts with toasts
+  useEffect(() => {
+    const cleanup = setupAlertInterceptor({ 
+      toast,
+      debug: import.meta.env.DEV 
+    });
+    return cleanup;
+  }, [toast]);
 
   // Determine current view from URL path
   const getCurrentView = (): string => {
@@ -158,6 +170,7 @@ function App() {
         <ToastProvider>
           <JobNavigationProvider>
             <AppContent />
+            <ToastContainer />
           </JobNavigationProvider>
         </ToastProvider>
       </QueryClientProvider>

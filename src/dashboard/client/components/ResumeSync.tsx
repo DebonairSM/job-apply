@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ConfirmModal } from './ConfirmModal';
-import { useToastContext } from '../contexts/ToastContext';
+import { useToast } from '../contexts/ToastContext';
 
 interface ResumeDataSummary {
   resumeCount: number;
@@ -22,7 +22,7 @@ interface SyncResponse {
 
 export function ResumeSync() {
   const queryClient = useQueryClient();
-  const { showToast } = useToastContext();
+  const { success, warning, error } = useToast();
   const [backupPath, setBackupPath] = useState<string | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [pendingClearExisting, setPendingClearExisting] = useState(false);
@@ -57,9 +57,9 @@ export function ResumeSync() {
       setBackupPath(data.backupPath);
       
       if (data.errors && data.errors.length > 0) {
-        showToast('warning', `Synced ${data.syncedCount}/${data.totalFiles} resumes. ${data.errors.length} failed.`);
+        warning(`Synced ${data.syncedCount}/${data.totalFiles} resumes. ${data.errors.length} failed.`);
       } else {
-        showToast('success', data.message);
+        success(data.message);
       }
       
       setTimeout(() => {
@@ -67,7 +67,7 @@ export function ResumeSync() {
       }, 10000);
     },
     onError: (error: Error) => {
-      showToast('error', error.message);
+      error(error.message);
       setBackupPath(null);
     }
   });
