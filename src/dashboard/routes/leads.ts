@@ -425,7 +425,7 @@ function createOrResumeRun(params: ScrapeRequestParams): { success: true; runId:
 }
 
 // Helper function to build CLI arguments
-function buildCliArguments(params: ScrapeRequestParams): string[] {
+function buildCliArguments(params: ScrapeRequestParams, runId: number): string[] {
   const args = ['src/cli.ts', 'leads:search'];
   
   args.push('--degree', params.degree);
@@ -442,9 +442,8 @@ function buildCliArguments(params: ScrapeRequestParams): string[] {
     args.push('--start-page', params.startPage.toString());
   }
   
-  if (params.resume) {
-    args.push('--resume', params.resume.toString());
-  }
+  // Always pass the runId to prevent the CLI from creating a duplicate run
+  args.push('--resume', runId.toString());
   
   return args;
 }
@@ -623,8 +622,8 @@ router.post('/start-scrape', (req: Request, res: Response): void => {
       }
     }
     
-    // Build CLI command arguments
-    const args = buildCliArguments(params);
+    // Build CLI command arguments - pass the runId so CLI uses it instead of creating a duplicate
+    const args = buildCliArguments(params, runId);
     
     // Spawn the CLI process
     const spawnResult = spawnScrapingProcess(args, cliPath, runId);

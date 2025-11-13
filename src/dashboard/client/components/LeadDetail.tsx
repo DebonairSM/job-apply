@@ -84,6 +84,8 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   const generateBackground = useGenerateBackground();
   const { success, error, warning } = useToast();
   
+  // Track whether status has been explicitly changed by user interaction
+  const [statusChanged, setStatusChanged] = useState(false);
   // Debounce timer for email status updates
   const statusUpdateTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -106,6 +108,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   useEffect(() => {
     setCurrentBackground(lead.background);
     setEmailStatus(lead.email_status || 'not_contacted');
+    setStatusChanged(false); // Reset status change tracking when lead changes
   }, [lead.id]);
 
   // Auto-generate background on mount if it's empty
@@ -416,8 +419,8 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
       clearTimeout(statusUpdateTimerRef.current);
     }
     
-    // Don't trigger on initial mount - only when status actually changes
-    if (emailStatus === lead.email_status) {
+    // Don't trigger on initial mount - only when user has explicitly changed the status
+    if (!statusChanged) {
       return;
     }
     
@@ -428,11 +431,13 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
         // Don't invalidate queries here to avoid refetch loop
         // The dashboard auto-refreshes every 5 seconds and will pick up the change
         success('Status updated successfully');
+        setStatusChanged(false); // Reset the flag after successful update
       } catch (error) {
         console.error('Error updating lead status:', error);
         error('Failed to update status. Please try again.');
         // Revert to original status on error
         setEmailStatus(lead.email_status || 'not_contacted');
+        setStatusChanged(false); // Reset the flag on error
       }
     }, 1000);
     
@@ -442,7 +447,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
         clearTimeout(statusUpdateTimerRef.current);
       }
     };
-  }, [emailStatus, lead.email_status, lead.id, success, error]);
+  }, [emailStatus, statusChanged, lead.id, lead.email_status, success, error]);
   
   // Cycle to next status when clicking on the status badge
   const handleCycleStatus = () => {
@@ -457,10 +462,12 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
     const currentIndex = statusOrder.indexOf(emailStatus as any);
     const nextIndex = (currentIndex + 1) % statusOrder.length;
     setEmailStatus(statusOrder[nextIndex]);
+    setStatusChanged(true); // Mark that user explicitly changed status
   };
 
   const handleStatusChange = async (newStatus: string) => {
     setEmailStatus(newStatus);
+    setStatusChanged(true); // Mark that user explicitly changed status
     // The debounced effect will handle the actual API call
   };
 

@@ -73,7 +73,8 @@ export async function scrapeConnections(
   console.log(`   Max Profiles: ${options.maxProfiles || 'unlimited'}`);
   console.log(`   Location: United States (default)`);
   if (options.filterTitles && options.filterTitles.length > 0) {
-    console.log(`   Title Filters: ${options.filterTitles.join(', ')}`);
+    console.log(`   Title Filters: ${options.filterTitles.length} titles (post-scrape filtering)`);
+    console.log(`   Sample: ${options.filterTitles.slice(0, 5).join(', ')}${options.filterTitles.length > 5 ? '...' : ''}`);
   }
   console.log();
 
@@ -96,13 +97,24 @@ export async function scrapeConnections(
       '2nd': 'S',
       '3rd': 'O'
     };
-    const searchUrl = `https://www.linkedin.com/search/results/people/?network=%5B%22${networkMap[degree]}%22%5D&geoUrn=%5B%22103644278%22%5D`;
+    
+    // Start with basic search URL
+    let searchUrl = `https://www.linkedin.com/search/results/people/?network=%5B%22${networkMap[degree]}%22%5D&geoUrn=%5B%22103644278%22%5D`;
     
     console.log(`📄 Navigating to People Search (filtered: ${degree} connections, US)...`);
     await page.goto(searchUrl, {
       waitUntil: 'domcontentloaded'
     });
     await page.waitForTimeout(3000);
+    
+    // Note: LinkedIn's Title field in the UI filters does not support OR queries
+    // or complex Boolean logic in the basic search (requires Sales Navigator)
+    // We'll rely on post-scrape filtering which checks exact title matches
+    // This means visiting more profiles but ensures accurate filtering
+    if (options.filterTitles && options.filterTitles.length > 0) {
+      console.log(`📋 Title filtering: post-scrape (LinkedIn basic search doesn't support Boolean OR)`);
+      console.log(`   Will filter after visiting profiles: ${options.filterTitles.length} titles`);
+    }
     
     // Track initial search URL
     currentSearchUrl = page.url();
@@ -522,6 +534,8 @@ export async function scrapeConnections(
           }
 
           // Apply title filter if specified
+          // LinkedIn basic search doesn't support Boolean OR for title filtering,
+          // so we filter after extracting the title from each profile
           if (options.filterTitles && options.filterTitles.length > 0 && title) {
             const titleLower = title.toLowerCase();
             const matchesFilter = options.filterTitles.some(filter => {
