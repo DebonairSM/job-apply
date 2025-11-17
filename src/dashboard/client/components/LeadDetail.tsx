@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useGenerateBackground } from '../hooks/useGenerateBackground';
 import { generateOutreachEmail, createMailtoLink, generateHtmlEmail, EmailContent } from '../../../ai/email-templates';
 import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmDialogContext';
 import { TOAST_DURATION_MS } from '../constants/timing';
 import { extractErrorMessage } from '../utils/error-helpers';
 
@@ -83,6 +84,7 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   const queryClient = useQueryClient();
   const generateBackground = useGenerateBackground();
   const { success, error, warning } = useToast();
+  const { confirm } = useConfirm();
   
   // Track whether status has been explicitly changed by user interaction
   const [statusChanged, setStatusChanged] = useState(false);
@@ -167,22 +169,28 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   }, [lead.id, activeTab]); // Run when lead changes or when switching to outreach tab
 
   const handleDelete = async () => {
-    if (!confirm(`Are you sure you want to delete ${lead.name}? This lead will not be re-added in future scrapes.`)) {
-      return;
-    }
-
-    setIsDeleting(true);
-    try {
-      await api.delete(`/leads/${lead.id}`);
-      // Invalidate queries to refresh the list
-      await queryClient.invalidateQueries({ queryKey: ['leads'] });
-      await queryClient.invalidateQueries({ queryKey: ['lead-stats'] });
-      onClose();
-    } catch (error) {
-      console.error('Error deleting lead:', error);
-      error('Failed to delete lead. Please try again.');
-      setIsDeleting(false);
-    }
+    confirm({
+      title: 'Delete Lead',
+      message: `Are you sure you want to delete ${lead.name}? This lead will not be re-added in future scrapes.`,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      confirmVariant: 'danger',
+      onConfirm: async () => {
+        setIsDeleting(true);
+        try {
+          await api.delete(`/leads/${lead.id}`);
+          // Invalidate queries to refresh the list
+          await queryClient.invalidateQueries({ queryKey: ['leads'] });
+          await queryClient.invalidateQueries({ queryKey: ['lead-stats'] });
+          success('Lead deleted successfully');
+          onClose();
+        } catch (err) {
+          console.error('Error deleting lead:', err);
+          error('Failed to delete lead. Please try again.');
+          setIsDeleting(false);
+        }
+      }
+    });
   };
 
   const handleGenerateBackground = () => {

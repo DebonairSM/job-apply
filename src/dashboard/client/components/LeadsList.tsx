@@ -6,6 +6,7 @@ import { Icon } from './Icon';
 import { LeadScrapeModal, ScrapeConfig } from './LeadScrapeModal';
 import { ActiveScrapingStatus } from './ActiveScrapingStatus';
 import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmDialogContext';
 import { FAST_REFRESH_INTERVAL_MS, MEDIUM_REFRESH_INTERVAL_MS, ACTIVE_SCRAPING_REFRESH_INTERVAL_MS } from '../constants/timing';
 import { extractErrorMessage } from '../utils/error-helpers';
 
@@ -123,6 +124,7 @@ export function LeadsList() {
   }, [searchQuery, titleFilter, companyFilter, locationFilter, emailFilter, emailStatusFilter, workedTogetherFilter, profileFilter]);
 
   const { success, error } = useToast();
+  const { confirm } = useConfirm();
 
   // Fetch active scraping runs to disable "Get Leads" button
   const { data: activeRuns = [] } = useQuery({
@@ -264,29 +266,31 @@ export function LeadsList() {
   };
 
   const handleCleanupIncomplete = async () => {
-    const confirmed = window.confirm(
-      'This will remove all leads that have ONLY a name but are missing title, company, location, AND email. ' +
-      'You can then re-run the scraper to get complete data. Continue?'
-    );
-    
-    if (!confirmed) return;
-    
-    try {
-      setIsCleaningUp(true);
-      const response = await api.post('/leads/cleanup-incomplete');
-      const result = response.data;
-      
-      const removedLeadNames = result.leads.map((l: { name: string }) => l.name).join(', ');
-      success(`${result.message}. Removed leads: ${removedLeadNames}`);
-      
-      // Refetch leads to update the list
-      refetchLeads();
-    } catch (error) {
-      console.error('Error cleaning up incomplete leads:', error);
-      error('Failed to cleanup incomplete leads. Check the console for details.');
-    } finally {
-      setIsCleaningUp(false);
-    }
+    confirm({
+      title: 'Cleanup Incomplete Leads',
+      message: 'This will remove all leads that have ONLY a name but are missing title, company, location, AND email. You can then re-run the scraper to get complete data. Continue?',
+      confirmLabel: 'Cleanup',
+      cancelLabel: 'Cancel',
+      confirmVariant: 'warning',
+      onConfirm: async () => {
+        try {
+          setIsCleaningUp(true);
+          const response = await api.post('/leads/cleanup-incomplete');
+          const result = response.data;
+          
+          const removedLeadNames = result.leads.map((l: { name: string }) => l.name).join(', ');
+          success(`${result.message}. Removed leads: ${removedLeadNames}`);
+          
+          // Refetch leads to update the list
+          refetchLeads();
+        } catch (err) {
+          console.error('Error cleaning up incomplete leads:', err);
+          error('Failed to cleanup incomplete leads. Check the console for details.');
+        } finally {
+          setIsCleaningUp(false);
+        }
+      }
+    });
   };
 
   const handleStartScraping = async (config: ScrapeConfig) => {

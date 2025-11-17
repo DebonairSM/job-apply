@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { Icon } from './Icon';
 import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmDialogContext';
 
 interface ActiveRun {
   id: number;
@@ -21,6 +22,7 @@ interface ActiveRun {
 export function ActiveScrapingStatus() {
   const [expandedRuns, setExpandedRuns] = useState<Set<number>>(new Set());
   const { success, error } = useToast();
+  const { confirm } = useConfirm();
 
   // Fetch active runs every 2 seconds
   const { data: activeRuns = [], refetch } = useQuery({
@@ -93,18 +95,23 @@ export function ActiveScrapingStatus() {
   };
 
   const handleStopScraping = async (runId: number) => {
-    if (!confirm('Are you sure you want to stop this scraping run? It can be resumed later.')) {
-      return;
-    }
-    
-    try {
-      const response = await api.post(`/leads/runs/${runId}/stop`);
-      success(response.data.message || 'Scraping stopped successfully!');
-      refetch(); // Refresh to remove from active list
-    } catch (err) {
-      console.error('Error stopping scrape:', err);
-      error('Failed to stop scraping. The process may have already ended.');
-    }
+    confirm({
+      title: 'Stop Scraping',
+      message: 'Are you sure you want to stop this scraping run? It can be resumed later.',
+      confirmLabel: 'Stop',
+      cancelLabel: 'Cancel',
+      confirmVariant: 'warning',
+      onConfirm: async () => {
+        try {
+          const response = await api.post(`/leads/runs/${runId}/stop`);
+          success(response.data.message || 'Scraping stopped successfully!');
+          refetch(); // Refresh to remove from active list
+        } catch (err) {
+          console.error('Error stopping scrape:', err);
+          error('Failed to stop scraping. The process may have already ended.');
+        }
+      }
+    });
   };
 
   return (

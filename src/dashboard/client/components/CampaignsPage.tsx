@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { Icon } from './Icon';
 import { useToast } from '../contexts/ToastContext';
+import { useConfirm } from '../contexts/ConfirmDialogContext';
 import { extractErrorMessage } from '../utils/error-helpers';
 import { FAST_REFRESH_INTERVAL_MS } from '../constants/timing';
 
@@ -38,6 +39,7 @@ export function CampaignsPage() {
   const [showPlaceholderGuide, setShowPlaceholderGuide] = useState(false);
   const queryClient = useQueryClient();
   const { success, error } = useToast();
+  const { confirm } = useConfirm();
 
   // Fetch campaigns
   const { data: campaigns = [], isLoading } = useQuery({
@@ -70,9 +72,16 @@ export function CampaignsPage() {
   };
 
   const handleDelete = (campaign: Campaign) => {
-    if (window.confirm(`Are you sure you want to delete "${campaign.name}"?`)) {
-      deleteMutation.mutate(campaign.id);
-    }
+    confirm({
+      title: 'Delete Campaign',
+      message: `Are you sure you want to delete "${campaign.name}"?`,
+      confirmLabel: 'Delete',
+      cancelLabel: 'Cancel',
+      confirmVariant: 'danger',
+      onConfirm: () => {
+        deleteMutation.mutate(campaign.id);
+      }
+    });
   };
 
   const handleCloseModal = () => {

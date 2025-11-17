@@ -10,6 +10,7 @@ import { Automation } from './components/Automation';
 import { Settings } from './components/Settings';
 import { JobNavigationProvider } from './contexts/JobNavigationContext';
 import { ToastProvider, useToast } from './contexts/ToastContext';
+import { ConfirmDialogProvider } from './contexts/ConfirmDialogContext';
 import { ToastContainer } from './components/ToastContainer';
 import { Icon } from './components/Icon';
 import { LlmHealthIndicator } from './components/LlmHealthIndicator';
@@ -168,10 +169,12 @@ function App() {
     <BrowserRouter>
       <QueryClientProvider client={queryClient}>
         <ToastProvider>
-          <JobNavigationProvider>
-            <AppContent />
-            <ToastContainer />
-          </JobNavigationProvider>
+          <ConfirmDialogProvider>
+            <JobNavigationProvider>
+              <AppContent />
+              <ToastContainer />
+            </JobNavigationProvider>
+          </ConfirmDialogProvider>
         </ToastProvider>
       </QueryClientProvider>
     </BrowserRouter>
