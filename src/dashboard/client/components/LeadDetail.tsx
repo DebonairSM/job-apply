@@ -28,6 +28,7 @@ interface Lead {
   address?: string;
   profile?: string;
   background?: string; // AI-generated professional background for email use
+  chat_session?: string; // ChatGPT shared chat session URL
   email_status?: 'not_contacted' | 'email_sent' | 'replied' | 'meeting_scheduled' | 'email_bounced';
   scraped_at?: string;
   created_at?: string;
@@ -70,6 +71,12 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [editedEmail, setEditedEmail] = useState(lead.email || '');
   const [isSavingEmail, setIsSavingEmail] = useState(false);
+  const [isEditingChatSession, setIsEditingChatSession] = useState(false);
+  const [editedChatSession, setEditedChatSession] = useState(lead.chat_session || '');
+  const [isSavingChatSession, setIsSavingChatSession] = useState(false);
+  const [isEditingCompany, setIsEditingCompany] = useState(false);
+  const [editedCompany, setEditedCompany] = useState(lead.company || '');
+  const [isSavingCompany, setIsSavingCompany] = useState(false);
   // Load persisted campaign selection and referral preference from localStorage
   const [selectedCampaignId, setSelectedCampaignId] = useState<string>(() => {
     return localStorage.getItem('lastSelectedCampaignId') || '';
@@ -110,6 +117,8 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   useEffect(() => {
     setCurrentBackground(lead.background);
     setEmailStatus(lead.email_status || 'not_contacted');
+    setEditedChatSession(lead.chat_session || '');
+    setEditedCompany(lead.company || '');
     setStatusChanged(false); // Reset status change tracking when lead changes
   }, [lead.id]);
 
@@ -510,6 +519,66 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
   const handleCancelEditEmail = () => {
     setEditedEmail(lead.email || '');
     setIsEditingEmail(false);
+  };
+
+  const handleSaveChatSession = async () => {
+    // Allow empty string to clear the chat session URL
+    const trimmedUrl = editedChatSession.trim();
+    
+    // Validate URL format if provided
+    if (trimmedUrl !== '') {
+      try {
+        new URL(trimmedUrl);
+      } catch (e) {
+        error('Please enter a valid URL');
+        return;
+      }
+    }
+
+    setIsSavingChatSession(true);
+    try {
+      await api.patch(`/leads/${lead.id}/chat-session`, { chat_session: trimmedUrl });
+      setIsEditingChatSession(false);
+      success('Chat session URL updated successfully');
+      // Refresh lead data by invalidating queries
+      await queryClient.invalidateQueries({ queryKey: ['leads'] });
+      await queryClient.invalidateQueries({ queryKey: ['lead', lead.id] });
+    } catch (error) {
+      console.error('Error updating lead chat session:', error);
+      error('Failed to update chat session URL. Please try again.');
+    } finally {
+      setIsSavingChatSession(false);
+    }
+  };
+
+  const handleCancelEditChatSession = () => {
+    setEditedChatSession(lead.chat_session || '');
+    setIsEditingChatSession(false);
+  };
+
+  const handleSaveCompany = async () => {
+    // Allow empty string to clear the company field
+    const trimmedCompany = editedCompany.trim();
+
+    setIsSavingCompany(true);
+    try {
+      await api.patch(`/leads/${lead.id}/company`, { company: trimmedCompany || null });
+      setIsEditingCompany(false);
+      success('Company updated successfully');
+      // Refresh lead data by invalidating queries
+      await queryClient.invalidateQueries({ queryKey: ['leads'] });
+      await queryClient.invalidateQueries({ queryKey: ['lead', lead.id] });
+    } catch (error) {
+      console.error('Error updating lead company:', error);
+      error('Failed to update company. Please try again.');
+    } finally {
+      setIsSavingCompany(false);
+    }
+  };
+
+  const handleCancelEditCompany = () => {
+    setEditedCompany(lead.company || '');
+    setIsEditingCompany(false);
   };
 
   // Render campaign for the current lead
@@ -1185,15 +1254,74 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
                   </div>
                 )}
                 
-                {lead.company && (
-                  <div className="flex items-start gap-3">
-                    <Icon icon="business" size={20} className="text-purple-500 mt-0.5" />
-                    <div className="flex-1">
-                      <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Company</span>
-                      <p className="text-gray-900">{lead.company}</p>
+                {/* Company Section with Edit Capability */}
+                <div className="space-y-2">
+                  {isEditingCompany ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Icon icon="business" size={20} className="text-purple-500 mt-0.5" />
+                        <input
+                          type="text"
+                          value={editedCompany}
+                          onChange={(e) => setEditedCompany(e.target.value)}
+                          placeholder="Company name"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          disabled={isSavingCompany}
+                        />
+                      </div>
+                      <div className="flex gap-2 ml-8">
+                        <button
+                          onClick={handleSaveCompany}
+                          disabled={isSavingCompany}
+                          className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm flex items-center gap-1 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        >
+                          <Icon icon={isSavingCompany ? "refresh" : "check"} size={16} className={isSavingCompany ? "animate-spin" : ""} />
+                          {isSavingCompany ? 'Saving...' : 'Save'}
+                        </button>
+                        <button
+                          onClick={handleCancelEditCompany}
+                          disabled={isSavingCompany}
+                          className="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm flex items-center gap-1 disabled:cursor-not-allowed"
+                        >
+                          <Icon icon="close" size={16} />
+                          Cancel
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  ) : lead.company ? (
+                    <div className="flex items-start gap-3">
+                      <Icon icon="business" size={20} className="text-purple-500 mt-0.5" />
+                      <div className="flex-1">
+                        <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Company</span>
+                        <p className="text-gray-900">{lead.company}</p>
+                      </div>
+                      <button
+                        onClick={() => setIsEditingCompany(true)}
+                        className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors text-xs flex items-center gap-1"
+                        title="Edit company"
+                      >
+                        <Icon icon="edit" size={14} />
+                        Edit
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-3">
+                      <Icon icon="business" size={20} className="text-gray-400 mt-0.5" />
+                      <div className="flex-1">
+                        <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Company</span>
+                        <p className="text-gray-500 text-sm">No company name</p>
+                      </div>
+                      <button
+                        onClick={() => setIsEditingCompany(true)}
+                        className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm flex items-center gap-1"
+                        title="Add company name"
+                      >
+                        <Icon icon="add" size={16} />
+                        Add
+                      </button>
+                    </div>
+                  )}
+                </div>
                 
                 {lead.location && (
                   <div className="flex items-start gap-3">
@@ -1298,6 +1426,77 @@ export function LeadDetail({ lead, onClose }: LeadDetailProps) {
                     </a>
                   </div>
                 )}
+
+                {/* ChatGPT Chat Session URL */}
+                <div className="space-y-2">
+                  {isEditingChatSession ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Icon icon="forum" size={20} className="text-indigo-500" />
+                        <input
+                          type="url"
+                          value={editedChatSession}
+                          onChange={(e) => setEditedChatSession(e.target.value)}
+                          placeholder="https://chat.openai.com/share/..."
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                          disabled={isSavingChatSession}
+                        />
+                      </div>
+                      <div className="flex gap-2 ml-8">
+                        <button
+                          onClick={handleSaveChatSession}
+                          disabled={isSavingChatSession}
+                          className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm flex items-center gap-1 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                        >
+                          <Icon icon={isSavingChatSession ? "refresh" : "check"} size={16} className={isSavingChatSession ? "animate-spin" : ""} />
+                          {isSavingChatSession ? 'Saving...' : 'Save'}
+                        </button>
+                        <button
+                          onClick={handleCancelEditChatSession}
+                          disabled={isSavingChatSession}
+                          className="px-3 py-1 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors text-sm flex items-center gap-1 disabled:cursor-not-allowed"
+                        >
+                          <Icon icon="close" size={16} />
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : lead.chat_session ? (
+                    <div className="flex items-center gap-3">
+                      <Icon icon="chat" size={20} className="text-indigo-500" />
+                      <a
+                        href={lead.chat_session}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 flex-1 flex items-center gap-1"
+                      >
+                        ChatGPT Chat Session
+                        <Icon icon="open-in-new" size={16} />
+                      </a>
+                      <button
+                        onClick={() => setIsEditingChatSession(true)}
+                        className="px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors text-xs flex items-center gap-1"
+                        title="Edit chat session URL"
+                      >
+                        <Icon icon="edit" size={14} />
+                        Edit
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <Icon icon="forum" size={20} className="text-gray-400" />
+                      <span className="text-gray-500 flex-1">No chat session URL</span>
+                      <button
+                        onClick={() => setIsEditingChatSession(true)}
+                        className="px-3 py-1 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm flex items-center gap-1"
+                        title="Add chat session URL"
+                      >
+                        <Icon icon="add" size={16} />
+                        Add URL
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 <div className="flex items-center gap-3">
                   <Icon icon="link" size={20} className="text-blue-500" />

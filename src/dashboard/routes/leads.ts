@@ -3,7 +3,7 @@ import { spawn, ChildProcess } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { existsSync } from 'fs';
-import { getLeads, getLeadsCount, getLeadById, getLeadStats, getScrapingRuns, getScrapingRun, getActiveScrapingRuns, softDeleteLead, getLeadsWithUpcomingBirthdays, deleteIncompleteLeads, updateLeadBackground, updateLeadStatus, updateLeadEmail, createScrapingRun, updateScrapingRun } from '../../lib/db.js';
+import { getLeads, getLeadsCount, getLeadById, getLeadStats, getScrapingRuns, getScrapingRun, getActiveScrapingRuns, softDeleteLead, getLeadsWithUpcomingBirthdays, deleteIncompleteLeads, updateLeadBackground, updateLeadStatus, updateLeadEmail, updateLeadChatSession, updateLeadCompany, createScrapingRun, updateScrapingRun } from '../../lib/db.js';
 import { generateLeadBackground } from '../../ai/background-generator.js';
 import { processManager } from '../lib/process-manager.js';
 
@@ -342,6 +342,78 @@ router.patch('/:id/email', (req: Request, res: Response): void => {
   } catch (error) {
     console.error('Error updating lead email:', error);
     sendErrorResponse(res, 500, 'Failed to update email', error instanceof Error ? error.message : undefined);
+  }
+});
+
+// PATCH /api/leads/:id/chat-session - Update lead ChatGPT chat session URL
+router.patch('/:id/chat-session', (req: Request, res: Response): void => {
+  try {
+    const leadId = sanitizeStringParameter(req.params.id);
+    if (!leadId) {
+      sendErrorResponse(res, 400, 'Invalid lead ID');
+      return;
+    }
+    
+    const { chat_session } = req.body;
+    // Allow empty string to clear the chat session URL
+    if (chat_session === undefined) {
+      sendErrorResponse(res, 400, 'chat_session field is required');
+      return;
+    }
+    
+    // Validate URL format if provided (allow empty string to clear)
+    if (chat_session && typeof chat_session === 'string' && chat_session.trim() !== '') {
+      try {
+        new URL(chat_session);
+      } catch (e) {
+        sendErrorResponse(res, 400, 'Invalid URL format');
+        return;
+      }
+    }
+    
+    const sanitizedChatSession = typeof chat_session === 'string' ? chat_session.trim() : String(chat_session).trim();
+    
+    const updated = updateLeadChatSession(leadId, sanitizedChatSession || null);
+    if (!updated) {
+      sendErrorResponse(res, 404, 'Lead not found');
+      return;
+    }
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating lead chat session:', error);
+    sendErrorResponse(res, 500, 'Failed to update chat session', error instanceof Error ? error.message : undefined);
+  }
+});
+
+// PATCH /api/leads/:id/company - Update lead company name
+router.patch('/:id/company', (req: Request, res: Response): void => {
+  try {
+    const leadId = sanitizeStringParameter(req.params.id);
+    if (!leadId) {
+      sendErrorResponse(res, 400, 'Invalid lead ID');
+      return;
+    }
+    
+    const { company } = req.body;
+    // Allow empty string or null to clear the company field
+    if (company === undefined) {
+      sendErrorResponse(res, 400, 'company field is required');
+      return;
+    }
+    
+    const sanitizedCompany = typeof company === 'string' ? company.trim() || null : null;
+    
+    const updated = updateLeadCompany(leadId, sanitizedCompany);
+    if (!updated) {
+      sendErrorResponse(res, 404, 'Lead not found');
+      return;
+    }
+    
+    res.json({ success: true, company: sanitizedCompany });
+  } catch (error) {
+    console.error('Error updating lead company:', error);
+    sendErrorResponse(res, 500, 'Failed to update company', error instanceof Error ? error.message : undefined);
   }
 });
 

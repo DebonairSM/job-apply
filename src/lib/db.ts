@@ -580,6 +580,16 @@ export function initDb(): void {
     }
   }
 
+  // Add chat_session column if it doesn't exist (migration)
+  try {
+    database.exec(`ALTER TABLE leads ADD COLUMN chat_session TEXT`);
+  } catch (e) {
+    if (e instanceof Error && !e.message.includes('duplicate column')) {
+      console.error('Failed to add chat_session column to leads:', e.message);
+      throw e;
+    }
+  }
+
   // Lead scraping runs table for batch processing and resume capability
   database.exec(`
     CREATE TABLE IF NOT EXISTS lead_scraping_runs (
@@ -2197,6 +2207,7 @@ export interface Lead {
   address?: string; // Social media handles or custom addresses
   profile?: string; // Search profile used to find this lead (core, chiefs, etc.)
   background?: string; // AI-generated professional background for email use
+  chat_session?: string; // ChatGPT shared chat session URL
   email_status?: 'not_contacted' | 'email_sent' | 'replied' | 'meeting_scheduled' | 'email_bounced';
   scraped_at?: string;
   created_at?: string;
@@ -2231,8 +2242,8 @@ export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at' | 'deleted_
   }
   
   const stmt = database.prepare(`
-    INSERT INTO leads (id, name, title, company, about, email, phone, website, location, profile_url, linkedin_id, worked_together, articles, birthday, connected_date, address, profile, background, scraped_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO leads (id, name, title, company, about, email, phone, website, location, profile_url, linkedin_id, worked_together, articles, birthday, connected_date, address, profile, background, chat_session, scraped_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   
   try {
@@ -2255,6 +2266,7 @@ export function addLead(lead: Omit<Lead, 'created_at' | 'scraped_at' | 'deleted_
       lead.address || null,
       lead.profile || null,
       lead.background || null,
+      lead.chat_session || null,
       new Date().toISOString() // Explicitly set scraped_at with proper timezone info
     );
     return true;
@@ -2300,6 +2312,30 @@ export function updateLeadEmail(leadId: string, email: string): boolean {
   `);
   
   const result = stmt.run(email, leadId);
+  return result.changes > 0;
+}
+
+export function updateLeadChatSession(leadId: string, chatSession: string): boolean {
+  const database = getDb();
+  const stmt = database.prepare(`
+    UPDATE leads 
+    SET chat_session = ?
+    WHERE id = ? AND deleted_at IS NULL
+  `);
+  
+  const result = stmt.run(chatSession, leadId);
+  return result.changes > 0;
+}
+
+export function updateLeadCompany(leadId: string, company: string | null): boolean {
+  const database = getDb();
+  const stmt = database.prepare(`
+    UPDATE leads 
+    SET company = ?
+    WHERE id = ? AND deleted_at IS NULL
+  `);
+  
+  const result = stmt.run(company, leadId);
   return result.changes > 0;
 }
 
