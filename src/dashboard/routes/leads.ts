@@ -5,6 +5,7 @@ import { dirname, join } from 'path';
 import { existsSync } from 'fs';
 import { getLeads, getLeadsCount, getLeadById, getLeadStats, getScrapingRuns, getScrapingRun, getActiveScrapingRuns, softDeleteLead, getLeadsWithUpcomingBirthdays, deleteIncompleteLeads, updateLeadBackground, updateLeadStatus, updateLeadEmail, createScrapingRun, updateScrapingRun } from '../../lib/db.js';
 import { generateLeadBackground } from '../../ai/background-generator.js';
+import { processManager } from '../lib/process-manager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -471,6 +472,14 @@ function spawnScrapingProcess(args: string[], cliPath: string, runId: number): {
   
   console.log('✅ Process spawned with PID:', child.pid);
   
+  // Register with process manager (detached process)
+  processManager.register(
+    child.pid,
+    'lead-scraping',
+    `Lead scraping run #${runId}`,
+    true // Detached
+  );
+  
   // Update database with process ID
   updateScrapingRun(runId, {
     process_id: child.pid,
@@ -665,7 +674,7 @@ router.post('/start-scrape', (req: Request, res: Response): void => {
 });
 
 // POST /api/leads/runs/:id/stop - Stop a scraping run
-router.post('/runs/:id/stop', (req: Request, res: Response): void => {
+router.post('/runs/:id/stop', async (req: Request, res: Response): Promise<void> => {
   try {
     const runId = parseIntegerParameter(req.params.id, 0);
     if (runId === 0) {
@@ -690,21 +699,20 @@ router.post('/runs/:id/stop', (req: Request, res: Response): void => {
       completed_at: new Date().toISOString()
     });
     
-    // If we have a process ID, try to kill it (best effort on Windows)
+    // If we have a process ID, use process manager to kill it
     if (run.process_id) {
       try {
-        // On Windows, use taskkill; on Unix, use kill
-        if (process.platform === 'win32') {
-          spawn('taskkill', ['/F', '/PID', run.process_id.toString()], { 
-            shell: true,
-            stdio: 'ignore' 
-          });
+        // Use process manager for consistent cleanup
+        const killed = await processManager.killProcess(run.process_id, false);
+        if (killed) {
+          console.log(`✅ Stopped process ${run.process_id} for run #${runId}`);
+          // Unregister from process manager
+          processManager.unregister(run.process_id);
         } else {
-          process.kill(run.process_id, 'SIGTERM');
+          console.warn(`⚠️  Could not stop process ${run.process_id} for run #${runId}`);
         }
-        console.log(`Attempted to stop process ${run.process_id} for run #${runId}`);
       } catch (error) {
-        console.error(`Could not kill process ${run.process_id}:`, error);
+        console.error(`❌ Error stopping process ${run.process_id}:`, error);
         // Don't fail the request - run is marked as stopped in DB
       }
     }

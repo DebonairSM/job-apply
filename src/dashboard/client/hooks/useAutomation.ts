@@ -17,6 +17,8 @@ export interface SearchOptions {
   locationPreset?: string;
   radius?: number;
   remote?: boolean;
+  hybrid?: boolean;
+  onsite?: boolean;
   datePosted?: 'day' | 'week' | 'month';
   minScore?: number;
   maxPages?: number;

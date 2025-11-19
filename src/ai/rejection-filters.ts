@@ -205,15 +205,23 @@ class ProhibitedKeywordsFilter implements JobFilter {
   }
 }
 
-// Remote-only enforcement filter - second layer validation after LinkedIn's native remote filter
-// LinkedIn's f_WT=2 parameter pre-filters at search time, but some hybrid jobs slip through
-// This filter catches hybrid/onsite positions by analyzing job descriptions
+// Location type enforcement filter - validates jobs match selected location preferences
+// LinkedIn's f_WT=2 parameter pre-filters at search time for remote jobs
+// This filter catches hybrid/onsite positions by analyzing job descriptions when they should be filtered out
 class LocationRequirementFilter implements JobFilter {
   private onsitePatterns: RegExp[];
   private hybridPatterns: RegExp[];
+  private remotePatterns: RegExp[];
+  private allowRemote: boolean;
+  private allowHybrid: boolean;
+  private allowOnsite: boolean;
   
-  constructor() {
-    // Patterns that indicate onsite or hybrid requirements
+  constructor(allowRemote: boolean = true, allowHybrid: boolean = true, allowOnsite: boolean = false) {
+    this.allowRemote = allowRemote;
+    this.allowHybrid = allowHybrid;
+    this.allowOnsite = allowOnsite;
+    
+    // Patterns that indicate onsite requirements
     this.onsitePatterns = [
       /\b100%\s*onsite\b/i,
       /\bfully\s*onsite\b/i,
@@ -224,28 +232,69 @@ class LocationRequirementFilter implements JobFilter {
       /\bmust\s+be\s+located\s+in\b/i,
     ];
     
+    // Patterns that indicate hybrid requirements
     this.hybridPatterns = [
       /\bhybrid\b/i,
       /\d+\s*days?\s+(?:a\s+|per\s+)?week\s+(?:in|at|onsite|on-site)/i,  // "3 days a week in office"
       /\d+x\s*(?:a\s+)?week/i,  // "3x a week"
       /\boffice\s+\d+\s+days/i,  // "office 3 days"
     ];
+    
+    // Patterns that indicate remote
+    this.remotePatterns = [
+      /\b100%\s*remote\b/i,
+      /\bfully\s*remote\b/i,
+      /\bremote\s+only\b/i,
+      /\bwork\s+from\s+home\b/i,
+      /\bWFH\b/i,
+    ];
   }
   
   shouldFilter(job: JobInput): boolean {
     const text = `${job.title} ${job.description}`.toLowerCase();
     
-    // Check for onsite patterns
-    for (const pattern of this.onsitePatterns) {
-      if (pattern.test(text)) {
-        return true;
+    // Check if job is onsite (if onsite not allowed, filter it)
+    if (!this.allowOnsite) {
+      for (const pattern of this.onsitePatterns) {
+        if (pattern.test(text)) {
+          return true;
+        }
       }
     }
     
-    // Check for hybrid patterns
-    for (const pattern of this.hybridPatterns) {
-      if (pattern.test(text)) {
-        return true;
+    // Check if job is hybrid (if hybrid not allowed, filter it)
+    if (!this.allowHybrid) {
+      for (const pattern of this.hybridPatterns) {
+        if (pattern.test(text)) {
+          return true;
+        }
+      }
+    }
+    
+    // Check if job is remote (if remote not allowed, filter it)
+    // Only filter if we explicitly see remote patterns AND we don't allow remote
+    // AND we don't see onsite/hybrid patterns (which would indicate it's not purely remote)
+    if (!this.allowRemote) {
+      let hasRemotePattern = false;
+      for (const pattern of this.remotePatterns) {
+        if (pattern.test(text)) {
+          hasRemotePattern = true;
+          break;
+        }
+      }
+      
+      // If it has remote patterns and no onsite/hybrid patterns, filter it
+      if (hasRemotePattern) {
+        let hasOnsiteOrHybrid = false;
+        for (const pattern of [...this.onsitePatterns, ...this.hybridPatterns]) {
+          if (pattern.test(text)) {
+            hasOnsiteOrHybrid = true;
+            break;
+          }
+        }
+        if (!hasOnsiteOrHybrid) {
+          return true;
+        }
       }
     }
     
@@ -253,7 +302,15 @@ class LocationRequirementFilter implements JobFilter {
   }
   
   get reason(): string {
-    return 'Job requires onsite or hybrid work arrangement';
+    const allowed: string[] = [];
+    if (this.allowRemote) allowed.push('remote');
+    if (this.allowHybrid) allowed.push('hybrid');
+    if (this.allowOnsite) allowed.push('onsite');
+    
+    if (allowed.length === 0) {
+      return 'Job location type does not match selected preferences';
+    }
+    return `Job location type does not match selected preferences (allowed: ${allowed.join(', ')})`;
   }
 }
 
@@ -426,7 +483,10 @@ class RoleTypeFilter implements JobFilter {
 }
 
 // Build filters from rejection patterns
-export function buildFiltersFromPatterns(profile?: string): JobFilter[] {
+export function buildFiltersFromPatterns(
+  profile?: string, 
+  locationPreferences?: { remote?: boolean; hybrid?: boolean; onsite?: boolean }
+): JobFilter[] {
   const filters: JobFilter[] = [];
   
   // Add manual prohibited keywords filter (always active, checks before other filters)
@@ -438,8 +498,28 @@ export function buildFiltersFromPatterns(profile?: string): JobFilter[] {
   // Add role type filter (always active, blocks non-software development roles)
   filters.push(new RoleTypeFilter());
   
-  // Add location requirement filter (always active for remote-only search)
-  filters.push(new LocationRequirementFilter());
+  // Add location requirement filter based on preferences
+  // For backward compatibility: if locationPreferences is undefined, default to old behavior
+  // (allow remote only, filter out hybrid/onsite)
+  // If locationPreferences is provided (even if empty), use explicit values
+  let allowRemote: boolean;
+  let allowHybrid: boolean;
+  let allowOnsite: boolean;
+  
+  if (locationPreferences === undefined) {
+    // Backward compatibility: old behavior filtered out hybrid/onsite
+    allowRemote = true;
+    allowHybrid = false;
+    allowOnsite = false;
+  } else {
+    // New behavior: use explicit preferences, defaulting to true for remote/hybrid if not specified
+    allowRemote = locationPreferences.remote !== false;
+    allowHybrid = locationPreferences.hybrid !== false;
+    allowOnsite = locationPreferences.onsite === true;
+  }
+  
+  // Always add location filter when preferences are specified or for backward compatibility
+  filters.push(new LocationRequirementFilter(allowRemote, allowHybrid, allowOnsite));
   
   // Add education requirement filter (always active)
   filters.push(new EducationRequirementFilter());
@@ -506,8 +586,12 @@ export function buildFiltersFromPatterns(profile?: string): JobFilter[] {
 }
 
 // Apply all filters to a job
-export function applyFilters(job: JobInput, profile?: string): FilterResult {
-  const filters = buildFiltersFromPatterns(profile);
+export function applyFilters(
+  job: JobInput, 
+  profile?: string,
+  locationPreferences?: { remote?: boolean; hybrid?: boolean; onsite?: boolean }
+): FilterResult {
+  const filters = buildFiltersFromPatterns(profile, locationPreferences);
   
   // buildFiltersFromPatterns() already includes all patterns with count >= 2
   // No need to add manual filters again (they're already included)

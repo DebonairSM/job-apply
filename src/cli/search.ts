@@ -18,6 +18,8 @@ export interface SearchOptions {
   locationPreset?: 'wesley-chapel' | string;
   radius?: number; // miles; only applied if UI exposes distance control
   remote?: boolean;
+  hybrid?: boolean;
+  onsite?: boolean;
   datePosted?: 'day' | 'week' | 'month';
   minScore?: number;
   maxPages?: number;
@@ -485,7 +487,12 @@ async function processPage(page: Page, minScore: number, config: any, opts: Sear
 
       // Check rejection filters before ranking
       const { applyFilters } = await import('../ai/rejection-filters.js');
-      const filterResult = applyFilters({ title, company, description }, opts.profile);
+      const locationPreferences = {
+        remote: opts.remote,
+        hybrid: opts.hybrid,
+        onsite: opts.onsite,
+      };
+      const filterResult = applyFilters({ title, company, description }, opts.profile, locationPreferences);
       if (filterResult.blocked) {
         console.log(`   ${analyzed}/${count} ${title} at ${company}`);
         console.log(`        ⚠️  Filtered: ${filterResult.reason}`);
@@ -679,9 +686,10 @@ function buildSearchUrl(opts: SearchOptions, page: number = 1): string {
   }
   
   // Add LinkedIn's native remote work filter
-  // This pre-filters at the LinkedIn level for efficiency
-  // LocationRequirementFilter will still validate post-search to catch hybrid jobs
-  if (opts.remote) {
+  // Only use f_WT=2 if remote is selected AND hybrid/onsite are NOT selected
+  // This pre-filters at the LinkedIn level for efficiency when we only want remote
+  // If hybrid or onsite are also selected, we search all jobs and filter post-search
+  if (opts.remote && !opts.hybrid && !opts.onsite) {
     params.set('f_WT', '2'); // LinkedIn remote work filter
   }
   

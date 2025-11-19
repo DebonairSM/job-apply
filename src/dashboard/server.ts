@@ -6,8 +6,9 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { networkInterfaces } from 'os';
-import { initDb } from '../lib/db.js';
+import { initDb, getActiveScrapingRuns } from '../lib/db.js';
 import { warmupOllamaModel } from '../ai/ollama-client.js';
+import { processManager } from './lib/process-manager.js';
 import statsRouter from './routes/stats.js';
 import jobsRouter from './routes/jobs.js';
 import leadsRouter from './routes/leads.js';
@@ -148,6 +149,93 @@ app.use((err: Error, req: express.Request, res: express.Response, _next: express
   res.status(500).json(response);
 });
 
+// Cleanup orphaned processes from database on startup
+(async () => {
+  console.log('🧹 Checking for orphaned processes from previous runs...');
+  const activeRuns = getActiveScrapingRuns();
+  if (activeRuns.length > 0) {
+    console.log(`   Found ${activeRuns.length} active scraping run(s) in database`);
+    const { updateScrapingRun } = await import('../lib/db.js');
+    
+    for (const run of activeRuns) {
+      if (run.process_id) {
+        // Check if process is still running before registering
+        if (processManager.isRunning(run.process_id)) {
+          // Register detached processes from database
+          processManager.register(
+            run.process_id,
+            'lead-scraping',
+            `Lead scraping run #${run.id} (recovered from database)`,
+            true // Detached
+          );
+          console.log(`   ✅ Registered PID ${run.process_id} from run #${run.id} (still running)`);
+        } else {
+          // Process is no longer running, mark run as stopped
+          console.log(`   ⚠️  PID ${run.process_id} from run #${run.id} is no longer running`);
+          try {
+            updateScrapingRun(run.id, {
+              status: 'stopped',
+              completed_at: new Date().toISOString(),
+              error_message: 'Process terminated (detected on server restart)'
+            });
+          } catch (error) {
+            console.error(`   ❌ Failed to update run #${run.id}:`, error);
+          }
+        }
+      }
+    }
+    
+    // Clean up any stale processes
+    processManager.cleanupStale();
+  } else {
+    console.log('   No orphaned processes found');
+  }
+})();
+
+// Graceful shutdown handler
+let server: http.Server | https.Server | null = null;
+
+async function gracefulShutdown(signal: string): Promise<void> {
+  console.log(`\n🛑 Received ${signal}, initiating graceful shutdown...`);
+  
+  // Stop accepting new connections
+  if (server) {
+    server.close(() => {
+      console.log('✅ HTTP server closed');
+    });
+  }
+  
+  // Shutdown all tracked processes
+  await processManager.shutdown(10000); // 10 second grace period
+  
+  // Close database connections
+  try {
+    const { closeDb } = await import('../lib/db.js');
+    closeDb();
+    console.log('✅ Database connections closed');
+  } catch (error) {
+    console.error('⚠️  Error closing database:', error);
+  }
+  
+  console.log('✅ Graceful shutdown complete');
+  process.exit(0);
+}
+
+// Register shutdown handlers
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Handle uncaught exceptions and unhandled rejections
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught exception:', error);
+  gracefulShutdown('uncaughtException').catch(() => process.exit(1));
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled rejection at:', promise, 'reason:', reason);
+  gracefulShutdown('unhandledRejection').catch(() => process.exit(1));
+});
+
 // Determine if we should use HTTPS or HTTP
 const useHttps = fs.existsSync(join(__dirname, '../../localhost+2-key.pem'));
 
@@ -159,7 +247,7 @@ if (useHttps) {
   };
 
   // Start HTTPS server
-  https.createServer(httpsOptions, app).listen(Number(PORT), '0.0.0.0', () => {
+  server = https.createServer(httpsOptions, app).listen(Number(PORT), '0.0.0.0', () => {
     const networkIPs = getNetworkIPs();
     console.log(`📊 Dashboard server running on https://localhost:${PORT}`);
     console.log(`   API available at https://localhost:${PORT}/api`);
@@ -170,7 +258,7 @@ if (useHttps) {
   });
 } else {
   // Start HTTP server (fallback if no certificates)
-  http.createServer(app).listen(Number(PORT), '0.0.0.0', () => {
+  server = http.createServer(app).listen(Number(PORT), '0.0.0.0', () => {
     const networkIPs = getNetworkIPs();
     console.log(`📊 Dashboard server running on http://localhost:${PORT}`);
     console.log(`   API available at http://localhost:${PORT}/api`);

@@ -128,7 +128,19 @@ yargs(hideBin(process.argv))
         })
         .option('remote', {
           alias: 'r',
-          describe: 'Remote jobs only (ignored if using --profile)',
+          describe: 'Include remote jobs',
+          type: 'boolean',
+          default: false
+        })
+        .option('hybrid', {
+          alias: 'y',
+          describe: 'Include hybrid jobs',
+          type: 'boolean',
+          default: false
+        })
+        .option('onsite', {
+          alias: 'o',
+          describe: 'Include on-site jobs',
           type: 'boolean',
           default: false
         })
@@ -171,6 +183,8 @@ yargs(hideBin(process.argv))
         locationPreset: argv['location-preset'] as any,
         radius: argv.radius as number | undefined,
         remote: argv.remote,
+        hybrid: argv.hybrid,
+        onsite: argv.onsite,
         datePosted: argv.date as 'day' | 'week' | 'month' | undefined,
         minScore: argv['min-score'],
         maxPages: argv['max-pages'],

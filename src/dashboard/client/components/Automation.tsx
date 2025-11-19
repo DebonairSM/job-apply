@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TerminalLog } from './TerminalLog';
 import {
   useAutomationStatus,
@@ -15,6 +15,7 @@ import { useToast } from '../contexts/ToastContext';
 type CommandType = 'search' | 'apply';
 
 const PROFILE_OPTIONS = [
+  { value: 'all', label: 'Run All Profiles' },
   { value: '', label: 'None (use keywords)' },
   { value: 'core', label: 'Core Azure/Cloud' },
   { value: 'backend', label: 'Backend' },
@@ -27,6 +28,11 @@ const PROFILE_OPTIONS = [
   { value: 'ai-enhanced-net', label: 'AI-Enhanced .NET' },
   { value: 'legacy-web', label: 'Legacy Web (.NET Framework, WebForms, jQuery)' },
 ];
+
+// Extract all actual profile values (excluding 'all' and empty string)
+const ALL_PROFILES = PROFILE_OPTIONS
+  .filter(opt => opt.value && opt.value !== 'all')
+  .map(opt => opt.value as string);
 
 const DATE_OPTIONS = [
   { value: 'day', label: 'Past 24 hours' },
@@ -46,7 +52,11 @@ const RADIUS_STOPS = [5, 10, 25, 50, 100];
 
 export function Automation() {
   const [isSkippedJobsExpanded, setIsSkippedJobsExpanded] = useState(false);
-  const { warning, error } = useToast();
+  const [profileQueue, setProfileQueue] = useState<string[]>([]);
+  const [currentProfileIndex, setCurrentProfileIndex] = useState<number>(-1);
+  const isRunningAllProfilesRef = useRef(false);
+  const isStartingProfileRef = useRef(false);
+  const { warning, error: showError } = useToast();
   
   const {
     // State values
@@ -55,6 +65,8 @@ export function Automation() {
     keywords,
     location,
     remote,
+    hybrid,
+    onsite,
     datePosted,
     minScore,
     maxPages,
@@ -73,6 +85,8 @@ export function Automation() {
     setKeywords,
     setLocation,
     setRemote,
+    setHybrid,
+    setOnsite,
     setDatePosted,
     setMinScore,
     setMaxPages,
@@ -94,6 +108,102 @@ export function Automation() {
   const isStopping = status?.status === 'stopping';
   const isIdle = status?.status === 'idle';
 
+  // Clear the starting flag when status changes to running (profile actually started)
+  useEffect(() => {
+    if (isRunning && isStartingProfileRef.current) {
+      console.log('[Automation] Profile started successfully, clearing starting flag');
+      isStartingProfileRef.current = false;
+    }
+  }, [isRunning]);
+
+  // Handle sequential profile execution when running all profiles
+  useEffect(() => {
+    // Only proceed if we're running all profiles and have a queue
+    if (!isRunningAllProfilesRef.current || profileQueue.length === 0) {
+      return;
+    }
+
+    // Prevent concurrent profile starts
+    if (isStartingProfileRef.current) {
+      console.log('[Automation] Already starting a profile, skipping...');
+      return;
+    }
+
+    // Don't start next profile if one is already running or stopping
+    if (isRunning || isStopping || status?.status === 'running' || status?.status === 'stopping') {
+      console.log('[Automation] Profile is currently running/stopping, waiting for completion...', {
+        isRunning,
+        isStopping,
+        status: status?.status
+      });
+      return;
+    }
+
+    console.log('[Automation] Profile queue effect:', {
+      status: status?.status,
+      isIdle,
+      isRunning,
+      currentProfileIndex,
+      queueLength: profileQueue.length,
+      isRunningAllProfiles: isRunningAllProfilesRef.current,
+      isStarting: isStartingProfileRef.current
+    });
+
+    // If we're idle (not running, not stopping) and have profiles in queue, start the next one
+    // Only proceed if status is explicitly 'idle' and not 'running'
+    if (status?.status === 'idle' && !isRunning && currentProfileIndex < profileQueue.length - 1) {
+      const nextIndex = currentProfileIndex + 1;
+      const nextProfile = profileQueue[nextIndex];
+      
+      console.log(`[Automation] Starting next profile: ${nextProfile} (${nextIndex + 1} of ${profileQueue.length})`);
+      
+      // Mark that we're starting a profile to prevent concurrent starts
+      isStartingProfileRef.current = true;
+      setCurrentProfileIndex(nextIndex);
+      
+      // Build search options with the next profile
+      const searchOptions: SearchOptions = {
+        profile: nextProfile as any,
+      };
+      
+      if (location) searchOptions.location = location;
+      if (radius !== undefined && radius !== null && radius > 0) searchOptions.radius = radius;
+      if (remote) searchOptions.remote = remote;
+      if (hybrid) searchOptions.hybrid = hybrid;
+      if (onsite) searchOptions.onsite = onsite;
+      if (datePosted) searchOptions.datePosted = datePosted;
+      searchOptions.minScore = minScore;
+      searchOptions.maxPages = maxPages;
+      searchOptions.startPage = startPage;
+
+      console.log(`[Automation] Starting profile ${nextProfile} with options:`, searchOptions);
+
+      startMutation.mutate({
+        command: 'search',
+        options: searchOptions,
+      }, {
+        onSuccess: () => {
+          console.log(`[Automation] Successfully started profile ${nextProfile}`);
+          // Flag will be cleared when status changes to 'running' (handled by separate useEffect)
+        },
+        onError: (error: Error) => {
+          console.error(`[Automation] Profile ${nextProfile} failed:`, error.message);
+          showError(`Failed to start profile ${nextProfile}: ${error.message}`);
+          // Clear the starting flag on error so we can try the next profile
+          isStartingProfileRef.current = false;
+          // Continue with next profile even on error - the useEffect will trigger again when status becomes idle
+        }
+      });
+    } else if (status?.status === 'idle' && !isRunning && currentProfileIndex === profileQueue.length - 1 && currentProfileIndex >= 0) {
+      // All profiles completed
+      console.log('[Automation] All profiles completed');
+      isRunningAllProfilesRef.current = false;
+      isStartingProfileRef.current = false;
+      setProfileQueue([]);
+      setCurrentProfileIndex(-1);
+    }
+  }, [status, isIdle, isRunning, isStopping, profileQueue, currentProfileIndex, location, radius, remote, hybrid, onsite, datePosted, minScore, maxPages, startPage, startMutation, showError]);
+
   // Don't render until settings are loaded to prevent flashing
   if (!isLoaded) {
     return (
@@ -108,12 +218,65 @@ export function Automation() {
 
   const handleStart = () => {
     if (command === 'search') {
-      // Validate search options
-      if (!profile && !keywords) {
+      // Validate search options (allow 'all' profile)
+      if (profile !== 'all' && !profile && !keywords) {
         warning('Please select a profile or enter keywords');
         return;
       }
 
+      // Handle "Run All Profiles" option
+      if (profile === 'all') {
+        if (ALL_PROFILES.length === 0) {
+          warning('No profiles available to run');
+          return;
+        }
+        
+        // Initialize queue and start first profile
+        isRunningAllProfilesRef.current = true;
+        setProfileQueue(ALL_PROFILES);
+        setCurrentProfileIndex(-1);
+        
+        // Start first profile immediately
+        const firstProfile = ALL_PROFILES[0];
+        const searchOptions: SearchOptions = {
+          profile: firstProfile as any,
+        };
+        
+        if (location) searchOptions.location = location;
+        if (radius !== undefined && radius !== null && radius > 0) searchOptions.radius = radius;
+        if (remote) searchOptions.remote = remote;
+        if (hybrid) searchOptions.hybrid = hybrid;
+        if (onsite) searchOptions.onsite = onsite;
+        if (datePosted) searchOptions.datePosted = datePosted;
+        searchOptions.minScore = minScore;
+        searchOptions.maxPages = maxPages;
+        searchOptions.startPage = startPage;
+
+        console.log(`[Automation] Starting first profile: ${firstProfile} with options:`, searchOptions);
+        isStartingProfileRef.current = true;
+        setCurrentProfileIndex(0);
+        startMutation.mutate({
+          command: 'search',
+          options: searchOptions,
+        }, {
+          onSuccess: () => {
+            console.log(`[Automation] Successfully initiated first profile: ${firstProfile}`);
+            // Flag will be cleared when status changes to 'running' (handled by separate useEffect)
+          },
+          onError: (error: Error) => {
+            console.error(`[Automation] Profile ${firstProfile} failed:`, error.message);
+            showError(`Failed to start profile ${firstProfile}: ${error.message}`);
+            // Reset state on error so user can try again
+            isRunningAllProfilesRef.current = false;
+            isStartingProfileRef.current = false;
+            setProfileQueue([]);
+            setCurrentProfileIndex(-1);
+          }
+        });
+        return;
+      }
+
+      // Single profile or keywords search
       const searchOptions: SearchOptions = {};
       
       if (profile) {
@@ -125,6 +288,8 @@ export function Automation() {
       if (location) searchOptions.location = location;
       if (radius !== undefined && radius !== null && radius > 0) searchOptions.radius = radius;
       if (remote) searchOptions.remote = remote;
+      if (hybrid) searchOptions.hybrid = hybrid;
+      if (onsite) searchOptions.onsite = onsite;
       if (datePosted) searchOptions.datePosted = datePosted;
       searchOptions.minScore = minScore;
       searchOptions.maxPages = maxPages;
@@ -136,7 +301,7 @@ export function Automation() {
       }, {
         onError: (error: Error) => {
           console.error('[Automation] Search failed:', error.message);
-          error(`Failed to start search: ${error.message}`);
+          showError(`Failed to start search: ${error.message}`);
         }
       });
     } else {
@@ -182,13 +347,20 @@ export function Automation() {
       }, {
         onError: (error: Error) => {
           console.error('[Automation] Start failed:', error.message);
-          error(`Failed to start: ${error.message}`);
+          showError(`Failed to start: ${error.message}`);
         }
       });
     }
   };
 
   const handleStop = () => {
+    // Reset all profiles queue if running
+    if (isRunningAllProfilesRef.current) {
+      isRunningAllProfilesRef.current = false;
+      isStartingProfileRef.current = false;
+      setProfileQueue([]);
+      setCurrentProfileIndex(-1);
+    }
     stopMutation.mutate();
   };
 
@@ -283,11 +455,25 @@ export function Automation() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Profile
+                  {profile === 'all' && profileQueue.length > 0 && (
+                    <span className="ml-2 text-xs text-blue-600">
+                      ({currentProfileIndex >= 0 ? currentProfileIndex + 1 : 1} of {profileQueue.length}: {currentProfileIndex >= 0 ? profileQueue[currentProfileIndex] : profileQueue[0]})
+                    </span>
+                  )}
                 </label>
                 <select
                   value={profile}
-                  onChange={(e) => setProfile(e.target.value)}
-                  disabled={!isIdle}
+                  onChange={(e) => {
+                    // Reset all profiles state when changing away from 'all'
+                    if (profile === 'all' && e.target.value !== 'all') {
+                      isRunningAllProfilesRef.current = false;
+                      isStartingProfileRef.current = false;
+                      setProfileQueue([]);
+                      setCurrentProfileIndex(-1);
+                    }
+                    setProfile(e.target.value);
+                  }}
+                  disabled={!isIdle || isRunningAllProfilesRef.current}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
                 >
                   {PROFILE_OPTIONS.map((opt) => (
@@ -300,13 +486,13 @@ export function Automation() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Keywords {!profile && <span className="text-red-500">*</span>}
+                  Keywords {!profile && profile !== 'all' && <span className="text-red-500">*</span>}
                 </label>
                 <input
                   type="text"
                   value={keywords}
                   onChange={(e) => setKeywords(e.target.value)}
-                  disabled={!isIdle || !!profile}
+                  disabled={!isIdle || (!!profile && profile !== 'all')}
                   placeholder="e.g., Senior .NET Developer"
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100"
                 />
@@ -361,17 +547,40 @@ export function Automation() {
                 </div>
               )}
 
-              <div>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={remote}
-                    onChange={(e) => setRemote(e.target.checked)}
-                    disabled={!isIdle}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:bg-gray-100"
-                  />
-                  <span className="text-sm font-medium text-gray-700">Remote Only</span>
-                </label>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Location Type</label>
+                <div className="flex flex-wrap gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={remote}
+                      onChange={(e) => setRemote(e.target.checked)}
+                      disabled={!isIdle}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:bg-gray-100"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Remote</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={hybrid}
+                      onChange={(e) => setHybrid(e.target.checked)}
+                      disabled={!isIdle}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:bg-gray-100"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Hybrid</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={onsite}
+                      onChange={(e) => setOnsite(e.target.checked)}
+                      disabled={!isIdle}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 disabled:bg-gray-100"
+                    />
+                    <span className="text-sm font-medium text-gray-700">On-site</span>
+                  </label>
+                </div>
               </div>
 
               <div>

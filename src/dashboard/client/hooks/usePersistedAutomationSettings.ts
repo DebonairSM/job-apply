@@ -8,6 +8,8 @@ export interface AutomationSettings {
   locationPreset?: string;
   radius?: number;
   remote: boolean;
+  hybrid: boolean;
+  onsite: boolean;
   datePosted: 'day' | 'week' | 'month';
   minScore: number;
   maxPages: number;
@@ -29,7 +31,9 @@ const DEFAULT_SETTINGS: AutomationSettings = {
   location: '',
   locationPreset: '',
   radius: undefined as any,
-  remote: false,
+  remote: true,
+  hybrid: true,
+  onsite: false,
   datePosted: 'day',
   minScore: 70,
   maxPages: 5,
@@ -54,7 +58,19 @@ export function usePersistedAutomationSettings() {
       if (stored) {
         const parsed = JSON.parse(stored);
         // Merge with defaults to handle any missing properties
-        setSettingsState({ ...DEFAULT_SETTINGS, ...parsed });
+        const merged = { ...DEFAULT_SETTINGS, ...parsed };
+        
+        // Migration: Handle old settings that only have 'remote' boolean
+        // If hybrid/onsite are undefined in old settings, use defaults
+        if (parsed.hybrid === undefined && parsed.onsite === undefined) {
+          // Old format: migrate based on remote value
+          // If remote was true, default to remote=true, hybrid=true, onsite=false (new defaults)
+          // If remote was false, keep remote=false, but set hybrid=true, onsite=false (allow hybrid)
+          merged.hybrid = DEFAULT_SETTINGS.hybrid;
+          merged.onsite = DEFAULT_SETTINGS.onsite;
+        }
+        
+        setSettingsState(merged);
       }
     } catch (error) {
       console.warn('Failed to load automation settings:', error);
@@ -95,6 +111,8 @@ export function usePersistedAutomationSettings() {
   const setLocationPreset = useCallback((locationPreset: string | undefined) => updateSettings({ locationPreset }), [updateSettings]);
   const setRadius = useCallback((radius: number | undefined) => updateSettings({ radius }), [updateSettings]);
   const setRemote = useCallback((remote: boolean) => updateSettings({ remote }), [updateSettings]);
+  const setHybrid = useCallback((hybrid: boolean) => updateSettings({ hybrid }), [updateSettings]);
+  const setOnsite = useCallback((onsite: boolean) => updateSettings({ onsite }), [updateSettings]);
   const setDatePosted = useCallback((datePosted: 'day' | 'week' | 'month') => updateSettings({ datePosted }), [updateSettings]);
   const setMinScore = useCallback((minScore: number) => updateSettings({ minScore }), [updateSettings]);
   const setMaxPages = useCallback((maxPages: number) => updateSettings({ maxPages }), [updateSettings]);
@@ -121,6 +139,8 @@ export function usePersistedAutomationSettings() {
     setLocationPreset,
     setRadius,
     setRemote,
+    setHybrid,
+    setOnsite,
     setDatePosted,
     setMinScore,
     setMaxPages,

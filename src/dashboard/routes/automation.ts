@@ -1,9 +1,11 @@
 import { Router, Request, Response } from 'express';
 import { spawn, ChildProcess } from 'child_process';
+import { existsSync } from 'fs';
 import { z } from 'zod';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { createStopSignal, clearStopSignal } from '../../lib/stop-signal.js';
+import { processManager } from '../lib/process-manager.js';
 
 const router = Router();
 
@@ -15,6 +17,8 @@ const SearchOptionsSchema = z.object({
   locationPreset: z.string().optional(),
   radius: z.number().optional(),
   remote: z.boolean().optional(),
+  hybrid: z.boolean().optional(),
+  onsite: z.boolean().optional(),
   datePosted: z.enum(['day', 'week', 'month']).optional(),
   minScore: z.number().min(0).max(100).optional(),
   maxPages: z.number().min(1).optional(),
@@ -124,6 +128,12 @@ router.post('/start', async (req: Request, res: Response) => {
       if (opts.remote) {
         args.push('--remote');
       }
+      if (opts.hybrid) {
+        args.push('--hybrid');
+      }
+      if (opts.onsite) {
+        args.push('--onsite');
+      }
       if (opts.datePosted) {
         args.push('--date', opts.datePosted);
       }
@@ -171,29 +181,50 @@ router.post('/start', async (req: Request, res: Response) => {
     // Spawn the CLI process
     processStatus = 'running';
     
-    // Use tsx binary directly from node_modules (more reliable than npx)
     const projectRoot = process.cwd();
     
-    // Build command with proper quoting for arguments with spaces
-    const escapedArgs = args.map(arg => {
-      if (arg.includes(' ') || arg.includes('&') || arg.includes('|')) {
-        return `"${arg.replace(/"/g, '\\"')}"`;
-      }
-      return arg;
-    });
+    // Use node to execute tsx directly (avoids shell quoting issues on Windows)
+    const isWindows = process.platform === 'win32';
     
-    const command = `tsx --no-cache src/cli.ts ${escapedArgs.join(' ')}`;
+    // Find tsx module path
+    const tsxModulePath = join(projectRoot, 'node_modules', 'tsx', 'dist', 'cli.mjs');
+    const hasTsxModule = existsSync(tsxModulePath);
     
-    console.log('[Automation API] Executing command:', command);
+    if (!hasTsxModule) {
+      throw new Error('tsx module not found. Run npm install.');
+    }
     
-    activeProcess = spawn(command, {
+    // Use node to run tsx directly
+    // tsx expects: tsx [tsx-options] <script> [script-args...]
+    // When using cli.mjs: node cli.mjs [tsx-options] <script> [script-args...]
+    const command = process.execPath; // Path to node executable
+    const spawnArgs = [
+      tsxModulePath,
+      'src/cli.ts', // Script to run (no --no-cache, causes issues)
+      ...args       // Arguments to pass to the script
+    ];
+    
+    console.log('[Automation API] Executing command:', command, spawnArgs.join(' '));
+    
+    activeProcess = spawn(command, spawnArgs, {
       cwd: projectRoot,
       env: { 
         ...process.env,
-        TSX_TSCONFIG_PATH: undefined, // Force tsx to reload
+        TSX_TSCONFIG_PATH: undefined,
       },
-      shell: true, // Use shell to properly handle quoted arguments
+      shell: false, // No shell needed when using node directly
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
+
+    // Register with process manager
+    if (activeProcess.pid) {
+      processManager.register(
+        activeProcess,
+        'automation',
+        `${parsed.command} command`,
+        false // Not detached
+      );
+    }
 
     // Capture stdout
     activeProcess.stdout?.on('data', (data: Buffer) => {
@@ -204,11 +235,19 @@ router.post('/start', async (req: Request, res: Response) => {
     // Capture stderr
     activeProcess.stderr?.on('data', (data: Buffer) => {
       const text = data.toString();
+      console.log(`[Automation API] stderr: ${text}`);
       broadcastLog(`ERROR: ${text}`);
     });
 
     // Handle process exit
     activeProcess.on('exit', (code, signal) => {
+      console.log(`[Automation API] Process exit event: code=${code}, signal=${signal}, status=${processStatus}`);
+      console.log(`[Automation API] Exit details: code=${code}, signal=${signal}, wasRunning=${processStatus === 'running'}`);
+      
+      // Unregister from process manager
+      if (activeProcess?.pid) {
+        processManager.unregister(activeProcess.pid);
+      }
       const exitMessage = code !== null 
         ? `Process exited with code ${code}`
         : `Process terminated by signal ${signal}`;
@@ -233,18 +272,30 @@ router.post('/start', async (req: Request, res: Response) => {
       } else if (processStatus === 'running') {
         // Normal exit or unexpected exit while running
         if (code === 0) {
+          console.log('[Automation API] Process completed successfully');
           broadcastStatus('idle');
           processStatus = 'idle';
         } else {
+          console.log(`[Automation API] Process exited with error code ${code}`);
           broadcastStatus('error', exitMessage);
           processStatus = 'idle';
         }
+      } else {
+        // Process exited but status wasn't set correctly - set to idle
+        console.log(`[Automation API] Process exited with unexpected status: ${processStatus}`);
+        broadcastStatus('idle');
+        processStatus = 'idle';
       }
     });
 
     // Handle process errors
     activeProcess.on('error', (error) => {
       broadcastLog(`\nProcess error: ${error.message}\n`);
+      
+      // Unregister from process manager
+      if (activeProcess?.pid) {
+        processManager.unregister(activeProcess.pid);
+      }
       
       // Only set error status if we're not in stopping state
       if (processStatus !== 'stopping') {
@@ -297,17 +348,20 @@ router.post('/stop', async (req: Request, res: Response) => {
     // Create stop signal file (works on all platforms, including Windows)
     createStopSignal();
     
-    // Also send SIGTERM for Unix-like systems
-    activeProcess.kill('SIGTERM');
-
-    // Set timeout for forceful kill
-    const forceKillTimeout = setTimeout(() => {
-      if (activeProcess) {
-        broadcastLog('⚠️  Forcefully terminating process...\n');
-        activeProcess.kill('SIGKILL');
-      }
-      clearTimeout(forceKillTimeout);
-    }, 10000); // 10 second grace period
+    // Use process manager to kill gracefully
+    if (activeProcess?.pid) {
+      // Process manager will handle graceful shutdown
+      processManager.killProcess(activeProcess.pid, false);
+      
+      // Set timeout for forceful kill
+      const forceKillTimeout = setTimeout(() => {
+        if (activeProcess?.pid) {
+          broadcastLog('⚠️  Forcefully terminating process...\n');
+          processManager.killProcess(activeProcess.pid, true);
+        }
+        clearTimeout(forceKillTimeout);
+      }, 10000); // 10 second grace period
+    }
 
     res.json({ 
       success: true, 
