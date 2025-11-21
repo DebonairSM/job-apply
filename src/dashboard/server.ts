@@ -25,6 +25,7 @@ import resumesRouter from './routes/resumes.js';
 import automationRouter from './routes/automation.js';
 import backupRouter from './routes/backup.js';
 import llmHealthRouter from './routes/llm-health.js';
+import networkMessagingRouter from './routes/network-messaging.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -107,6 +108,9 @@ app.use('/api/automation', automationRouter);
 
 // Backup Routes
 app.use('/api/backup', backupRouter);
+
+// Network Messaging Routes
+app.use('/api/network-messaging', networkMessagingRouter);
 
 // LLM Health Check
 app.use('/api/llm-health', llmHealthRouter);

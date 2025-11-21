@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import crypto from 'crypto';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -673,6 +674,41 @@ export function initDb(): void {
       status TEXT DEFAULT 'active',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Network contacts table (separate from leads - for LinkedIn network messaging)
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS network_contacts (
+      id TEXT PRIMARY KEY,
+      linkedin_id TEXT UNIQUE NOT NULL,
+      profile_url TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL,
+      title TEXT,
+      company TEXT,
+      location TEXT,
+      worked_together TEXT,
+      first_contacted_at TEXT,
+      last_contacted_at TEXT,
+      message_count INTEGER DEFAULT 0,
+      last_message_status TEXT DEFAULT 'never',
+      last_error TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Network messages table (audit trail for sent messages)
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS network_messages (
+      id TEXT PRIMARY KEY,
+      contact_id TEXT NOT NULL,
+      message_template TEXT NOT NULL,
+      message_sent TEXT NOT NULL,
+      status TEXT DEFAULT 'sent',
+      error_message TEXT,
+      sent_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (contact_id) REFERENCES network_contacts(id)
     )
   `);
   
@@ -2989,6 +3025,211 @@ export function deleteCampaign(id: string): boolean {
   const database = getDb();
   const stmt = database.prepare('DELETE FROM campaigns WHERE id = ?');
   const result = stmt.run(id);
+  return result.changes > 0;
+}
+
+// Network contacts operations (separate from leads - for LinkedIn network messaging)
+export interface NetworkContact {
+  id: string;
+  linkedin_id: string;
+  profile_url: string;
+  name: string;
+  title?: string;
+  company?: string;
+  location?: string;
+  worked_together?: string;
+  first_contacted_at?: string;
+  last_contacted_at?: string;
+  message_count: number;
+  last_message_status: 'never' | 'sent' | 'replied' | 'error';
+  last_error?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface NetworkMessage {
+  id: string;
+  contact_id: string;
+  message_template: string;
+  message_sent: string;
+  status: 'sent' | 'replied' | 'error';
+  error_message?: string;
+  sent_at?: string;
+}
+
+export function addNetworkContact(contact: Omit<NetworkContact, 'id' | 'created_at' | 'updated_at' | 'message_count' | 'last_message_status'>): string {
+  const database = getDb();
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  
+  const stmt = database.prepare(`
+    INSERT INTO network_contacts (
+      id, linkedin_id, profile_url, name, title, company, location, worked_together,
+      first_contacted_at, last_contacted_at, message_count, last_message_status, last_error,
+      created_at, updated_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  
+  stmt.run(
+    id,
+    contact.linkedin_id,
+    contact.profile_url,
+    contact.name,
+    contact.title || null,
+    contact.company || null,
+    contact.location || null,
+    contact.worked_together || null,
+    contact.first_contacted_at || null,
+    contact.last_contacted_at || null,
+    0, // message_count
+    'never', // last_message_status
+    contact.last_error || null,
+    now,
+    now
+  );
+  
+  return id;
+}
+
+export function updateNetworkContactMessaging(contactId: string, status: 'sent' | 'replied' | 'error', errorMessage?: string): boolean {
+  const database = getDb();
+  const now = new Date().toISOString();
+  
+  // Get current message count
+  const currentStmt = database.prepare('SELECT message_count, first_contacted_at FROM network_contacts WHERE id = ?');
+  const current = currentStmt.get(contactId) as { message_count: number; first_contacted_at: string | null } | undefined;
+  
+  if (!current) {
+    return false;
+  }
+  
+  const newMessageCount = current.message_count + 1;
+  const firstContactedAt = current.first_contacted_at || now;
+  
+  const stmt = database.prepare(`
+    UPDATE network_contacts
+    SET last_message_status = ?,
+        last_error = ?,
+        message_count = ?,
+        first_contacted_at = ?,
+        last_contacted_at = ?,
+        updated_at = ?
+    WHERE id = ?
+  `);
+  
+  const result = stmt.run(
+    status,
+    errorMessage || null,
+    newMessageCount,
+    firstContactedAt,
+    now,
+    now,
+    contactId
+  );
+  
+  return result.changes > 0;
+}
+
+export function getNetworkContacts(filters?: {
+  workedTogether?: boolean;
+  location?: string;
+  messaged?: boolean;
+}): NetworkContact[] {
+  const database = getDb();
+  let query = 'SELECT * FROM network_contacts WHERE 1=1';
+  const params: any[] = [];
+  
+  if (filters?.workedTogether !== undefined) {
+    if (filters.workedTogether) {
+      query += " AND worked_together IS NOT NULL AND worked_together != ''";
+    } else {
+      query += " AND (worked_together IS NULL OR worked_together = '')";
+    }
+  }
+  
+  if (filters?.location) {
+    const locationLower = filters.location.toLowerCase();
+    // Match USA, United States, or US
+    if (locationLower === 'usa' || locationLower === 'united states' || locationLower === 'us') {
+      query += " AND (LOWER(location) LIKE '%united states%' OR LOWER(location) LIKE '%usa%' OR LOWER(location) LIKE '%, us' OR LOWER(location) LIKE '% us')";
+    } else {
+      query += ' AND LOWER(location) LIKE ?';
+      params.push(`%${locationLower}%`);
+    }
+  }
+  
+  if (filters?.messaged !== undefined) {
+    if (filters.messaged) {
+      query += " AND last_message_status != 'never'";
+    } else {
+      query += " AND last_message_status = 'never'";
+    }
+  }
+  
+  query += ' ORDER BY created_at DESC';
+  
+  const stmt = database.prepare(query);
+  return stmt.all(...params) as NetworkContact[];
+}
+
+export function getNetworkContactByLinkedInId(linkedinId: string): NetworkContact | null {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM network_contacts WHERE linkedin_id = ?');
+  return stmt.get(linkedinId) as NetworkContact | null;
+}
+
+export function getNetworkContactById(id: string): NetworkContact | null {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM network_contacts WHERE id = ?');
+  return stmt.get(id) as NetworkContact | null;
+}
+
+export function hasBeenMessaged(profileUrl: string): boolean {
+  const database = getDb();
+  const stmt = database.prepare("SELECT COUNT(*) as count FROM network_contacts WHERE profile_url = ? AND last_message_status != 'never'");
+  const result = stmt.get(profileUrl) as { count: number };
+  return result.count > 0;
+}
+
+export function createNetworkMessage(message: Omit<NetworkMessage, 'id' | 'sent_at'>): string {
+  const database = getDb();
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+  
+  const stmt = database.prepare(`
+    INSERT INTO network_messages (id, contact_id, message_template, message_sent, status, error_message, sent_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `);
+  
+  stmt.run(
+    id,
+    message.contact_id,
+    message.message_template,
+    message.message_sent,
+    message.status,
+    message.error_message || null,
+    now
+  );
+  
+  return id;
+}
+
+export function getNetworkMessagesByContactId(contactId: string): NetworkMessage[] {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM network_messages WHERE contact_id = ? ORDER BY sent_at DESC');
+  return stmt.all(contactId) as NetworkMessage[];
+}
+
+export function updateNetworkMessageStatus(messageId: string, status: 'sent' | 'replied' | 'error', errorMessage?: string): boolean {
+  const database = getDb();
+  const stmt = database.prepare(`
+    UPDATE network_messages
+    SET status = ?, error_message = ?
+    WHERE id = ?
+  `);
+  
+  const result = stmt.run(status, errorMessage || null, messageId);
   return result.changes > 0;
 }
 

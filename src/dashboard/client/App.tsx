@@ -5,6 +5,7 @@ import { Dashboard } from './components/Dashboard';
 import { JobsList } from './components/JobsList';
 import { LeadsList } from './components/LeadsList';
 import { CampaignsPage } from './components/CampaignsPage';
+import { NetworkMessagingPage } from './components/NetworkMessagingPage';
 import { ActivityLog } from './components/ActivityLog';
 import { Automation } from './components/Automation';
 import { Settings } from './components/Settings';
@@ -29,6 +30,7 @@ const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/' },
   { id: 'jobs', label: 'Jobs', icon: 'work', path: '/jobs' },
   { id: 'leads', label: 'Leads', icon: 'group', path: '/leads' },
+  { id: 'network-messaging', label: 'Network Messaging', icon: 'send', path: '/network-messaging' },
   { id: 'activity', label: 'Activity', icon: 'list-alt', path: '/activity' },
   { id: 'automation', label: 'Automation', icon: 'precision-manufacturing', path: '/automation' },
   { id: 'settings', label: 'Settings', icon: 'settings', path: '/settings' },
@@ -154,6 +156,7 @@ function AppContent() {
             <Route path="/jobs" element={<JobsList />} />
             <Route path="/leads" element={<LeadsList />} />
             <Route path="/campaigns" element={<CampaignsPage />} />
+            <Route path="/network-messaging" element={<NetworkMessagingPage />} />
             <Route path="/activity" element={<ActivityLog />} />
             <Route path="/automation" element={<Automation />} />
             <Route path="/settings" element={<Settings />} />
