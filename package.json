@@ -41,7 +41,11 @@
     "rescore:skipped": "tsx scripts/rescore-skipped-jobs.ts",
     "leads:stop-stalled": "tsx scripts/stop-stalled-runs.ts",
     "seed:campaigns": "tsx scripts/seed-sunny-campaigns.ts",
-    "fix:talkflow": "tsx scripts/fix-talkflow-to-sunny.ts"
+    "fix:talkflow": "tsx scripts/fix-talkflow-to-sunny.ts",
+    "test:message:celiane": "tsx scripts/test-send-message-celiane.ts",
+    "test:message:celiane:debug": "tsx scripts/test-send-message-celiane-debug.ts",
+    "test:message:celiane:simple": "tsx scripts/test-send-message-celiane-simple.ts",
+    "test:message:celiane:safe": "tsx scripts/test-send-message-celiane-safe.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.5",

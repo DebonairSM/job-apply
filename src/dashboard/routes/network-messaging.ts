@@ -12,7 +12,7 @@ import {
   NetworkContact,
 } from '../../lib/db.js';
 import { scrapeNetworkContacts } from '../../services/network-contact-scraper.js';
-import { sendLinkedInMessage } from '../../services/linkedin-message-sender.js';
+import { sendLinkedInMessage, dryRunLinkedInMessage } from '../../services/linkedin-message-sender.js';
 import { renderMessageTemplate } from '../../services/message-template-renderer.js';
 
 const router = express.Router();
@@ -183,6 +183,12 @@ router.post('/send', async (req: Request, res: Response): Promise<void> => {
           continue;
         }
 
+        // Skip contacts that have already been sent a message (prevent duplicates)
+        if (contact.last_message_status === 'sent' || contact.last_message_status === 'replied') {
+          console.log(`   ⏭️  Skipping ${contact.name} - already sent (status: ${contact.last_message_status})`);
+          continue;
+        }
+
         // Send message
         const result = await sendLinkedInMessage(page, contact, messageTemplate);
 
@@ -219,11 +225,27 @@ router.post('/send', async (req: Request, res: Response): Promise<void> => {
             contactId,
             error: result.error || 'Unknown error',
           });
+          
+          // If the page/browser was closed, stop trying to send more messages
+          if (result.error && result.error.includes('Page or browser was closed')) {
+            console.log(`\n⚠️  Page/browser was closed. Stopping message sending. Sent: ${results.sent}, Failed: ${results.failed}`);
+            break;
+          }
         }
 
         // Random delay between messages (2-5 seconds)
-        const delay = Math.floor(Math.random() * 3000) + 2000;
-        await page.waitForTimeout(delay);
+        // Only delay if we're not on the last contact and page is still valid
+        if (contactIds.indexOf(contactId) < contactIds.length - 1) {
+          try {
+            // Check if page is still valid before delaying
+            await page.evaluate(() => document.title);
+            const delay = Math.floor(Math.random() * 3000) + 2000;
+            await page.waitForTimeout(delay);
+          } catch (delayError) {
+            // Page might have been closed, log but continue
+            console.log(`   ⚠️  Delay skipped (page may have been closed): ${delayError instanceof Error ? delayError.message : String(delayError)}`);
+          }
+        }
       }
 
       await browser.close();
@@ -351,6 +373,109 @@ router.put('/message-template', (req: Request, res: Response): void => {
       500,
       'Failed to save message template',
       error instanceof Error ? error.message : undefined
+    );
+  }
+});
+
+// POST /api/network-messaging/dry-run - Dry run: test message mechanism without sending
+router.post('/dry-run', async (req: Request, res: Response): Promise<void> => {
+  if (!hasSession()) {
+    sendErrorResponse(res, 401, 'No LinkedIn session found. Please run "npm run login" first.');
+    return;
+  }
+
+  const { contactIds } = req.body;
+
+  if (!Array.isArray(contactIds) || contactIds.length === 0) {
+    sendErrorResponse(res, 400, 'contactIds must be a non-empty array');
+    return;
+  }
+
+  try {
+    const config = loadConfig();
+
+    // Launch browser
+    const browser = await chromium.launch({
+      headless: config.headless,
+      slowMo: config.slowMo,
+      args: ['--disable-extensions', '--no-sandbox', '--disable-setuid-sandbox'],
+    });
+
+    const context = await browser.newContext({ storageState: STORAGE_STATE_PATH });
+    const page = await context.newPage();
+
+    const results = {
+      tested: 0,
+      passed: 0,
+      failed: 0,
+      errors: [] as Array<{ contactId: string; error: string }>,
+    };
+
+    try {
+      // Test message mechanism for each contact
+      for (const contactId of contactIds) {
+        console.log(`\n📋 Processing contact ID: ${contactId}`);
+        const contact = getNetworkContactById(contactId);
+        if (!contact) {
+          console.error(`   ❌ Contact not found: ${contactId}`);
+          results.failed++;
+          results.errors.push({
+            contactId,
+            error: 'Contact not found',
+          });
+          results.tested++;
+          continue;
+        }
+
+        console.log(`   👤 Contact: ${contact.name} (${contact.profile_url})`);
+
+        // Dry run: test mechanism without sending
+        const result = await dryRunLinkedInMessage(page, contact);
+
+        if (result.success) {
+          console.log(`   ✅ Dry run PASSED for ${contact.name}`);
+          results.passed++;
+        } else {
+          console.error(`   ❌ Dry run FAILED for ${contact.name}: ${result.error || 'Unknown error'}`);
+          results.failed++;
+          results.errors.push({
+            contactId,
+            error: result.error || 'Unknown error',
+          });
+        }
+
+        results.tested++;
+
+        // Random delay between tests (2-5 seconds)
+        // Only delay if we're not on the last contact and page is still valid
+        if (contactIds.indexOf(contactId) < contactIds.length - 1) {
+          try {
+            const delay = Math.floor(Math.random() * 3000) + 2000;
+            await page.waitForTimeout(delay);
+          } catch (delayError) {
+            // Page might have been closed, log but continue
+            console.log(`   ⚠️  Delay interrupted (page may have been closed): ${delayError instanceof Error ? delayError.message : String(delayError)}`);
+          }
+        }
+      }
+
+      await browser.close();
+
+      res.json(results);
+    } catch (error) {
+      await browser.close();
+      throw error;
+    }
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorStack = error instanceof Error ? error.stack : 'No stack trace available';
+    console.error('❌ Error during dry run:', errorMessage);
+    console.error('📍 Error stack:', errorStack);
+    sendErrorResponse(
+      res,
+      500,
+      'Failed to perform dry run',
+      errorMessage
     );
   }
 });

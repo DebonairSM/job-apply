@@ -196,9 +196,11 @@ The system automatically backs up your database, session, and artifacts to My Do
 
 **Backup Location**  
 The system automatically detects your Documents folder location:
-- Windows with OneDrive: `%USERPROFILE%\OneDrive\Documents\OpportunitiesBackups\`
-- Windows without OneDrive: `%USERPROFILE%\Documents\OpportunitiesBackups\`
-- Mac/Linux: `~/Documents/OpportunitiesBackups/`
+- Custom path: Set `BACKUP_PATH` environment variable to specify a custom backup directory
+- Windows with OneDrive: `%USERPROFILE%\OneDrive\Documents\backups\`
+- Windows without OneDrive: `%USERPROFILE%\Documents\backups\`
+- Mac/Linux: `~/Documents/backups/`
+- Fallback: `data/backups/` (if Documents folder is not available)
 
 **What's Backed Up**
 - Database files (`app.db` with all jobs, leads, learning data)
@@ -216,6 +218,12 @@ Backups older than 7 days are automatically deleted. This keeps 7 days of recove
 
 **OneDrive Integration**  
 The system automatically detects if your Documents folder is in OneDrive (common Windows setup). When detected, backups are stored directly in the OneDrive-synced location, providing automatic cloud backup.
+
+**Custom Backup Path**  
+To use a custom backup location, set the `BACKUP_PATH` environment variable in your `.env` file:
+```
+BACKUP_PATH=C:\Users\romme\OneDrive\Documents\backups
+```
 
 **Backup Stats**  
 View backup information in the dashboard Settings page or via CLI:

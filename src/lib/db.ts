@@ -3131,6 +3131,58 @@ export function updateNetworkContactMessaging(contactId: string, status: 'sent' 
   return result.changes > 0;
 }
 
+/**
+ * Update network contact fields (worked_together, title, company, location)
+ * Used when scraping finds updated information for existing contacts
+ */
+export function updateNetworkContact(
+  contactId: string,
+  updates: {
+    worked_together?: string;
+    title?: string;
+    company?: string;
+    location?: string;
+  }
+): boolean {
+  const database = getDb();
+  const now = new Date().toISOString();
+  
+  // Build dynamic UPDATE query based on provided fields
+  const fields: string[] = [];
+  const values: any[] = [];
+  
+  if (updates.worked_together !== undefined) {
+    fields.push('worked_together = ?');
+    values.push(updates.worked_together || null);
+  }
+  if (updates.title !== undefined) {
+    fields.push('title = ?');
+    values.push(updates.title || null);
+  }
+  if (updates.company !== undefined) {
+    fields.push('company = ?');
+    values.push(updates.company || null);
+  }
+  if (updates.location !== undefined) {
+    fields.push('location = ?');
+    values.push(updates.location || null);
+  }
+  
+  if (fields.length === 0) {
+    return false; // No fields to update
+  }
+  
+  fields.push('updated_at = ?');
+  values.push(now);
+  values.push(contactId);
+  
+  const query = `UPDATE network_contacts SET ${fields.join(', ')} WHERE id = ?`;
+  const stmt = database.prepare(query);
+  const result = stmt.run(...values);
+  
+  return result.changes > 0;
+}
+
 export function getNetworkContacts(filters?: {
   workedTogether?: boolean;
   location?: string;
@@ -3151,8 +3203,29 @@ export function getNetworkContacts(filters?: {
   if (filters?.location) {
     const locationLower = filters.location.toLowerCase();
     // Match USA, United States, or US
+    // Note: Since contacts are scraped from geoUrn filter for USA, we trust all contacts are USA
+    // For USA filter, accept:
+    // - Explicit "USA", "United States", "US" mentions
+    // - US state abbreviations (2-letter codes like "MN", "CA", "NY")  
+    // - Empty/NULL location (since search URL already filters for USA)
     if (locationLower === 'usa' || locationLower === 'united states' || locationLower === 'us') {
-      query += " AND (LOWER(location) LIKE '%united states%' OR LOWER(location) LIKE '%usa%' OR LOWER(location) LIKE '%, us' OR LOWER(location) LIKE '% us')";
+      // US state abbreviations (all 50 states + DC)
+      const usStateCodes = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD', 'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ', 'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC', 'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'DC'];
+      
+      // Build LIKE patterns for state codes (e.g., "%, MN", "%, CA")
+      const stateConditions = usStateCodes.map(state => `location LIKE '%, ${state}'`).join(' OR ');
+      
+      // Accept: NULL/empty, explicit USA mentions, US state abbreviations, or "Metropolitan Area" patterns
+      query += ` AND (
+        location IS NULL OR 
+        location = '' OR
+        LOWER(location) LIKE '%united states%' OR 
+        LOWER(location) LIKE '%usa%' OR 
+        LOWER(location) LIKE '%, us' OR 
+        LOWER(location) LIKE '% us' OR
+        LOWER(location) LIKE '%metropolitan area%' OR
+        ${stateConditions}
+      )`;
     } else {
       query += ' AND LOWER(location) LIKE ?';
       params.push(`%${locationLower}%`);

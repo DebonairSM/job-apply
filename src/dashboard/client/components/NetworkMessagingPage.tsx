@@ -51,6 +51,7 @@ Review link: https://www.thumbtack.com/reviews/services/564457491884556302/write
   const [showPlaceholderGuide, setShowPlaceholderGuide] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isDryRunning, setIsDryRunning] = useState(false);
 
   const queryClient = useQueryClient();
   const { success, error } = useToast();
@@ -180,6 +181,33 @@ Review link: https://www.thumbtack.com/reviews/services/564457491884556302/write
     },
   });
 
+  // Dry run mutation
+  const dryRunMutation = useMutation({
+    mutationFn: async (contactIds: string[]) => {
+      setIsDryRunning(true);
+      const response = await api.post('/network-messaging/dry-run', {
+        contactIds,
+      });
+      return response.data;
+    },
+    onSuccess: (data) => {
+      if (data.failed === 0) {
+        success(`Dry run completed: ${data.passed} contacts passed, ${data.tested} tested`);
+      } else {
+        success(`Dry run completed: ${data.passed} passed, ${data.failed} failed out of ${data.tested} tested`);
+        if (data.errors && data.errors.length > 0) {
+          console.error('Dry run errors:', data.errors);
+        }
+      }
+      setIsDryRunning(false);
+    },
+    onError: (err: unknown) => {
+      const errorMessage = extractErrorMessage(err, 'Failed to perform dry run');
+      error(errorMessage);
+      setIsDryRunning(false);
+    },
+  });
+
   const handleRefresh = () => {
     confirm({
       title: 'Refresh Network Contacts',
@@ -233,6 +261,23 @@ Review link: https://www.thumbtack.com/reviews/services/564457491884556302/write
           contactIds: Array.from(selectedContactIds),
           template: messageTemplate,
         });
+      },
+    });
+  };
+
+  const handleDryRun = () => {
+    if (selectedContactIds.size === 0) {
+      error('Please select at least one contact');
+      return;
+    }
+
+    confirm({
+      title: 'Dry Run: Test Message Mechanism',
+      message: `This will test the message sending mechanism for ${selectedContactIds.size} contact(s) without actually sending messages. It will navigate to each profile, open the message composer, but will NOT paste the message or click send. Continue?`,
+      confirmLabel: 'Run Dry Run',
+      cancelLabel: 'Cancel',
+      onConfirm: () => {
+        dryRunMutation.mutate(Array.from(selectedContactIds));
       },
     });
   };
@@ -463,26 +508,57 @@ Review link: https://www.thumbtack.com/reviews/services/564457491884556302/write
               ))}
             </div>
 
-            {/* Send Button */}
-            <div className="mt-6 flex justify-end">
-              <button
-                onClick={handleSend}
-                disabled={selectedContactIds.size === 0 || isSending || !messageTemplate.trim()}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {isSending ? (
-                  <>
-                    <Icon icon="progress-activity" size={20} className="animate-spin" />
-                    Sending LinkedIn Messages...
-                  </>
-                ) : (
-                  <>
-                    <Icon icon="send" size={20} />
-                    Send LinkedIn Messages ({selectedContactIds.size})
-                  </>
-                )}
-              </button>
-            </div>
+            {/* Action Buttons */}
+            {eligibleContacts.length > 0 && (
+              <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="text-sm text-gray-700">
+                    <span className="font-medium">{selectedContactIds.size}</span> contact{selectedContactIds.size !== 1 ? 's' : ''} selected
+                    {selectedContactIds.size === 0 && (
+                      <span className="ml-2 text-gray-500">(select contacts above to enable actions)</span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={handleDryRun}
+                    disabled={selectedContactIds.size === 0 || isDryRunning || isSending}
+                    className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    title={selectedContactIds.size === 0 ? 'Select at least one contact to run a dry run' : 'Test the message mechanism without sending'}
+                  >
+                    {isDryRunning ? (
+                      <>
+                        <Icon icon="progress-activity" size={20} className="animate-spin" />
+                        Running Dry Run...
+                      </>
+                    ) : (
+                      <>
+                        <Icon icon="play-arrow" size={20} />
+                        Dry Run ({selectedContactIds.size})
+                      </>
+                    )}
+                  </button>
+                  <button
+                    onClick={handleSend}
+                    disabled={selectedContactIds.size === 0 || isSending || isDryRunning || !messageTemplate.trim()}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    title={selectedContactIds.size === 0 ? 'Select at least one contact to send messages' : 'Send messages via LinkedIn'}
+                  >
+                    {isSending ? (
+                      <>
+                        <Icon icon="progress-activity" size={20} className="animate-spin" />
+                        Sending LinkedIn Messages...
+                      </>
+                    ) : (
+                      <>
+                        <Icon icon="send" size={20} />
+                        Send LinkedIn Messages ({selectedContactIds.size})
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>

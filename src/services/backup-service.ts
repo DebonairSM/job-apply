@@ -48,10 +48,27 @@ export interface BackupStats {
 }
 
 /**
- * Get the My Documents path for the current platform
- * Falls back to local data/backups if My Documents is not available
+ * Get the backup path for the current platform
+ * Priority:
+ * 1. BACKUP_PATH environment variable (if set)
+ * 2. OneDrive Documents/backups (if OneDrive exists)
+ * 3. Documents/backups (regular Documents folder)
+ * 4. Local data/backups (fallback)
  */
 export function getMyDocumentsPath(): string {
+  // Check for explicit backup path in environment variable
+  if (process.env.BACKUP_PATH) {
+    const customPath = process.env.BACKUP_PATH;
+    try {
+      if (!existsSync(customPath)) {
+        mkdirSync(customPath, { recursive: true });
+      }
+      return customPath;
+    } catch (error) {
+      console.warn(`⚠️  Could not use BACKUP_PATH="${customPath}", falling back to default:`, error);
+    }
+  }
+  
   const userProfile = process.env.USERPROFILE || process.env.HOME;
   
   if (!userProfile) {
@@ -60,13 +77,13 @@ export function getMyDocumentsPath(): string {
   }
   
   // Check for OneDrive Documents folder first (common on Windows)
-  const oneDriveDocs = join(userProfile, 'OneDrive', 'Documents', 'OpportunitiesBackups');
-  const regularDocs = join(userProfile, 'Documents', 'OpportunitiesBackups');
+  const oneDriveDocs = join(userProfile, 'OneDrive', 'Documents', 'backups');
+  const regularDocs = join(userProfile, 'Documents', 'backups');
   
   // Try OneDrive Documents location first
   let myDocs = regularDocs;
   
-  // Check if OneDrive Documents exists (without OpportunitiesBackups subfolder)
+  // Check if OneDrive Documents exists (without backups subfolder)
   const oneDriveDocsParent = join(userProfile, 'OneDrive', 'Documents');
   if (existsSync(oneDriveDocsParent)) {
     myDocs = oneDriveDocs;
