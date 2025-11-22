@@ -711,6 +711,25 @@ export function initDb(): void {
       FOREIGN KEY (contact_id) REFERENCES network_contacts(id)
     )
   `);
+
+  // Network contact scraping runs table (tracks scraping progress)
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS network_contact_scraping_runs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      started_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      completed_at TEXT,
+      status TEXT DEFAULT 'in_progress',
+      contacts_scraped INTEGER DEFAULT 0,
+      contacts_added INTEGER DEFAULT 0,
+      last_profile_url TEXT,
+      max_contacts INTEGER,
+      current_page INTEGER DEFAULT 1,
+      error_message TEXT,
+      process_id INTEGER,
+      last_activity_at TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
   
   console.log('📊 Database schema ready');
 }
@@ -3304,6 +3323,133 @@ export function updateNetworkMessageStatus(messageId: string, status: 'sent' | '
   
   const result = stmt.run(status, errorMessage || null, messageId);
   return result.changes > 0;
+}
+
+// Network Contact Scraping Runs
+export interface NetworkContactScrapingRun {
+  id?: number;
+  started_at?: string;
+  completed_at?: string;
+  status: 'in_progress' | 'completed' | 'stopped' | 'error';
+  contacts_scraped: number;
+  contacts_added: number;
+  last_profile_url?: string;
+  max_contacts?: number;
+  current_page?: number; // Last page being processed (useful for resuming)
+  created_at?: string;
+  error_message?: string;
+  process_id?: number;
+  last_activity_at?: string;
+}
+
+export function createNetworkContactScrapingRun(run: Omit<NetworkContactScrapingRun, 'id' | 'created_at' | 'started_at'>): number {
+  const database = getDb();
+  const now = new Date().toISOString();
+  const stmt = database.prepare(`
+    INSERT INTO network_contact_scraping_runs (
+      started_at, status, contacts_scraped, contacts_added, last_profile_url, max_contacts,
+      current_page, error_message, process_id, last_activity_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  
+  const result = stmt.run(
+    now,
+    run.status,
+    run.contacts_scraped,
+    run.contacts_added,
+    run.last_profile_url || null,
+    run.max_contacts || null,
+    run.current_page || 1,
+    run.error_message || null,
+    run.process_id || null,
+    run.last_activity_at || now
+  );
+  
+  return result.lastInsertRowid as number;
+}
+
+export function updateNetworkContactScrapingRun(id: number, updates: Partial<NetworkContactScrapingRun>): void {
+  const database = getDb();
+  const fields: string[] = [];
+  const values: any[] = [];
+  
+  if (updates.status !== undefined) {
+    fields.push('status = ?');
+    values.push(updates.status);
+  }
+  
+  if (updates.contacts_scraped !== undefined) {
+    fields.push('contacts_scraped = ?');
+    values.push(updates.contacts_scraped);
+  }
+  
+  if (updates.contacts_added !== undefined) {
+    fields.push('contacts_added = ?');
+    values.push(updates.contacts_added);
+  }
+  
+  if (updates.last_profile_url !== undefined) {
+    fields.push('last_profile_url = ?');
+    values.push(updates.last_profile_url);
+  }
+  
+  if (updates.current_page !== undefined) {
+    fields.push('current_page = ?');
+    values.push(updates.current_page);
+  }
+  
+  if (updates.completed_at !== undefined) {
+    fields.push('completed_at = ?');
+    values.push(updates.completed_at);
+  }
+  
+  if (updates.error_message !== undefined) {
+    fields.push('error_message = ?');
+    values.push(updates.error_message);
+  }
+  
+  if (updates.process_id !== undefined) {
+    fields.push('process_id = ?');
+    values.push(updates.process_id);
+  }
+  
+  if (updates.last_activity_at !== undefined) {
+    fields.push('last_activity_at = ?');
+    values.push(updates.last_activity_at);
+  }
+  
+  if (fields.length === 0) {
+    return;
+  }
+  
+  values.push(id);
+  
+  const stmt = database.prepare(`
+    UPDATE network_contact_scraping_runs
+    SET ${fields.join(', ')}
+    WHERE id = ?
+  `);
+  
+  stmt.run(...values);
+}
+
+export function getNetworkContactScrapingRun(id: number): NetworkContactScrapingRun | null {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM network_contact_scraping_runs WHERE id = ?');
+  return stmt.get(id) as NetworkContactScrapingRun | null;
+}
+
+export function getNetworkContactScrapingRuns(limit: number = 10): NetworkContactScrapingRun[] {
+  const database = getDb();
+  const stmt = database.prepare('SELECT * FROM network_contact_scraping_runs ORDER BY started_at DESC LIMIT ?');
+  return stmt.all(limit) as NetworkContactScrapingRun[];
+}
+
+export function getActiveNetworkContactScrapingRuns(): NetworkContactScrapingRun[] {
+  const database = getDb();
+  const stmt = database.prepare("SELECT * FROM network_contact_scraping_runs WHERE status = 'in_progress' ORDER BY started_at DESC");
+  return stmt.all() as NetworkContactScrapingRun[];
 }
 
 // Initialize on import

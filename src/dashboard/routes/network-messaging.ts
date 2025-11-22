@@ -10,6 +10,8 @@ import {
   getApplicationPreference,
   saveApplicationPreference,
   NetworkContact,
+  createNetworkContactScrapingRun,
+  updateNetworkContactScrapingRun,
 } from '../../lib/db.js';
 import { scrapeNetworkContacts } from '../../services/network-contact-scraper.js';
 import { sendLinkedInMessage, dryRunLinkedInMessage } from '../../services/linkedin-message-sender.js';
@@ -88,11 +90,26 @@ router.post('/refresh', async (req: Request, res: Response): Promise<void> => {
     return;
   }
 
-  const { maxContacts } = req.body;
+  const { maxContacts, startPage } = req.body;
   const max = parseIntegerParameter(maxContacts, 1000);
+  const startPageNum = parseIntegerParameter(startPage, 1);
+
+  let runId: number | undefined;
 
   try {
     const config = loadConfig();
+
+    // Create scraping run in database
+    runId = createNetworkContactScrapingRun({
+      status: 'in_progress',
+      contacts_scraped: 0,
+      contacts_added: 0,
+      max_contacts: max,
+      current_page: startPageNum,
+    });
+
+    console.log(`✅ Created network contact scraping run ID: ${runId}`);
+    console.log(`📄 Starting from page: ${startPageNum}`);
 
     // Launch browser
     const browser = await chromium.launch({
@@ -106,14 +123,22 @@ router.post('/refresh', async (req: Request, res: Response): Promise<void> => {
 
     try {
       // Scrape network contacts
-      const progress = await scrapeNetworkContacts(page, {
+      const progress = await scrapeNetworkContacts(page, runId, {
         maxContacts: max,
+        startPage: startPageNum,
+      });
+
+      // Mark run as completed
+      updateNetworkContactScrapingRun(runId, {
+        status: 'completed',
+        completed_at: new Date().toISOString(),
       });
 
       await browser.close();
 
       res.json({
         success: true,
+        runId,
         contactsScraped: progress.contactsScraped,
         contactsAdded: progress.contactsAdded,
       });
@@ -123,6 +148,16 @@ router.post('/refresh', async (req: Request, res: Response): Promise<void> => {
     }
   } catch (error) {
     console.error('Error refreshing network contacts:', error);
+    
+    // Mark run as error if we created one
+    if (runId !== undefined) {
+      updateNetworkContactScrapingRun(runId, {
+        status: 'error',
+        completed_at: new Date().toISOString(),
+        error_message: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+    
     sendErrorResponse(
       res,
       500,

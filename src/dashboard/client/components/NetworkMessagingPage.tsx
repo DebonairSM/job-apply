@@ -52,6 +52,7 @@ Review link: https://www.thumbtack.com/reviews/services/564457491884556302/write
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [isDryRunning, setIsDryRunning] = useState(false);
+  const [startPage, setStartPage] = useState<number>(1);
 
   const queryClient = useQueryClient();
   const { success, error } = useToast();
@@ -134,9 +135,9 @@ Review link: https://www.thumbtack.com/reviews/services/564457491884556302/write
 
   // Refresh contacts mutation
   const refreshMutation = useMutation({
-    mutationFn: async (maxContacts: number) => {
+    mutationFn: async ({ maxContacts, startPage }: { maxContacts: number; startPage: number }) => {
       setIsRefreshing(true);
-      const response = await api.post('/network-messaging/refresh', { maxContacts });
+      const response = await api.post('/network-messaging/refresh', { maxContacts, startPage });
       return response.data;
     },
     onSuccess: (data) => {
@@ -211,11 +212,11 @@ Review link: https://www.thumbtack.com/reviews/services/564457491884556302/write
   const handleRefresh = () => {
     confirm({
       title: 'Refresh Network Contacts',
-      message: 'This will scrape fresh contacts from LinkedIn. Continue?',
+      message: `This will scrape fresh contacts from LinkedIn starting from page ${startPage}. Continue?`,
       confirmLabel: 'Refresh',
       cancelLabel: 'Cancel',
       onConfirm: () => {
-        refreshMutation.mutate(1000);
+        refreshMutation.mutate({ maxContacts: 1000, startPage });
       },
     });
   };
@@ -316,14 +317,35 @@ Review link: https://www.thumbtack.com/reviews/services/564457491884556302/write
             Messages are sent directly through LinkedIn's messaging interface
           </p>
         </div>
-        <button
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Icon icon={isRefreshing ? 'progress-activity' : 'refresh'} size={20} className={isRefreshing ? 'animate-spin' : ''} />
-          {isRefreshing ? 'Refreshing...' : 'Refresh Contacts'}
-        </button>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <label htmlFor="startPage" className="text-sm text-gray-700 font-medium">
+              Start Page:
+            </label>
+            <input
+              id="startPage"
+              type="number"
+              min="1"
+              value={startPage}
+              onChange={(e) => {
+                const value = parseInt(e.target.value, 10);
+                if (!isNaN(value) && value >= 1) {
+                  setStartPage(value);
+                }
+              }}
+              className="w-20 px-2 py-1 border border-gray-300 rounded text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isRefreshing}
+            />
+          </div>
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Icon icon={isRefreshing ? 'progress-activity' : 'refresh'} size={20} className={isRefreshing ? 'animate-spin' : ''} />
+            {isRefreshing ? 'Refreshing...' : 'Refresh Contacts'}
+          </button>
+        </div>
       </div>
 
       {/* Message Template Section */}

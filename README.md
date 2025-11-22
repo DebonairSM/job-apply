@@ -195,12 +195,14 @@ npm run backup -- --stats                      # Show backup statistics
 The system automatically backs up your database, session, and artifacts to My Documents to protect your data.
 
 **Backup Location**  
-The system automatically detects your Documents folder location:
+The system automatically detects your Documents folder location and uses the application name for the backup folder:
 - Custom path: Set `BACKUP_PATH` environment variable to specify a custom backup directory
-- Windows with OneDrive: `%USERPROFILE%\OneDrive\Documents\backups\`
-- Windows without OneDrive: `%USERPROFILE%\Documents\backups\`
-- Mac/Linux: `~/Documents/backups/`
+- Windows with OneDrive: `%USERPROFILE%\OneDrive\Documents\opportunities\`
+- Windows without OneDrive: `%USERPROFILE%\Documents\opportunities\`
+- Mac/Linux: `~/Documents/opportunities/`
 - Fallback: `data/backups/` (if Documents folder is not available)
+
+The backup folder name matches the application name from `package.json` to keep backups organized by application.
 
 **What's Backed Up**
 - Database files (`app.db` with all jobs, leads, learning data)
@@ -224,6 +226,8 @@ To use a custom backup location, set the `BACKUP_PATH` environment variable in y
 ```
 BACKUP_PATH=C:\Users\romme\OneDrive\Documents\backups
 ```
+
+Note: If you set a custom `BACKUP_PATH`, it will be used as-is. Otherwise, the system uses the application name (from `package.json`) as the folder name within your Documents directory.
 
 **Backup Stats**  
 View backup information in the dashboard Settings page or via CLI:

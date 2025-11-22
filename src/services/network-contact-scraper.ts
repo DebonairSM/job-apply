@@ -12,11 +12,13 @@ import {
   getNetworkContactByLinkedInId,
   updateNetworkContact,
   NetworkContact,
+  updateNetworkContactScrapingRun,
 } from '../lib/db.js';
 import { randomDelay } from '../lib/resilience.js';
 
 export interface NetworkContactScraperOptions {
   maxContacts?: number;
+  startPage?: number;
 }
 
 export interface ScrapingProgress {
@@ -68,6 +70,99 @@ function cleanWorkedTogetherText(text: string): string {
 }
 
 /**
+ * Build a LinkedIn People Search URL with page number
+ * @param pageNumber The page number to navigate to (1-based)
+ * @param baseUrl Optional base URL to use (preserves existing filters)
+ * @returns Full search URL with page parameter
+ */
+function buildSearchUrl(pageNumber: number, baseUrl?: string): string {
+  const defaultBaseUrl = 'https://www.linkedin.com/search/results/people/?network=%5B%22F%22%5D&geoUrn=%5B%22103644278%22%5D';
+
+  let url: URL;
+  try {
+    url = new URL(baseUrl ?? defaultBaseUrl);
+  } catch (error) {
+    url = new URL(defaultBaseUrl);
+  }
+
+  const params = url.searchParams;
+  params.set('page', pageNumber.toString());
+  url.search = params.toString();
+
+  return url.toString();
+}
+
+/**
+ * Check if the current page is a LinkedIn login or checkpoint page
+ * @param page Playwright page instance
+ * @returns true if on login/checkpoint page, false otherwise
+ */
+async function isLoginOrCheckpointPage(page: Page): Promise<boolean> {
+  try {
+    const currentUrl = page.url();
+    
+    // Check URL patterns
+    if (currentUrl.includes('/login') || 
+        currentUrl.includes('/checkpoint') ||
+        currentUrl.includes('/challenge') ||
+        currentUrl.includes('/uas/login')) {
+      return true;
+    }
+    
+    // Check page title
+    const pageTitle = await page.title().catch(() => '');
+    const titleLower = pageTitle.toLowerCase();
+    if (titleLower.includes('sign in') || 
+        titleLower.includes('login') ||
+        titleLower.includes('security challenge') ||
+        titleLower.includes('verify your identity')) {
+      return true;
+    }
+    
+    // Check for login form elements
+    const loginFormExists = await page.locator('form[action*="login"], input[name="session_key"], input[type="email"][placeholder*="Email"]').count().catch(() => 0);
+    if (loginFormExists > 0) {
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    // If we can't check, assume we're not on login page
+    return false;
+  }
+}
+
+/**
+ * Verify we're still authenticated and on a valid LinkedIn page
+ * @param page Playwright page instance
+ * @param expectedUrlPattern Optional URL pattern to verify we're on the right page
+ * @returns true if authenticated and on valid page, false otherwise
+ */
+async function verifyAuthentication(page: Page, expectedUrlPattern?: string): Promise<boolean> {
+  try {
+    // Check for login/checkpoint pages
+    if (await isLoginOrCheckpointPage(page)) {
+      console.log('   ⚠️  Detected login/checkpoint page - session may have expired');
+      return false;
+    }
+    
+    // If expected URL pattern provided, verify we're on the right page
+    if (expectedUrlPattern) {
+      const currentUrl = page.url();
+      if (!currentUrl.includes(expectedUrlPattern)) {
+        console.log(`   ⚠️  URL mismatch: expected pattern "${expectedUrlPattern}", got "${currentUrl}"`);
+        // Don't fail authentication check just because URL doesn't match - might be a redirect
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    console.log(`   ⚠️  Error verifying authentication: ${error instanceof Error ? error.message : String(error)}`);
+    return false;
+  }
+}
+
+/**
  * Check if location indicates USA
  * Since search URL uses geoUrn filter for USA, this is mainly for validation
  */
@@ -94,15 +189,18 @@ function isUSALocation(location: string | null | undefined): boolean {
  */
 export async function scrapeNetworkContacts(
   page: Page,
+  runId: number,
   options: NetworkContactScraperOptions = {}
 ): Promise<ScrapingProgress> {
   const maxContacts = options.maxContacts || 1000;
+  const startPage = options.startPage || 1; // Default to page 1
   
   console.log('🔍 Starting LinkedIn network contact scraper...');
   console.log('   Connection Degree: 1st (direct connections)');
   console.log('   Location: USA');
   console.log('   Filter: Worked together');
   console.log(`   Max Contacts: ${maxContacts}`);
+  console.log(`   Start Page: ${startPage}`);
   console.log();
 
   const progress: ScrapingProgress = {
@@ -113,15 +211,30 @@ export async function scrapeNetworkContacts(
   // Build search URL: 1st degree connections, USA location
   // network=["F"] = 1st degree connections
   // geoUrn=["103644278"] = United States
-  const searchUrl = 'https://www.linkedin.com/search/results/people/?network=%5B%22F%22%5D&geoUrn=%5B%22103644278%22%5D';
+  const baseSearchUrl = 'https://www.linkedin.com/search/results/people/?network=%5B%22F%22%5D&geoUrn=%5B%22103644278%22%5D';
+  
+  // Track current search URL for page navigation
+  let currentSearchUrl = buildSearchUrl(startPage, baseSearchUrl);
 
   try {
 
-    console.log('📄 Navigating to People Search...');
-    await page.goto(searchUrl, {
+    console.log(`📄 Navigating to People Search (page ${startPage})...`);
+    await page.goto(currentSearchUrl, {
       waitUntil: 'domcontentloaded',
     });
     await page.waitForTimeout(3000);
+
+    // Check if we were redirected to login/checkpoint page
+    if (!(await verifyAuthentication(page, 'search/results/people'))) {
+      const errorMsg = 'LinkedIn session expired or authentication required. Please run "npm run login" to re-authenticate.';
+      console.error(`\n❌ ${errorMsg}`);
+      updateNetworkContactScrapingRun(runId, {
+        status: 'error',
+        error_message: errorMsg,
+        completed_at: new Date().toISOString(),
+      });
+      throw new Error(errorMsg);
+    }
 
     // Wait for search results to load
     await page.waitForSelector(
@@ -133,12 +246,24 @@ export async function scrapeNetworkContacts(
 
     console.log('✅ Search results loaded\n');
 
-    let currentPage = 1;
+    let currentPage = startPage;
     let hasMorePages = true;
 
     // Process pages
     while (hasMorePages && progress.contactsScraped < maxContacts) {
       console.log(`\n📄 Processing page ${currentPage}...`);
+
+      // Verify authentication before processing page
+      if (!(await verifyAuthentication(page, 'search/results/people'))) {
+        const errorMsg = `LinkedIn session expired on page ${currentPage}. Please run "npm run login" to re-authenticate.`;
+        console.error(`\n❌ ${errorMsg}`);
+        updateNetworkContactScrapingRun(runId, {
+          status: 'error',
+          error_message: errorMsg,
+          completed_at: new Date().toISOString(),
+        });
+        throw new Error(errorMsg);
+      }
 
       // Get all result cards on current page
       const selectorsToTry = [
@@ -533,9 +658,21 @@ export async function scrapeNetworkContacts(
             try {
               console.log(`   🔍 Checking profile page for ${name}...`);
               
-              // Navigate to profile page
-              await page.goto(normalizedUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
+              // Navigate to profile page with timeout (max 15 seconds)
+              await page.goto(normalizedUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
               await page.waitForTimeout(2000);
+              
+              // Check if we were redirected to login/checkpoint page
+              if (!(await verifyAuthentication(page, '/in/'))) {
+                const errorMsg = `LinkedIn session expired while checking profile for ${name}. Please run "npm run login" to re-authenticate.`;
+                console.error(`\n❌ ${errorMsg}`);
+                updateNetworkContactScrapingRun(runId, {
+                  status: 'error',
+                  error_message: errorMsg,
+                  completed_at: new Date().toISOString(),
+                });
+                throw new Error(errorMsg);
+              }
               
               // Wait for profile content to load
               await page.waitForSelector('body', { timeout: 5000 }).catch(() => {});
@@ -597,8 +734,8 @@ export async function scrapeNetworkContacts(
                 }
               }
               
-              // Navigate back to search results (restore to original page)
-              await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
+              // Navigate back to search results (restore to current page)
+              await page.goto(currentSearchUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
               await page.waitForTimeout(2000);
               
               // Wait for search results and re-establish card context
@@ -614,7 +751,7 @@ export async function scrapeNetworkContacts(
               console.log(`   ⚠️  Error checking profile page: ${err.message}`);
               // Try to navigate back to search even if profile check failed
               try {
-                await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
+                await page.goto(currentSearchUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
                 await page.waitForTimeout(2000);
                 await page.waitForSelector(
                   'ul.reusables-search-results__list, div.search-results-container',
@@ -756,6 +893,15 @@ export async function scrapeNetworkContacts(
           if (location) console.log(`      Location: ${location}`);
           if (workedTogether) console.log(`      🤝 ${workedTogether}`);
 
+          // Update scraping run progress in database
+          updateNetworkContactScrapingRun(runId, {
+            contacts_scraped: progress.contactsScraped,
+            contacts_added: progress.contactsAdded,
+            last_profile_url: normalizedUrl,
+            current_page: currentPage,
+            last_activity_at: new Date().toISOString(),
+          });
+
           // Random delay to avoid detection
           await randomDelay();
 
@@ -780,121 +926,112 @@ export async function scrapeNetworkContacts(
         break;
       }
 
-      // Try to navigate to next page - retry multiple times if needed
-      let pageNavigationAttempts = 0;
-      const maxNavigationAttempts = 3;
-      let navigatedToNextPage = false;
-
-      while (pageNavigationAttempts < maxNavigationAttempts && !navigatedToNextPage) {
+      // Navigate to next page (keep going until we hit an error or max contacts)
+      if (progress.contactsScraped < maxContacts) {
         try {
-          pageNavigationAttempts++;
-          
-          // Wait a bit before trying to find next button
-          await page.waitForTimeout(2000);
-          
-          // Try multiple selectors for next button
-          const nextButtonSelectors = [
-            'button[aria-label="Next"]:not([disabled])',
-            'button.artdeco-pagination__button--next:not([disabled])',
-            'button[aria-label*="Next"]:not([disabled])',
-            '.artdeco-pagination button[aria-label="Next"]:not([disabled])',
-            'button.pagination__button--next:not([disabled])',
-          ];
+          // Wait for pagination to be stable
+          await page
+            .waitForSelector('.artdeco-pagination', {
+              state: 'visible',
+              timeout: 5000,
+            })
+            .catch(() => {});
+          await page.waitForTimeout(1000);
 
-          let nextButton = null;
-          for (const selector of nextButtonSelectors) {
-            try {
-              const btn = page.locator(selector);
-              const count = await btn.count();
-              if (count > 0) {
-                // Check if button is actually enabled
-                const isDisabled = await btn.getAttribute('disabled');
-                const isVisible = await btn.isVisible().catch(() => false);
-                const ariaDisabled = await btn.getAttribute('aria-disabled').catch(() => null);
-                // Button is enabled if disabled attribute is null and aria-disabled is not "true"
-                const isEnabled = isDisabled === null && ariaDisabled !== 'true' && isVisible;
-                if (isEnabled) {
-                  nextButton = btn;
-                  break;
-                }
-              }
-            } catch (selectorError) {
-              // Try next selector
-              continue;
-            }
+          // Check pagination state text (e.g., "Page 3 of 84")
+          const paginationStateText = await page
+            .locator(
+              '.artdeco-pagination__page-state, .artdeco-pagination__state--a11y',
+            )
+            .first()
+            .innerText({ timeout: 2000 })
+            .catch(() => null);
+
+          if (paginationStateText) {
+            console.log(`   📄 Pagination: ${paginationStateText.trim()}`);
           }
 
-          if (nextButton) {
-            console.log(`\n➡️  Navigating to page ${currentPage + 1}... (attempt ${pageNavigationAttempts})`);
-            
-            // Scroll next button into view
-            await nextButton.scrollIntoViewIfNeeded().catch(() => {});
-            await page.waitForTimeout(1000);
-            
-            // Click next button
-            await nextButton.click({ timeout: 5000 });
-            await page.waitForTimeout(3000);
+          // Always try to navigate to next page using URL parameter (more reliable than checking buttons)
+          const nextPageNum = currentPage + 1;
+          currentSearchUrl = buildSearchUrl(nextPageNum, currentSearchUrl);
+          
+          console.log(`\n➡️  Navigating to page ${nextPageNum} via URL...`);
+          console.log(`   URL: ${currentSearchUrl}`);
+          
+          await page.goto(currentSearchUrl, {
+            waitUntil: 'domcontentloaded',
+            timeout: 15000,
+          });
+          await page.waitForTimeout(3000);
 
-            // Wait for new page to load
-            await page.waitForSelector(
-              'ul.reusables-search-results__list, div.search-results-container',
-              {
-                state: 'visible',
-                timeout: 15000,
-              }
-            );
-
-            // Verify we're actually on a new page by checking if results changed
-            await page.waitForTimeout(2000);
-            
-            const newCardCount = await page.locator(bestSelector || 'div.search-results-container ul > li').count();
-            if (newCardCount > 0) {
-              currentPage++;
-              navigatedToNextPage = true;
-              console.log(`   ✅ Successfully navigated to page ${currentPage}`);
-            } else {
-              console.log(`   ⚠️  Page ${currentPage + 1} appears empty, trying again...`);
-              // Wait a bit longer and try again
-              await page.waitForTimeout(3000);
-            }
-          } else {
-            if (pageNavigationAttempts >= maxNavigationAttempts) {
-              console.log('\n✅ No more pages available (next button not found)');
-              hasMorePages = false;
-            } else {
-              console.log(`   ⚠️  Next button not found, retrying... (attempt ${pageNavigationAttempts}/${maxNavigationAttempts})`);
-              await page.waitForTimeout(2000);
-            }
+          // Check if we were redirected to login/checkpoint page
+          if (!(await verifyAuthentication(page, 'search/results/people'))) {
+            const errorMsg = `LinkedIn session expired while navigating to page ${nextPageNum}. Please run "npm run login" to re-authenticate.`;
+            console.error(`\n❌ ${errorMsg}`);
+            updateNetworkContactScrapingRun(runId, {
+              status: 'error',
+              error_message: errorMsg,
+              completed_at: new Date().toISOString(),
+            });
+            throw new Error(errorMsg);
           }
+
+          // Wait for search results to reload
+          await page.waitForSelector(
+            'ul.reusables-search-results__list, div.search-results-container',
+            {
+              state: 'visible',
+              timeout: 10000,
+            }
+          );
+
+          await page.waitForTimeout(1500);
+          currentPage = nextPageNum;
+          
+          // Update current page in database
+          updateNetworkContactScrapingRun(runId, {
+            current_page: currentPage,
+            last_activity_at: new Date().toISOString(),
+          });
+          
+          console.log(`   ✅ Successfully navigated to page ${currentPage}`);
         } catch (error) {
           const err = error as Error;
-          if (pageNavigationAttempts >= maxNavigationAttempts) {
-            console.log(`\n⚠️  Error navigating to next page after ${maxNavigationAttempts} attempts: ${err.message}`);
-            hasMorePages = false;
-          } else {
-            console.log(`   ⚠️  Navigation error (attempt ${pageNavigationAttempts}/${maxNavigationAttempts}): ${err.message}, retrying...`);
-            await page.waitForTimeout(3000);
-            
-            // Try to refresh the page if navigation failed
-            try {
-              await page.goto(searchUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
-              await page.waitForTimeout(2000);
-              await page.waitForSelector(
-                'ul.reusables-search-results__list, div.search-results-container',
-                { timeout: 10000 }
-              );
-            } catch (refreshError) {
-              // If refresh fails, give up on this page
-              console.log(`   ❌ Failed to refresh page, stopping pagination`);
-              hasMorePages = false;
-              break;
+          const errorMsg = err.message;
+          
+          // Check if it's an authentication error
+          if (errorMsg.includes('session expired') || errorMsg.includes('authentication required')) {
+            // Re-throw to stop scraping
+            throw err;
+          }
+          
+          // Check if we were redirected to login/checkpoint page
+          try {
+            if (await isLoginOrCheckpointPage(page)) {
+              const authErrorMsg = `LinkedIn session expired while navigating to page ${currentPage + 1}. Please run "npm run login" to re-authenticate.`;
+              console.error(`\n❌ ${authErrorMsg}`);
+              updateNetworkContactScrapingRun(runId, {
+                status: 'error',
+                error_message: authErrorMsg,
+                completed_at: new Date().toISOString(),
+              });
+              throw new Error(authErrorMsg);
+            }
+          } catch (checkError) {
+            // If check itself fails, assume it's an auth error
+            if (checkError instanceof Error && 
+                (checkError.message.includes('session expired') || checkError.message.includes('authentication required'))) {
+              throw checkError;
             }
           }
+          
+          console.log(`\n⚠️  Error navigating to page ${currentPage + 1}: ${errorMsg}`);
+          console.log('   Assuming no more pages (reached end of results)');
+          hasMorePages = false;
         }
-      }
-      
-      // If we couldn't navigate after all attempts, stop
-      if (!navigatedToNextPage && pageNavigationAttempts >= maxNavigationAttempts) {
+      } else {
+        // Max contacts limit reached
+        console.log(`\n🎯 Max contact limit reached (${maxContacts} contacts)`);
         hasMorePages = false;
       }
     }

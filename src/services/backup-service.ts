@@ -3,6 +3,7 @@ import { join, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { getDb } from '../lib/db.js';
+import { APP_NAME } from '../constants/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -51,9 +52,11 @@ export interface BackupStats {
  * Get the backup path for the current platform
  * Priority:
  * 1. BACKUP_PATH environment variable (if set)
- * 2. OneDrive Documents/backups (if OneDrive exists)
- * 3. Documents/backups (regular Documents folder)
+ * 2. OneDrive Documents/{APP_NAME} (if OneDrive exists)
+ * 3. Documents/{APP_NAME} (regular Documents folder)
  * 4. Local data/backups (fallback)
+ * 
+ * The backup folder name uses the application name from package.json to keep backups organized by application.
  */
 export function getMyDocumentsPath(): string {
   // Check for explicit backup path in environment variable
@@ -77,13 +80,14 @@ export function getMyDocumentsPath(): string {
   }
   
   // Check for OneDrive Documents folder first (common on Windows)
-  const oneDriveDocs = join(userProfile, 'OneDrive', 'Documents', 'backups');
-  const regularDocs = join(userProfile, 'Documents', 'backups');
+  // Use app name for backup folder to keep backups organized by application
+  const oneDriveDocs = join(userProfile, 'OneDrive', 'Documents', APP_NAME);
+  const regularDocs = join(userProfile, 'Documents', APP_NAME);
   
   // Try OneDrive Documents location first
   let myDocs = regularDocs;
   
-  // Check if OneDrive Documents exists (without backups subfolder)
+  // Check if OneDrive Documents exists (without app name subfolder)
   const oneDriveDocsParent = join(userProfile, 'OneDrive', 'Documents');
   if (existsSync(oneDriveDocsParent)) {
     myDocs = oneDriveDocs;

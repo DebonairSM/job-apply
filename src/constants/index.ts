@@ -4,6 +4,30 @@
  * that prevent typos and enable autocomplete.
  */
 
+import { readFileSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+/**
+ * Application name from package.json
+ * Used for backup folder names and other app-specific paths
+ */
+function getAppName(): string {
+  try {
+    const packageJsonPath = join(__dirname, '../../package.json');
+    const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
+    return packageJson.name || 'opportunities';
+  } catch (error) {
+    // Fallback if package.json can't be read
+    return 'opportunities';
+  }
+}
+
+export const APP_NAME = getAppName();
+
 export const JobStatus = {
   QUEUED: 'queued',
   APPLIED: 'applied',
