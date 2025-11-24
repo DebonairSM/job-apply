@@ -122,8 +122,3 @@ This is standard across most messaging platforms (Slack, Discord, Teams, etc.)
 ## Prevention
 
 Always use `Shift+Enter` for line breaks in any messaging automation. Never let raw newlines (`\n`) be typed directly in messaging composers.
-
-
-
-
-

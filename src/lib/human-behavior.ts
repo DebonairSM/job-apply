@@ -221,7 +221,3 @@ export async function simulateReadingCard(page: Page, cardLocator: Locator): Pro
   const readDelay = normalRandomDelay(2000, 5000);
   await new Promise(resolve => setTimeout(resolve, readDelay));
 }
-
-
-
-
