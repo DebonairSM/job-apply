@@ -6,9 +6,11 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { networkInterfaces } from 'os';
+import cron from 'node-cron';
 import { initDb, getActiveScrapingRuns } from '../lib/db.js';
 import { warmupOllamaModel } from '../ai/ollama-client.js';
 import { processManager } from './lib/process-manager.js';
+import { createBackup } from '../services/backup-service.js';
 import statsRouter from './routes/stats.js';
 import jobsRouter from './routes/jobs.js';
 import leadsRouter from './routes/leads.js';
@@ -34,6 +36,30 @@ const __dirname = dirname(__filename);
 console.log('🔧 Initializing database...');
 initDb();
 console.log('✅ Database initialized');
+
+// Schedule hourly backups (at minute 0 of each hour)
+let backupCronJob: cron.ScheduledTask | null = null;
+try {
+  backupCronJob = cron.schedule('0 * * * *', async () => {
+    console.log('🔄 Starting scheduled hourly backup...');
+    try {
+      const result = await createBackup();
+      if (result.success) {
+        console.log(`✅ Scheduled backup completed: ${result.backupFiles.length} file(s) backed up`);
+      } else {
+        console.error(`❌ Scheduled backup failed: ${result.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('❌ Error during scheduled backup:', error instanceof Error ? error.message : error);
+    }
+  }, {
+    scheduled: true,
+    timezone: 'UTC'
+  });
+  console.log('✅ Hourly backup scheduler initialized (runs at minute 0 of each hour)');
+} catch (error) {
+  console.warn('⚠️  Could not initialize backup scheduler:', error);
+}
 
 // Pre-warm the LLM model to avoid timeouts on first API call
 console.log('🔥 Warming up LLM model...');
@@ -201,6 +227,12 @@ let server: http.Server | https.Server | null = null;
 
 async function gracefulShutdown(signal: string): Promise<void> {
   console.log(`\n🛑 Received ${signal}, initiating graceful shutdown...`);
+  
+  // Stop backup scheduler
+  if (backupCronJob) {
+    backupCronJob.stop();
+    console.log('✅ Backup scheduler stopped');
+  }
   
   // Stop accepting new connections
   if (server) {

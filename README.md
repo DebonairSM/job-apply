@@ -195,14 +195,14 @@ npm run backup -- --stats                      # Show backup statistics
 The system automatically backs up your database, session, and artifacts to My Documents to protect your data.
 
 **Backup Location**  
-The system automatically detects your Documents folder location and uses the application name for the backup folder:
-- Custom path: Set `BACKUP_PATH` environment variable to specify a custom backup directory
-- Windows with OneDrive: `%USERPROFILE%\OneDrive\Documents\opportunities\`
-- Windows without OneDrive: `%USERPROFILE%\Documents\opportunities\`
-- Mac/Linux: `~/Documents/opportunities/`
-- Fallback: `data/backups/` (if Documents folder is not available)
+The system automatically detects your Documents folder location and uses a shared backups directory with app-specific subfolders:
+- Custom path: Set `BACKUP_PATH` environment variable to specify a custom backup directory (should point to app-specific folder)
+- Windows with OneDrive: `%USERPROFILE%\OneDrive\Documents\backups\Opportunities\`
+- Windows without OneDrive: `%USERPROFILE%\Documents\backups\Opportunities\`
+- Mac/Linux: `~/Documents/backups/Opportunities/`
+- Fallback: `data/backups/Opportunities/` (if Documents folder is not available)
 
-The backup folder name matches the application name from `package.json` to keep backups organized by application.
+The parent `backups` directory is shared by multiple applications, with each app getting its own subfolder. This keeps backups organized while allowing multiple apps to use the same backup location.
 
 **What's Backed Up**
 - Database files (`app.db` with all jobs, leads, learning data)
@@ -210,13 +210,14 @@ The backup folder name matches the application name from `package.json` to keep 
 - Artifacts folder (screenshots, debug traces)
 
 **When Backups Run**
+- **Automatically hourly**: Backups run at minute 0 of each hour while the application is running (dashboard server must be running)
 - Automatically before each job search (`npm run search`)
 - Automatically before each lead scraping run (`npm run leads:search`)
 - Manually via CLI (`npm run backup`)
 - Manually via dashboard Settings page (Create Backup Now button)
 
 **Retention Policy**  
-Backups older than 7 days are automatically deleted. This keeps 7 days of recovery points while managing disk space.
+The system keeps the 10 most recent backups. Older backups are automatically deleted after each successful backup. Backups are sorted by timestamp in the filename for accurate retention management.
 
 **OneDrive Integration**  
 The system automatically detects if your Documents folder is in OneDrive (common Windows setup). When detected, backups are stored directly in the OneDrive-synced location, providing automatic cloud backup.
@@ -224,10 +225,16 @@ The system automatically detects if your Documents folder is in OneDrive (common
 **Custom Backup Path**  
 To use a custom backup location, set the `BACKUP_PATH` environment variable in your `.env` file:
 ```
-BACKUP_PATH=C:\Users\romme\OneDrive\Documents\backups
+BACKUP_PATH=C:\Users\romme\OneDrive\Documents\backups\Opportunities
 ```
 
-Note: If you set a custom `BACKUP_PATH`, it will be used as-is. Otherwise, the system uses the application name (from `package.json`) as the folder name within your Documents directory.
+Note: If you set a custom `BACKUP_PATH`, it should point to the app-specific folder (e.g., `backups/Opportunities`). Otherwise, the system automatically creates the shared `backups` directory structure with the app-specific subfolder.
+
+**Backup Features:**
+- **Automatic hourly backups**: Backups run automatically at minute 0 of each hour while the application is running
+- **Retention policy**: Keeps the 10 most recent backups (older backups are automatically deleted)
+- **File naming**: `opportunities-{env}-{timestamp}.db` format for easy identification and sorting
+- **Restore instructions**: Each backup folder contains `Opportunities-RESTORE.md` with step-by-step restore instructions
 
 **Backup Stats**  
 View backup information in the dashboard Settings page or via CLI:
@@ -291,6 +298,10 @@ HEADLESS=false
 
 # Enable Playwright traces for debugging (default: false)
 ENABLE_TRACING=false
+
+# Environment identifier for backups (default: dev)
+# Used in backup filenames: opportunities-{env}-{timestamp}.db
+ENVIRONMENT=dev
 ```
 
 **Form Policies** (`answers-policy.yml`):

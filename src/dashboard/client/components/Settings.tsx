@@ -20,12 +20,21 @@ interface UserProfile {
   updated_at?: string;
 }
 
+interface BackupFile {
+  filename: string;
+  date: string;
+  size: number;
+  timestamp: string;
+}
+
 interface BackupInfo {
   lastBackupDate: string | null;
   lastBackupSize: number;
   lastBackupName?: string;
   backupCount: number;
   backupLocation?: string;
+  totalSize?: number;
+  recentBackups?: BackupFile[];
 }
 
 export function Settings() {
@@ -93,13 +102,15 @@ export function Settings() {
       });
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create backup');
+        const errorMessage = errorData.message || errorData.error || 'Failed to create backup';
+        throw new Error(errorMessage);
       }
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['backup-info'] });
-      success('Backup created successfully!');
+      const message = data.message || `Backup created successfully: ${data.backupFiles?.length || 0} file(s)`;
+      success(message);
     },
     onError: (err: Error) => {
       showError(`Failed to create backup: ${err.message}`);
@@ -174,7 +185,15 @@ export function Settings() {
 
         {/* Database Backup Info */}
         <div className="mb-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h3 className="text-xl font-semibold text-gray-800 mb-4">Database Backup</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold text-gray-800">Database Backup</h3>
+            <button
+              onClick={() => queryClient.invalidateQueries({ queryKey: ['backup-info'] })}
+              className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
+            >
+              Refresh
+            </button>
+          </div>
           
           {backupInfo?.backupLocation && (
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -182,7 +201,7 @@ export function Settings() {
                 <strong>Backup Location:</strong> {backupInfo.backupLocation}
               </p>
               <p className="text-xs text-blue-600 mt-1">
-                Backups are automatically created before job/lead searches and synced via OneDrive
+                Backups are automatically created hourly and synced via OneDrive. The backups directory is shared by multiple applications.
               </p>
             </div>
           )}
@@ -197,7 +216,7 @@ export function Settings() {
               </p>
             </div>
             <div className="bg-gray-50 rounded-lg p-4">
-              <p className="text-sm text-gray-600 mb-1">Backup Size</p>
+              <p className="text-sm text-gray-600 mb-1">Last Backup Size</p>
               <p className="text-lg font-medium text-gray-900">
                 {backupInfo?.lastBackupSize 
                   ? `${(backupInfo.lastBackupSize / 1024 / 1024).toFixed(2)} MB`
@@ -209,18 +228,52 @@ export function Settings() {
               <p className="text-lg font-medium text-gray-900">
                 {backupInfo?.backupCount || 0}
               </p>
+              {backupInfo?.totalSize && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Total: {(backupInfo.totalSize / 1024 / 1024).toFixed(2)} MB
+                </p>
+              )}
             </div>
           </div>
+
+          {/* Recent Backups List */}
+          {backupInfo?.recentBackups && backupInfo.recentBackups.length > 0 && (
+            <div className="mb-4">
+              <h4 className="text-sm font-medium text-gray-700 mb-2">Recent Backups</h4>
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <div className="max-h-48 overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Filename</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 uppercase">Size</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {backupInfo.recentBackups.map((backup, index) => (
+                        <tr key={index} className="hover:bg-gray-50">
+                          <td className="px-3 py-2 text-gray-900 font-mono text-xs">{backup.filename}</td>
+                          <td className="px-3 py-2 text-gray-600">{new Date(backup.date).toLocaleString()}</td>
+                          <td className="px-3 py-2 text-right text-gray-600">{(backup.size / 1024 / 1024).toFixed(2)} MB</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
           
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between pt-4 border-t border-gray-200">
             <div>
               {backupInfo?.lastBackupName && (
                 <p className="text-sm text-gray-500">
-                  Latest: {backupInfo.lastBackupName}
+                  Latest: <span className="font-mono text-xs">{backupInfo.lastBackupName}</span>
                 </p>
               )}
               <p className="text-xs text-gray-400 mt-1">
-                Retention: 7 days (automatic cleanup)
+                Retention: 10 most recent backups (automatic cleanup)
               </p>
             </div>
             <button

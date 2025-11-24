@@ -14,7 +14,13 @@ import {
   NetworkContact,
   updateNetworkContactScrapingRun,
 } from '../lib/db.js';
-import { randomDelay } from '../lib/resilience.js';
+import {
+  randomHumanDelay,
+  randomPageDelay,
+  randomBatchDelay,
+  simulateReadingCard,
+  simulateNaturalScrolling,
+} from '../lib/human-behavior.js';
 
 export interface NetworkContactScraperOptions {
   maxContacts?: number;
@@ -306,11 +312,18 @@ export async function scrapeNetworkContacts(
         break;
       }
 
+      // Simulate natural scrolling through search results before processing
+      // This makes the activity appear more human-like
+      await simulateNaturalScrolling(page);
+      
       // Process each profile card on this page
       for (let i = 0; i < cardCount && progress.contactsScraped < maxContacts; i++) {
         const card = page.locator(bestSelector).nth(i);
 
         try {
+          // Simulate reading the card before processing (scroll into view, pause, hover)
+          // This adds human-like engagement signals
+          await simulateReadingCard(page, card);
           // Extract profile URL - try multiple approaches
           let profileUrl: string | null = null;
           
@@ -595,16 +608,18 @@ export async function scrapeNetworkContacts(
           // Since we're using geoUrn filter, we trust LinkedIn's geo filter
           // Note: We don't skip based on location since search URL already filters for USA
 
-          // Check for "worked together" indicator
-          // LinkedIn shows this in various formats:
+          // Check for "worked together" indicator from search result card only
+          // NOTE: We no longer visit profile pages to check - this reduces detection risk significantly
+          // LinkedIn shows this in various formats on search cards:
           // - "You worked together at [Company]"
           // - "Worked together at [Company]"
           // - "You both worked at [Company]"
           // - "Worked at [Company] together"
-          // - Sometimes shown as a separate element or badge
-          const cardText = await card.textContent().catch(() => '');
+          // - Sometimes shown as a separate element or badge in insights section
           let workedTogether = '';
           
+          // Method 1: Extract from card text content
+          const cardText = await card.textContent().catch(() => '');
           if (cardText) {
             // Try multiple patterns for "worked together" text
             const workedTogetherPatterns = [
@@ -612,6 +627,7 @@ export async function scrapeNetworkContacts(
               /you\s+both\s+worked\s+at\s+([^\.\n,]+)/i,
               /worked\s+at\s+([^\.\n,]+)\s+together/i,
               /worked\s+at\s+the\s+same\s+company[:\s]+([^\.\n,]+)/i,
+              /both\s+worked\s+at\s+([^\.\n,]+)/i,
             ];
             
             for (const pattern of workedTogetherPatterns) {
@@ -623,23 +639,32 @@ export async function scrapeNetworkContacts(
             }
           }
           
-          // Also check for visual indicators (badges, icons) that might indicate worked together
+          // Method 2: Check for visual indicators (badges, icons) in insights section
           // Look for elements with aria-label or title attributes
           if (!workedTogether) {
             const workedTogetherIndicators = [
+              '.entity-result__insights [aria-label*="worked together" i]',
+              '.entity-result__insights [title*="worked together" i]',
+              '.entity-result__insights [aria-label*="worked at" i]',
+              '.entity-result__insights [class*="worked"]',
               '[aria-label*="worked together" i]',
               '[title*="worked together" i]',
               '[aria-label*="worked at" i]',
-              '.entity-result__insights [class*="worked"]',
             ];
             
             for (const selector of workedTogetherIndicators) {
               const indicator = card.locator(selector).first();
               const count = await indicator.count().catch(() => 0);
               if (count > 0) {
-                const text = await indicator.getAttribute('aria-label').catch(() => 
-                  indicator.getAttribute('title').catch(() => null)
-                );
+                // Try getting text from multiple sources
+                let text = await indicator.getAttribute('aria-label').catch(() => null);
+                if (!text) {
+                  text = await indicator.getAttribute('title').catch(() => null);
+                }
+                if (!text) {
+                  text = await indicator.textContent({ timeout: 1000 }).catch(() => null);
+                }
+                
                 if (text) {
                   const match = text.match(/worked\s+(?:together\s+)?at\s+([^\.\n,]+)/i);
                   if (match && match[1]) {
@@ -650,122 +675,53 @@ export async function scrapeNetworkContacts(
               }
             }
           }
-
-          // If "worked together" not found on search card, visit profile page to check
-          // Based on actual HTML structure: "You both worked at [Company]" appears in Highlights section
-          // Structure: li.artdeco-list__item.pvs-list__item--two-column with spans containing the text
+          
+          // Method 3: Check insights section text directly (similar to lead scraper approach)
+          // LinkedIn sometimes shows "You both worked at" in span elements within insights
           if (!workedTogether) {
-            try {
-              console.log(`   🔍 Checking profile page for ${name}...`);
+            const insightsSelectors = [
+              'span.t-14.t-normal span[aria-hidden="true"]',
+              '.entity-result__insights span[aria-hidden="true"]',
+              'div.mr1.hoverable-link-text.t-bold span[aria-hidden="true"]',
+              'span[aria-hidden="true"]:has-text("You both worked at")',
+              'span[aria-hidden="true"]:has-text("worked at")',
+            ];
+            
+            for (const selector of insightsSelectors) {
+              const elem = card.locator(selector);
+              const count = await elem.count().catch(() => 0);
               
-              // Navigate to profile page with timeout (max 15 seconds)
-              await page.goto(normalizedUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
-              await page.waitForTimeout(2000);
-              
-              // Check if we were redirected to login/checkpoint page
-              if (!(await verifyAuthentication(page, '/in/'))) {
-                const errorMsg = `LinkedIn session expired while checking profile for ${name}. Please run "npm run login" to re-authenticate.`;
-                console.error(`\n❌ ${errorMsg}`);
-                updateNetworkContactScrapingRun(runId, {
-                  status: 'error',
-                  error_message: errorMsg,
-                  completed_at: new Date().toISOString(),
-                });
-                throw new Error(errorMsg);
-              }
-              
-              // Wait for profile content to load
-              await page.waitForSelector('body', { timeout: 5000 }).catch(() => {});
-              
-              // Look for "worked together" indicator in Highlights section
-              // Based on HTML: li.artdeco-list__item with text "You both worked at [Company]"
-              const highlightsSelectors = [
-                'li.artdeco-list__item.pvs-list__item--two-column',
-                'li[class*="pvs-list__item"]',
-                '.pvs-list li',
-              ];
-              
-              for (const containerSelector of highlightsSelectors) {
-                const highlights = page.locator(containerSelector);
-                const count = await highlights.count().catch(() => 0);
-                
+              if (count > 0) {
+                // Check each matching element
                 for (let idx = 0; idx < count; idx++) {
-                  const highlight = highlights.nth(idx);
-                  const highlightText = await highlight.textContent({ timeout: 1000 }).catch(() => '');
-                  
-                  if (highlightText) {
-                    // Look for "You both worked at [Company]" pattern
-                    const workedTogetherPatterns = [
-                      /you\s+both\s+worked\s+at\s+([^\.\n,]+)/i,
-                      /(?:you\s+)?worked\s+together\s+at\s+([^\.\n,]+)/i,
-                      /both\s+worked\s+at\s+([^\.\n,]+)/i,
-                    ];
-                    
-                    for (const pattern of workedTogetherPatterns) {
-                      const match = highlightText.match(pattern);
-                      if (match && match[1]) {
-                        workedTogether = cleanWorkedTogetherText(match[1]);
-                        if (workedTogether) {
-                          console.log(`   ✅ Found on profile: You both worked at ${workedTogether}`);
-                          break;
-                        }
-                      }
+                  const text = await elem
+                    .nth(idx)
+                    .textContent({ timeout: 2000 })
+                    .catch(() => null);
+                  if (
+                    text &&
+                    text.trim() &&
+                    text.toLowerCase().includes("you both worked")
+                  ) {
+                    // Extract company name from the text
+                    const match = text.match(/you\s+both\s+worked\s+at\s+([^\.\n,]+)/i);
+                    if (match && match[1]) {
+                      workedTogether = cleanWorkedTogetherText(match[1]);
+                      if (workedTogether) break;
                     }
-                    
-                    if (workedTogether) break;
                   }
                 }
                 
                 if (workedTogether) break;
               }
-              
-              // Fallback: check entire page text if not found in highlights
-              if (!workedTogether) {
-                const profileText = await page.textContent('body').catch(() => '');
-                if (profileText) {
-                  const fallbackPattern = /you\s+both\s+worked\s+at\s+([^\.\n,]+)/i;
-                  const match = profileText.match(fallbackPattern);
-                  if (match && match[1]) {
-                    workedTogether = cleanWorkedTogetherText(match[1]);
-                    if (workedTogether) {
-                      console.log(`   ✅ Found on profile page: You both worked at ${workedTogether}`);
-                    }
-                  }
-                }
-              }
-              
-              // Navigate back to search results (restore to current page)
-              await page.goto(currentSearchUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
-              await page.waitForTimeout(2000);
-              
-              // Wait for search results and re-establish card context
-              await page.waitForSelector(
-                'ul.reusables-search-results__list, div.search-results-container',
-                { timeout: 10000 }
-              );
-              
-              // Small delay to let page stabilize
-              await page.waitForTimeout(1000);
-            } catch (error) {
-              const err = error as Error;
-              console.log(`   ⚠️  Error checking profile page: ${err.message}`);
-              // Try to navigate back to search even if profile check failed
-              try {
-                await page.goto(currentSearchUrl, { waitUntil: 'domcontentloaded', timeout: 10000 });
-                await page.waitForTimeout(2000);
-                await page.waitForSelector(
-                  'ul.reusables-search-results__list, div.search-results-container',
-                  { timeout: 10000 }
-                );
-              } catch (navError) {
-                console.log(`   ⚠️  Error navigating back to search: ${(navError as Error).message}`);
-              }
             }
           }
           
-          // Skip if still no "worked together" indicator found
+          // Skip if no "worked together" indicator found on search card
+          // NOTE: We intentionally do NOT visit profile pages to reduce detection risk
+          // Some contacts may be missed, but this is acceptable to maintain account safety
           if (!workedTogether) {
-            console.log(`   ⏭️  Skipped ${name}: No worked together indicator found`);
+            console.log(`   ⏭️  Skipped ${name}: No worked together indicator found on search card`);
             progress.contactsScraped++;
             continue;
           }
@@ -902,8 +858,16 @@ export async function scrapeNetworkContacts(
             last_activity_at: new Date().toISOString(),
           });
 
-          // Random delay to avoid detection
-          await randomDelay();
+          // Human-like delay between contacts (5-15 seconds)
+          // Uses normal distribution for more realistic timing
+          await randomHumanDelay(5000, 15000);
+          
+          // Batch break: After every 10 contacts, take a longer break (60-180 seconds)
+          // This simulates natural breaks in browsing activity
+          if (progress.contactsScraped > 0 && progress.contactsScraped % 10 === 0) {
+            console.log(`   ⏸️  Taking batch break after ${progress.contactsScraped} contacts...`);
+            await randomBatchDelay(60000, 180000);
+          }
 
         } catch (error) {
           const err = error as Error;
@@ -958,11 +922,19 @@ export async function scrapeNetworkContacts(
           console.log(`\n➡️  Navigating to page ${nextPageNum} via URL...`);
           console.log(`   URL: ${currentSearchUrl}`);
           
+          // Longer delay before navigating to next page (30-90 seconds)
+          // This simulates reading through results before moving to next page
+          console.log(`   ⏸️  Pausing before next page...`);
+          await randomPageDelay(30000, 90000);
+          
           await page.goto(currentSearchUrl, {
             waitUntil: 'domcontentloaded',
             timeout: 15000,
           });
           await page.waitForTimeout(3000);
+          
+          // Simulate reading through the new page after load
+          await simulateNaturalScrolling(page);
 
           // Check if we were redirected to login/checkpoint page
           if (!(await verifyAuthentication(page, 'search/results/people'))) {
